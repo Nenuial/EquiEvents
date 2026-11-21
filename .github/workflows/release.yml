@@ -70,8 +70,9 @@ jobs:
       fail-fast: ${{ github.event_name == 'push' }}
       matrix:
         include:
+          # GitHub's current macOS (Apple chips; the Intel half is built for its target).
           - system: macos
-            runner: macos-14
+            runner: macos-latest
           - system: windows
             runner: windows-latest
     runs-on: ${{ matrix.runner }}
