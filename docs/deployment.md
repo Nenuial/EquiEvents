@@ -92,8 +92,10 @@ On the server, as the other projects (Docker Compose behind Nginx Proxy Manager)
 4. Nginx Proxy Manager: a proxy host `www.equievents.ch` and `equievents.ch` → `eq-web`, port
    3000, Let's Encrypt, Force SSL. No timeout to raise: what waits for Swiss Equestrian runs in
    the background, and the app asks how it goes.
-5. An administrator for support: `docker compose exec web equievents-server create-admin
-   "Prénom Nom" adresse@exemple.ch` (the password is printed once).
+5. The first administrator: `docker compose exec web equievents-server create-admin
+   "Prénom Nom" adresse@exemple.ch` (the password is printed once). Others get their role in
+   the online version (« Comptes ») or with `equievents-server set-role adresse@exemple.ch
+   admin|support|none`.
 6. Backups: the worker writes one every night into the `backups` volume (14 kept); copy them
    off the server as the other projects' dumps.
 
@@ -103,7 +105,7 @@ memory (a restart forgets them; the app asks again).
 ## 6. E-mail
 
 Until the mailbox `info@equievents.ch` exists with the domain's SPF, DKIM and DMARC, `MAIL_MODE=off`
-(a forgotten password then needs `set-password`). Then `MAIL_MODE=redirect` with
+(a forgotten password then needs an administrator: « Comptes », a new password). Then `MAIL_MODE=redirect` with
 `MAIL_REDIRECT_TO` to try it, then `send`.
 
 ## 7. Checking it works

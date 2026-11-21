@@ -1317,3 +1317,143 @@ async fn an_owner_deletes_an_event() {
     stop.send(()).ok();
     test_db.drop().await;
 }
+
+/// Signed in on the site: the session's cookie.
+async fn site_cookie(router: &axum::Router, email: &str, password: &str) -> String {
+    let form = format!("email={}&password={}", urlencode(email), urlencode(password));
+    let (status, headers, _) = browser(router, "POST", "/connexion", &[("content-type", "application/x-www-form-urlencoded")], Some(form)).await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{email}");
+    headers["set-cookie"].to_str().unwrap().split(';').next().unwrap().to_string()
+}
+
+/// A call of the online version, signed in with `cookie`.
+async fn online(router: &axum::Router, cookie: &str, method: &str, path: &str, body: Option<Value>) -> (StatusCode, Value) {
+    let headers = [("cookie", cookie), ("sec-fetch-site", "same-origin"), ("content-type", "application/json")];
+    let (status, _, body) = browser(router, method, path, &headers, body.map(|b| b.to_string())).await;
+    (status, serde_json::from_str(&body).unwrap_or(Value::Null))
+}
+
+/// Staff (the user, 2026-11-21), in the online version only: support sees the accounts and acts
+/// as one (its events, as it, its changes signed with both names), never as staff; it does not
+/// administer. Administrators also set passwords, send reset links, give roles (never their
+/// own) and delete accounts with all their data: the shows they own released (who worked on
+/// them told), their online version's files gone.
+#[tokio::test(flavor = "multi_thread")]
+async fn staff_help_and_administer_accounts() {
+    let Some(test_db) = TestDb::new("staff").await else { return };
+    let pool = db::pool(&test_db.url).unwrap();
+    db::migrate(&pool).await.unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}", listener.local_addr().unwrap());
+    let (se, _, _) = stand_in_se(0);
+    let mailer = mail::Mailer::off();
+    let web = server::web::Web::new(dir.path().join("offices"), &url, None);
+    let app = api::App { se, web: Some(std::sync::Arc::new(web)), mail_in_background: false, ..api::App::new(pool.clone(), mailer.clone(), "https://www.equievents.ch") };
+    let router = api::router(app);
+    let served = router.clone();
+    tokio::spawn(async move { axum::serve(listener, served.into_make_service_with_connect_info::<std::net::SocketAddr>()).await.unwrap() });
+    let mut ids = Vec::new();
+    for (name, email, admin) in [("Ada Admin", "ada@example.ch", true), ("Sam Support", "sam@example.ch", false), ("Olga Owner", "olga@example.ch", false), ("Carl Collab", "carl@example.ch", false)] {
+        ids.push(auth::create_user(&pool, name, email, "a-good-password", admin, Lang::Fr).await.unwrap().unwrap().id);
+    }
+    let (ada_id, sam_id, olga_id) = (ids[0], ids[1], ids[2]);
+    let r = &router;
+    let ada = site_cookie(r, "ada@example.ch", "a-good-password").await;
+    let sam = site_cookie(r, "sam@example.ch", "a-good-password").await;
+    let olga = site_cookie(r, "olga@example.ch", "a-good-password").await;
+    let names = |list: &Value| list.as_array().unwrap().iter().map(|a| a["name"].as_str().unwrap().to_string()).collect::<Vec<_>>();
+
+    // Not staff: no panel.
+    let (status, me) = online(r, &olga, "GET", "/app/admin/me", None).await;
+    assert_eq!((status, me["role"].as_str(), me["acting_as"].clone()), (StatusCode::OK, Some(""), Value::Null), "{me}");
+    let (status, refused) = online(r, &olga, "GET", "/app/admin/accounts", None).await;
+    assert_eq!((status, refused["code"].as_str()), (StatusCode::FORBIDDEN, Some("not_staff")));
+
+    // The administrator: the accounts, found by name or address; Sam made support.
+    assert_eq!(online(r, &ada, "GET", "/app/admin/me", None).await.1["role"], "admin");
+    let (status, all) = online(r, &ada, "GET", "/app/admin/accounts", None).await;
+    assert_eq!((status, names(&all)), (StatusCode::OK, vec!["Ada Admin".to_string(), "Carl Collab".into(), "Olga Owner".into(), "Sam Support".into()]), "{all}");
+    assert_eq!(names(&online(r, &ada, "GET", "/app/admin/accounts?q=OLGA%40", None).await.1), ["Olga Owner"]);
+    assert_eq!(online(r, &ada, "POST", &format!("/app/admin/accounts/{sam_id}/role"), Some(json!({ "role": "support" }))).await.0, StatusCode::OK);
+    let (status, refused) = online(r, &ada, "POST", &format!("/app/admin/accounts/{ada_id}/role"), Some(json!({ "role": "none" }))).await;
+    assert_eq!((status, refused["code"].as_str()), (StatusCode::BAD_REQUEST, Some("self")));
+    assert_eq!(online(r, &ada, "POST", &format!("/app/admin/accounts/{sam_id}/role"), Some(json!({ "role": "king" }))).await.0, StatusCode::BAD_REQUEST);
+    assert_eq!(online(r, &sam, "GET", "/app/admin/me", None).await.1["role"], "support");
+
+    // Support: sees the accounts, does not administer, never acts as staff.
+    assert_eq!(online(r, &sam, "GET", "/app/admin/accounts", None).await.0, StatusCode::OK);
+    for (method, path, body) in [("POST", "password", Some(json!({}))), ("POST", "reset-link", None), ("POST", "role", Some(json!({ "role": "support" }))), ("DELETE", "", None)] {
+        let path = format!("/app/admin/accounts/{olga_id}/{path}");
+        let (status, refused) = online(r, &sam, method, path.trim_end_matches('/'), body).await;
+        assert_eq!((status, refused["code"].as_str()), (StatusCode::FORBIDDEN, Some("not_staff")), "{method} {path}");
+    }
+    assert_eq!(online(r, &sam, "POST", &format!("/app/admin/accounts/{ada_id}/act"), None).await.1["code"], "not_staff");
+    assert_eq!(online(r, &sam, "POST", &format!("/app/admin/accounts/{sam_id}/act"), None).await.1["code"], "self");
+
+    // Olga's event, Carl working on it.
+    let (_, opened) = online(r, &olga, "POST", "/app/api/open_with_key", Some(json!({ "access_key": "PRACTICE-KEY" }))).await;
+    let (show, remote) = (opened["show"].as_str().unwrap().to_string(), opened["remote"].as_str().unwrap().to_string());
+    let (status, added) = online(r, &olga, "POST", "/app/api/add_person", Some(json!({ "show": show, "email": "carl@example.ch" }))).await;
+    assert_eq!(status, StatusCode::OK, "{added}");
+
+    // Sam acts as Olga: her events, her changes signed with both names; then back.
+    let elsewhere = [("cookie", sam.as_str()), ("origin", "https://evil.example")];
+    assert_eq!(browser(r, "POST", &format!("/app/admin/accounts/{olga_id}/act"), &elsewhere, None).await.0, StatusCode::FORBIDDEN);
+    let (status, acting) = online(r, &sam, "POST", &format!("/app/admin/accounts/{olga_id}/act"), None).await;
+    assert_eq!((status, acting["acting_as"]["name"].as_str()), (StatusCode::OK, Some("Olga Owner")), "{acting}");
+    assert_eq!(online(r, &sam, "GET", "/app/admin/me", None).await.1["acting_as"]["name"], "Olga Owner");
+    assert_eq!(online(r, &sam, "POST", "/app/api/account", Some(json!({}))).await.1["account"]["name"], "Olga Owner");
+    let (_, library) = online(r, &sam, "POST", "/app/api/library", Some(json!({}))).await;
+    assert!(library.as_array().unwrap().iter().any(|s| s["id"] == json!(show)), "{library}");
+    let (_, view) = online(r, &sam, "POST", "/app/api/show", Some(json!({ "show": show }))).await;
+    let (status, set_up) = online(r, &sam, "POST", "/app/api/set_up_class", Some(json!({ "show": show, "published": view["not_set_up"][0]["id"] }))).await;
+    assert_eq!(status, StatusCode::OK, "{set_up}");
+    assert!(server::shows::log(&pool, &remote).await.unwrap().iter().any(|o| o.author == "Olga Owner (via Sam Support)"));
+    assert_eq!(online(r, &sam, "POST", "/app/admin/stop", None).await.0, StatusCode::OK);
+    assert_eq!(online(r, &sam, "POST", "/app/api/account", Some(json!({}))).await.1["account"]["name"], "Sam Support");
+    assert!(online(r, &sam, "POST", "/app/api/library", Some(json!({}))).await.1.as_array().unwrap().is_empty());
+
+    // A new password: typed (Olga signed out everywhere), made (shown once), or refused.
+    let password = format!("/app/admin/accounts/{olga_id}/password");
+    let (status, set) = online(r, &ada, "POST", &password, Some(json!({ "password": "another-good-password" }))).await;
+    assert_eq!((status, set["password"].clone()), (StatusCode::OK, Value::Null), "{set}");
+    assert_eq!(online(r, &olga, "POST", "/app/api/account", Some(json!({}))).await.0, StatusCode::UNAUTHORIZED);
+    site_cookie(r, "olga@example.ch", "another-good-password").await;
+    let (status, made) = online(r, &ada, "POST", &password, Some(json!({}))).await;
+    let made = made["password"].as_str().unwrap().to_string();
+    assert!(status == StatusCode::OK && made.len() >= 10);
+    let olga = site_cookie(r, "olga@example.ch", &made).await;
+    assert_eq!(online(r, &olga, "POST", "/app/api/account", Some(json!({}))).await.1["account"]["name"], "Olga Owner");
+    let (status, refused) = online(r, &ada, "POST", &password, Some(json!({ "password": "short" }))).await;
+    assert_eq!((status, refused["code"].as_str()), (StatusCode::BAD_REQUEST, Some("password")));
+
+    // A reset link, as the site sends it (kept: e-mail is off).
+    let (status, sent) = online(r, &ada, "POST", &format!("/app/admin/accounts/{olga_id}/reset-link"), None).await;
+    assert_eq!((status, sent["mail"].as_str()), (StatusCode::OK, Some("off")), "{sent}");
+    assert_eq!(mailer.kept().last().unwrap().to, "olga@example.ch");
+
+    // Deleting Olga's account: her show released (Carl told), her files gone, Sam no longer
+    // acting as her; never one's own.
+    assert_eq!(online(r, &sam, "POST", &format!("/app/admin/accounts/{olga_id}/act"), None).await.0, StatusCode::OK);
+    let (_, details) = online(r, &ada, "GET", &format!("/app/admin/accounts/{olga_id}"), None).await;
+    assert_eq!((details["owns"][0]["name"].clone(), details["owns"][0]["collaborators"].clone(), details["account"]["owns"].clone()), (json!("CONCOURS D'EXERCICE EQUIEVENTS"), json!(1), json!(1)), "{details}");
+    assert!(dir.path().join(format!("offices/{olga_id}")).exists());
+    assert_eq!(online(r, &ada, "DELETE", &format!("/app/admin/accounts/{ada_id}"), None).await.1["code"], "self");
+    let (status, deleted) = online(r, &ada, "DELETE", &format!("/app/admin/accounts/{olga_id}"), None).await;
+    assert_eq!((status, deleted["released"].clone()), (StatusCode::OK, json!(1)), "{deleted}");
+    let shows: i64 = pool.get().await.unwrap().query_one("SELECT count(*) FROM shows", &[]).await.unwrap().get(0);
+    assert_eq!(shows, 0);
+    let told = mailer.kept().into_iter().rev().find(|m| m.to == "carl@example.ch").unwrap();
+    assert!(told.subject.contains("supprimé") && told.body.contains("Le compte de Olga Owner"), "{told:?}");
+    assert!(!dir.path().join(format!("offices/{olga_id}")).exists());
+    assert_eq!(online(r, &sam, "GET", "/app/admin/me", None).await.1["acting_as"], Value::Null);
+    assert_eq!(online(r, &olga, "POST", "/app/api/account", Some(json!({}))).await.0, StatusCode::UNAUTHORIZED);
+    assert_eq!(names(&online(r, &ada, "GET", "/app/admin/accounts", None).await.1), ["Ada Admin", "Carl Collab", "Sam Support"]);
+    assert_eq!(online(r, &ada, "GET", &format!("/app/admin/accounts/{olga_id}"), None).await.0, StatusCode::NOT_FOUND);
+
+    // Sam no longer support.
+    assert_eq!(online(r, &ada, "POST", &format!("/app/admin/accounts/{sam_id}/role"), Some(json!({ "role": "none" }))).await.0, StatusCode::OK);
+    assert_eq!(online(r, &sam, "GET", "/app/admin/accounts", None).await.0, StatusCode::FORBIDDEN);
+    test_db.drop().await;
+}

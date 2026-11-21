@@ -39,4 +39,4 @@ export default function Welcome({ server, done, language, setLanguage }: { serve
 }
 
 /** Whether this computer has an account signed in (no network: the account it keeps). */
-export const accountHere = () => call<{ server: string; signed_in: boolean }>('account');
+export const accountHere = () => call<{ server: string; signed_in: boolean; hosted?: boolean }>('account');

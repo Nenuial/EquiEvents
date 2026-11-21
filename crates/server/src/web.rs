@@ -12,6 +12,8 @@
 //!   ever there. The office cannot sign in or out by itself, nor reach another server.
 //! - **The interface** (`WEB_DIR`, the app's build): served under `/app/`; its page only when
 //!   signed in.
+//! - **Acting as another account** (administrators and support, `admin`): the session works in
+//!   that account's office; its changes are signed with both names ("Anne Martin (via …)").
 
 use std::collections::HashMap;
 use std::path::{Component, Path as FsPath, PathBuf};
@@ -54,10 +56,18 @@ impl Web {
     }
 
     /// The account's office, made the first time (signed in with a token of the account, kept
-    /// while valid).
+    /// while valid; a new one when it is no longer: a new password signs out everywhere).
     async fn office(&self, app: &App, user: &User) -> Result<Arc<office::Office>, Error> {
-        if let Some(office) = self.offices.lock().unwrap_or_else(|e| e.into_inner()).get(&user.id) {
-            return Ok(office.clone());
+        let kept = self.offices.lock().unwrap_or_else(|e| e.into_inner()).get(&user.id).cloned();
+        if let Some(office) = kept {
+            let valid = match office.token_for(&self.server) {
+                Some(token) => auth::user_of(&app.pool, &token).await?.is_some_and(|u| u.id == user.id),
+                None => false,
+            };
+            if valid {
+                return Ok(office);
+            }
+            self.forget(user.id);
         }
         let library = self.root.join(user.id.to_string()).join("library");
         let device = format!("web-{}", user.id);
@@ -71,6 +81,19 @@ impl Web {
         office.host(&self.server, account, &token)?;
         let office = Arc::new(office);
         Ok(self.offices.lock().unwrap_or_else(|e| e.into_inner()).entry(user.id).or_insert(office).clone())
+    }
+}
+
+impl Web {
+    /// The account's office is made again at its next use (its sign-in changed).
+    pub fn forget(&self, user: i64) {
+        self.offices.lock().unwrap_or_else(|e| e.into_inner()).remove(&user);
+    }
+
+    /// An account deleted: its office and its files gone.
+    pub async fn remove(&self, user: i64) {
+        self.forget(user);
+        let _ = tokio::fs::remove_dir_all(self.root.join(user.to_string())).await;
     }
 }
 
@@ -88,14 +111,26 @@ pub fn routes() -> Router<App> {
 
 /// The signed-in account, from the site's cookie.
 async fn signed_in(app: &App, headers: &HeaderMap) -> Result<Option<User>, Error> {
-    match session::token(headers) {
-        Some(token) => auth::user_of(&app.pool, &token).await,
-        None => Ok(None),
-    }
+    Ok(working(app, headers).await?.map(|w| w.account))
+}
+
+/// Who works in the online version: the account it works for, and who it is when someone acts
+/// for it (administrators and support).
+pub(crate) struct Working {
+    pub account: User,
+    pub by: Option<User>,
+}
+
+pub(crate) async fn working(app: &App, headers: &HeaderMap) -> Result<Option<Working>, Error> {
+    let Some(token) = session::token(headers) else { return Ok(None) };
+    Ok(auth::session_of(&app.pool, &token).await?.map(|(me, acting)| match acting {
+        Some(account) => Working { account, by: Some(me) },
+        None => Working { account: me, by: None },
+    }))
 }
 
 /// A request of the page itself, not of another site (the cookie is the account).
-fn same_site(headers: &HeaderMap) -> bool {
+pub(crate) fn same_site(headers: &HeaderMap) -> bool {
     let header = |name: &str| headers.get(name).and_then(|v| v.to_str().ok());
     if let Some(site) = header("sec-fetch-site") {
         return site == "same-origin";
@@ -166,8 +201,8 @@ async fn command(State(app): State<App>, headers: HeaderMap, Path(command): Path
     if !same_site(&headers) {
         return refused(StatusCode::FORBIDDEN, "not from equievents.ch", "origin");
     }
-    let user = match signed_in(&app, &headers).await {
-        Ok(Some(user)) => user,
+    let (user, by) = match working(&app, &headers).await {
+        Ok(Some(w)) => (w.account, w.by),
         Ok(None) => return refused(StatusCode::UNAUTHORIZED, "not signed in", "signed_out"),
         Err(e) => return db_error(e),
     };
@@ -182,7 +217,13 @@ async fn command(State(app): State<App>, headers: HeaderMap, Path(command): Path
         Ok(office) => office,
         Err(e) => return db_error(e),
     };
-    let answer = tokio::task::spawn_blocking(move || office.call(&command, &args)).await;
+    // Someone acting for the account: their changes signed with both names.
+    let author = by.map(|by| format!("{} (via {})", user.name, by.name));
+    let answer = tokio::task::spawn_blocking(move || match author {
+        Some(author) => office.call_as(&command, &args, &author),
+        None => office.call(&command, &args),
+    })
+    .await;
     match answer {
         Ok(Ok(value)) => Json(value).into_response(),
         Ok(Err(e)) => (StatusCode::BAD_REQUEST, Json(json!({ "error": e }))).into_response(),

@@ -55,6 +55,11 @@ fn push(stacks: &Mutex<HashMap<String, UndoStack>>, id: &str, what: String, chan
     }
 }
 
+thread_local! {
+    /// The author of a call made `call_as` (on this thread, while it runs).
+    static AUTHOR: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
+}
+
 pub struct Office {
     library: PathBuf,
     device: String,
@@ -155,6 +160,15 @@ impl Office {
         if let Err(e) = &answer {
             self.log_error(command, args, e);
         }
+        answer
+    }
+
+    /// A command whose changes are `author`'s (the online version, someone acting for the account:
+    /// "Anne Martin (via …)"), whatever the account's name.
+    pub fn call_as(&self, command: &str, args: &Value, author: &str) -> Result<Value, String> {
+        AUTHOR.with(|a| *a.borrow_mut() = Some(author.to_string()));
+        let answer = self.call(command, args);
+        AUTHOR.with(|a| *a.borrow_mut() = None);
         answer
     }
 
@@ -1277,6 +1291,9 @@ impl Office {
     /// Who makes the changes here: the account signed in (the name others see on the show),
     /// else this computer's user.
     fn author(&self) -> String {
+        if let Some(author) = AUTHOR.with(|a| a.borrow().clone()) {
+            return author;
+        }
         self.settings().account.filter(|a| a.server == self.server_url() && !a.name.trim().is_empty()).map_or_else(|| self.operator.clone(), |a| a.name)
     }
 

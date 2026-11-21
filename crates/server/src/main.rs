@@ -11,6 +11,8 @@
 //! - `create-admin "Prénom Nom" e-mail [fr|de]`: an administrator's account, its password printed once
 //!   (people make their own accounts on the site);
 //! - `create-user "Prénom Nom" e-mail`, `set-password e-mail`: for support;
+//! - `set-role e-mail admin|support|none`: an account's role (administrators also give them in
+//!   the online version's « Comptes »);
 //! - `backup`: a backup now.
 //!
 //! The database: `DATABASE_URL`.
@@ -93,8 +95,22 @@ async fn run(args: &[String]) -> Result<(), db::Error> {
             auth::set_password(&pool, &arg(1, "the e-mail address")?, &password).await?;
             println!("new password (shown once; signed out everywhere): {password}");
         }
+        "set-role" => {
+            let email = arg(1, "the e-mail address")?;
+            let (admin, support) = match arg(2, "the role (admin, support or none)")?.as_str() {
+                "admin" => (true, false),
+                "support" => (false, true),
+                "none" => (false, false),
+                other => return Err(format!("set-role: {other}: admin, support or none").into()),
+            };
+            let changed = pool.get().await?.execute("UPDATE users SET admin = $2, support = $3 WHERE lower(email) = lower($1)", &[&email, &admin, &support]).await?;
+            if changed == 0 {
+                return Err(format!("set-role: no account {email}").into());
+            }
+            println!("{email}: {}", if admin { "administrator" } else if support { "support" } else { "no role" });
+        }
         "backup" => println!("backup: {}", backup::run(&backups()?).await?.display()),
-        other => return Err(format!("unknown command {other} (web, worker, migrate, create-admin, create-user, set-password, backup)").into()),
+        other => return Err(format!("unknown command {other} (web, worker, migrate, create-admin, create-user, set-password, set-role, backup)").into()),
     }
     Ok(())
 }

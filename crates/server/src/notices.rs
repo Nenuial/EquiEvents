@@ -82,6 +82,21 @@ pub fn released(lang: Lang, name: &str, owner: &str, show: &str) -> Mail {
     (subject, signed(lang, name, &text))
 }
 
+/// For who worked on a show whose owner's account an administrator deleted: deleted too.
+pub fn account_deleted(lang: Lang, name: &str, owner: &str, show: &str) -> Mail {
+    let (subject, text) = match lang {
+        Lang::Fr => (
+            format!("EquiEvents : {show} supprimé"),
+            format!("Le compte de {owner} a été supprimé d’equievents.ch, et avec lui le concours {show} : vous n’y avez plus accès. Une copie sur vos ordinateurs y reste, sans être partagée."),
+        ),
+        Lang::De => (
+            format!("EquiEvents: {show} gelöscht"),
+            format!("Das Konto von {owner} wurde auf equievents.ch gelöscht, und mit ihm das Turnier {show}: Sie haben keinen Zugriff mehr. Eine Kopie auf Ihren Computern bleibt dort, ohne geteilt zu werden."),
+        ),
+    };
+    (subject, signed(lang, name, &text))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

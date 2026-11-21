@@ -39,6 +39,17 @@ The same interface as the desktop app, at `www.equievents.ch/app/` (`crates/serv
   account's own only, and a command's `path` only among them. The office never signs in or
   out by itself nor reaches another server (`set_server`, `sign_in`… refused). Requests from
   other sites are refused (the cookie is `SameSite=Lax`, and the origin is checked).
+- **« Comptes », for staff** (the user, 2026-11-21; `crates/server/src/admin.rs`,
+  `/app/admin/…`, in the online version only). **Support** finds an account and **acts as it**
+  to help it: the session then works on that account's office (its shows, as it), every change
+  signed « Name (via Staff) », a band on top of every screen and the way back; never as an
+  administrator or another support account. **Administrators** do the same and administer: a
+  new password (made and shown once, or typed; the account signed out everywhere), a reset link
+  by e-mail (said when e-mail is off), the roles (administrator, support; never their own), and
+  deleting an account with all its data (never their own): the shows it owns released (deleted
+  for everyone, who worked on them told by e-mail), its memberships, sessions, riders and horses,
+  its online version's files; its changes in others' shows stay in their history. What staff
+  may do is always the session's own account's, never the one it acts as; each action is logged.
 - **Online only**, never offline in the browser (the user, 2026-11-21): that is the desktop
   apps' job. A show imported in the online version stays in its account's copy until put on
   equievents.ch with its key (and is then in the nightly backup like every show).
@@ -57,11 +68,14 @@ Both apply the migrations when they start (`crates/server/migrations`, each once
 
 ## Data
 
-- `users`: personal accounts (name, e-mail, Argon2id password hash, administrator or not).
-  Anyone makes their own (decision 2026-11-14): an account alone opens nothing, a show needs its
-  Swiss Equestrian keys. Administrators: `create-admin`; for support, `create-user` and
-  `set-password` (a new password printed once, the account signed out everywhere). Each has a
-  language (`fr`, `de`) for their e-mails.
+- `users`: personal accounts (name, e-mail, Argon2id password hash, administrator, support or
+  neither). Anyone makes their own (decision 2026-11-14): an account alone opens nothing, a show
+  needs its Swiss Equestrian keys. The first administrator: `create-admin`; then roles in the
+  online version's « Comptes », or `set-role e-mail admin|support|none`; `create-user` and
+  `set-password` (a new password printed once, the account signed out everywhere) from the
+  command line too. Each has a language (`fr`, `de`) for their e-mails.
+- `sessions.acting_as`: the account a staff session acts as (`admin.rs`), none when it works
+  for itself.
 - `password_resets`: a forgotten password's link, its token kept as a SHA-256 hash, valid an
   hour, used once; asking again replaces it.
 - `sessions`: a signed-in app's token, kept as a SHA-256 hash; valid a year after its last use.
@@ -244,12 +258,15 @@ As Gestion Concours sends its own (`crates/server/src/mail.rs`), with the same s
 STARTTLS), `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`, `MAIL_FROM_NAME`, `MAIL_REPLY_TO`. Links point
 to `APP_URL`. Sent: reset links; requests to a show's owner, their answers, access given
 (`crates/server/src/notices.rs`). Until the mailbox (info@equievents.ch) and the domain's SPF / DKIM / DMARC exist,
-`off`: a forgotten password then needs `set-password`.
+`off`: a forgotten password then needs an administrator (« Comptes »: a new password) or
+`set-password`.
 
 Checked against a real Postgres (`crates/server/tests/api.rs`: making accounts from the apps and
 the site, the limits, a forgotten password from the form to the new password; the key and the
 owner, requests answered and taken back, transfers staying and leaving, people added and taken
-off; rights, push, pull, signing out; a whole corpus show up and back, identical).
+off; rights, push, pull, signing out; a whole corpus show up and back, identical; staff:
+support refused what only administrators do, acting as an account and back, a new password,
+a reset link, roles, deleting an account and what goes with it).
 
 ## Backups
 

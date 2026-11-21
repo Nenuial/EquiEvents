@@ -21,6 +21,8 @@ pub struct User {
     pub name: String,
     pub email: String,
     pub admin: bool,
+    /// Support: acts as other accounts in the online version (an administrator does too).
+    pub support: bool,
     /// Of their e-mails: `fr` or `de`.
     pub language: String,
 }
@@ -160,7 +162,7 @@ pub async fn create_user(pool: &Pool, name: &str, email: &str, password: &str, a
     let client = pool.get().await?;
     let language = lang.code();
     match client.query_one("INSERT INTO users (name, email, password_hash, admin, language) VALUES ($1, $2, $3, $4, $5) RETURNING id", &[&name, &email, &hash, &admin, &language]).await {
-        Ok(row) => Ok(Ok(User { id: row.get(0), name, email, admin, language: language.into() })),
+        Ok(row) => Ok(Ok(User { id: row.get(0), name, email, admin, support: false, language: language.into() })),
         Err(e) if e.code() == Some(&SqlState::UNIQUE_VIOLATION) => Ok(Err(Invalid::Taken)),
         Err(e) => Err(e.into()),
     }
@@ -194,10 +196,10 @@ pub async fn set_password(pool: &Pool, email: &str, password: &str) -> Result<()
 pub async fn reset_start(pool: &Pool, email: &str) -> Result<Option<(String, User)>, Error> {
     let Ok(email) = check_email(email) else { return Ok(None) };
     let client = pool.get().await?;
-    let Some(row) = client.query_opt("SELECT id, name, email, admin, language FROM users WHERE email = $1", &[&email]).await? else {
+    let Some(row) = client.query_opt("SELECT id, name, email, admin, language, support FROM users WHERE email = $1", &[&email]).await? else {
         return Ok(None);
     };
-    let user = User { id: row.get(0), name: row.get(1), email: row.get(2), admin: row.get(3), language: row.get(4) };
+    let user = User { id: row.get(0), name: row.get(1), email: row.get(2), admin: row.get(3), language: row.get(4), support: row.get(5) };
     let token = random_hex(32);
     client.execute("DELETE FROM password_resets WHERE user_id = $1 OR expires_at < now()", &[&user.id]).await?;
     client
@@ -224,11 +226,11 @@ pub async fn reset_finish(pool: &Pool, token: &str, password: &str) -> Result<Re
         return Ok(Err(Invalid::Link));
     };
     let id: i64 = row.get(0);
-    let row = tx.query_one("UPDATE users SET password_hash = $2 WHERE id = $1 RETURNING name, email, admin, language", &[&id, &hash]).await?;
+    let row = tx.query_one("UPDATE users SET password_hash = $2 WHERE id = $1 RETURNING name, email, admin, language, support", &[&id, &hash]).await?;
     tx.execute("DELETE FROM sessions WHERE user_id = $1", &[&id]).await?;
     tx.execute("DELETE FROM password_resets WHERE user_id = $1", &[&id]).await?;
     tx.commit().await?;
-    Ok(Ok(User { id, name: row.get(0), email: row.get(1), admin: row.get(2), language: row.get(3) }))
+    Ok(Ok(User { id, name: row.get(0), email: row.get(1), admin: row.get(2), language: row.get(3), support: row.get(4) }))
 }
 
 /// A token for a device signed in as `user`.
@@ -247,16 +249,16 @@ pub(crate) async fn new_session(pool: &Pool, user: i64, device: &str) -> Result<
 /// Sign in: a token for the device, and who it is; `None` for a wrong e-mail or password.
 pub async fn sign_in(pool: &Pool, email: &str, password: &str, device: &str) -> Result<Option<(String, User)>, Error> {
     let client = pool.get().await?;
-    let Some(row) = client.query_opt("SELECT id, name, email, admin, language, password_hash FROM users WHERE email = $1", &[&email.trim().to_lowercase()]).await? else {
+    let Some(row) = client.query_opt("SELECT id, name, email, admin, language, support, password_hash FROM users WHERE email = $1", &[&email.trim().to_lowercase()]).await? else {
         // The same work as for a known address: no hint which addresses exist.
         static DUMMY: std::sync::OnceLock<String> = std::sync::OnceLock::new();
         let _ = password_ok(password, DUMMY.get_or_init(|| hash_password("no account here").unwrap_or_default()));
         return Ok(None);
     };
-    if !password_ok(password, row.get(5)) {
+    if !password_ok(password, row.get(6)) {
         return Ok(None);
     }
-    let user = User { id: row.get(0), name: row.get(1), email: row.get(2), admin: row.get(3), language: row.get(4) };
+    let user = User { id: row.get(0), name: row.get(1), email: row.get(2), admin: row.get(3), language: row.get(4), support: row.get(5) };
     drop(client);
     let token = new_session(pool, user.id, device).await?;
     Ok(Some((token, user)))
@@ -274,8 +276,37 @@ pub async fn user_of(pool: &Pool, token: &str) -> Result<Option<User>, Error> {
         .await?;
     let Some(row) = row else { return Ok(None) };
     let id: i64 = row.get(0);
-    let row = client.query_one("SELECT name, email, admin, language FROM users WHERE id = $1", &[&id]).await?;
-    Ok(Some(User { id, name: row.get(0), email: row.get(1), admin: row.get(2), language: row.get(3) }))
+    let row = client.query_one("SELECT name, email, admin, language, support FROM users WHERE id = $1", &[&id]).await?;
+    Ok(Some(User { id, name: row.get(0), email: row.get(1), admin: row.get(2), language: row.get(3), support: row.get(4) }))
+}
+
+/// An account, by id.
+pub async fn user(pool: &Pool, id: i64) -> Result<Option<User>, Error> {
+    let client = pool.get().await?;
+    let row = client.query_opt("SELECT name, email, admin, language, support FROM users WHERE id = $1", &[&id]).await?;
+    Ok(row.map(|r| User { id, name: r.get(0), email: r.get(1), admin: r.get(2), language: r.get(3), support: r.get(4) }))
+}
+
+/// Who a session is (its use noted), and the account it acts as (administrators and support,
+/// in the online version), if any.
+pub async fn session_of(pool: &Pool, token: &str) -> Result<Option<(User, Option<User>)>, Error> {
+    let Some(user) = user_of(pool, token).await? else { return Ok(None) };
+    let client = pool.get().await?;
+    let acting: Option<i64> = client.query_opt("SELECT acting_as FROM sessions WHERE token_hash = $1", &[&token_hash(token)]).await?.and_then(|r| r.get(0));
+    drop(client);
+    // Only staff act as others (a role taken away ends it); support never as staff (an account
+    // made staff meanwhile ends it too).
+    let acting = match acting {
+        Some(id) if user.admin || user.support => self::user(pool, id).await?.filter(|a| user.admin || !(a.admin || a.support)),
+        _ => None,
+    };
+    Ok(Some((user, acting)))
+}
+
+/// The session acts as `account` from now on (`None`: as itself again).
+pub async fn act_as(pool: &Pool, token: &str, account: Option<i64>) -> Result<(), Error> {
+    pool.get().await?.execute("UPDATE sessions SET acting_as = $2 WHERE token_hash = $1", &[&token_hash(token), &account]).await?;
+    Ok(())
 }
 
 /// Sign out a token.

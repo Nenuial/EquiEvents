@@ -62,7 +62,8 @@ jobs:
             accounts_shows_and_sync anyone_makes_an_account the_site_signs_people_up_and_resets_passwords \
             the_key_decides_who_owns_a_show events_come_from_swiss_equestrian \
             without_swiss_equestrian_the_app_names_the_event a_show_of_the_server_sends_and_updates_from_there \
-            the_server_never_sends_to_swiss_equestrian the_online_version_works_on_the_master
+            the_server_never_sends_to_swiss_equestrian the_online_version_works_on_the_master \
+            an_owner_deletes_an_event staff_help_and_administer_accounts
 
   ui:
     name: The app's interface

@@ -131,7 +131,7 @@ impl From<Refused> for ApiError {
 }
 
 /// An e-mail, in the background (tests wait for it).
-async fn notify(app: &App, to: &str, (subject, body): notices::Mail) {
+pub(crate) async fn notify(app: &App, to: &str, (subject, body): notices::Mail) {
     let (mailer, to) = (app.mailer.clone(), to.to_string());
     let send = async move {
         if let Err(e) = mailer.send(&to, &subject, &body).await {
@@ -167,6 +167,7 @@ pub fn router(app: App) -> Router {
         .merge(site::routes())
         .merge(crate::downloads::routes())
         .merge(crate::web::routes())
+        .merge(crate::admin::routes())
         .route("/api/health", get(health))
         .route("/api/register", post(register))
         .route("/api/login", post(login))

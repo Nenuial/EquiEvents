@@ -3,6 +3,7 @@
 //! backups (docs/architecture/server.md).
 //! Swiss Equestrian: only the server talks to it (`se`).
 
+pub mod admin;
 pub mod api;
 pub mod auth;
 pub mod backup;

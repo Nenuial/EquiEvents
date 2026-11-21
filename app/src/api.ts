@@ -34,6 +34,28 @@ export async function call<T>(command: string, args: Record<string, unknown> = {
   return answer as T;
 }
 
+/** Staff's calls (the online version only: `/app/admin/<path>`, the site's session). A refusal
+ *  throws its code (`not_staff`, `self`, `password`…), for the panel to say in the office's
+ *  language. */
+export async function staff<T>(path: string, method: 'GET' | 'POST' | 'DELETE' = 'GET', body?: unknown): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(`admin/${path}`, { method, body: body === undefined ? undefined : JSON.stringify(body), headers: { 'Content-Type': 'application/json' } });
+  } catch {
+    throw new StaffRefusal('offline');
+  }
+  if (response.status === 401) signInAgain();
+  const answer = await response.json().catch(() => null);
+  if (!response.ok) throw new StaffRefusal(answer?.code ?? 'error');
+  return answer as T;
+}
+
+export class StaffRefusal extends Error {
+  constructor(public code: string) {
+    super(code);
+  }
+}
+
 /** A file the user picks, as a path the office reads: the system's dialog (desktop); in a browser
  *  (development) the browser's, the file then kept by office-dev-server. `null`: none picked. */
 export async function chooseFile(extensions: string[], label: string): Promise<string | null> {

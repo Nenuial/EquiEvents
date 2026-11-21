@@ -4,7 +4,7 @@
 // page of their own (#/archives), by year: archived is only how they are listed.
 
 import { useState } from 'react';
-import { Archive, ArchiveRestore, ArrowLeft, CalendarDays, CloudDownload, Ellipsis, FileDown, FileInput, FolderOpen, Import, MapPin, Plus, Trash2, Trophy } from 'lucide-react';
+import { Archive, ArchiveRestore, ArrowLeft, CalendarDays, CloudDownload, Ellipsis, FileDown, FileInput, FolderOpen, Import, MapPin, Plus, Trash2, Trophy, Users } from 'lucide-react';
 import { call, chooseFile, saveFile, type EventInFile, type ShowSummary } from '../api';
 import { formatDate, usePlural, useT, type Language } from '../i18n';
 import { ErrorNote, useLoad } from '../parts/common';
@@ -20,6 +20,7 @@ export default function Library({
   language,
   setLanguage,
   accountChanged,
+  staff = false,
 }: {
   open: (show: string) => void;
   archives: boolean;
@@ -27,6 +28,8 @@ export default function Library({
   setLanguage: (l: Language) => void;
   /** Signed out (or in as someone else): the app checks again (nothing without an account). */
   accountChanged: () => void;
+  /** Staff of equievents.ch (the online version): « Comptes ». */
+  staff?: boolean;
 }) {
   const t = useT();
   const plural = usePlural();
@@ -249,6 +252,15 @@ export default function Library({
           </div>
           {!archives && (
             <div className="flex flex-wrap items-center gap-2">
+              {staff && (
+                <a
+                  href="#/accounts"
+                  className="inline-flex h-10 items-center gap-2 rounded-lg border border-white/15 bg-white/[0.06] px-3.5 text-[13px] font-semibold text-white/90 hover:bg-white/[0.12] pointer-coarse:h-11"
+                >
+                  <Users className="size-4" />
+                  {t('staff_accounts')}
+                </a>
+              )}
               {archived.length > 0 && (
                 <a
                   href="#/archives"
