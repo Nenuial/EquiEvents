@@ -254,7 +254,7 @@ The online version starts in the same one until a language is chosen in it.
 | `/inscription` | `/registrieren` | `/registrati` | name, e-mail, password: the account is made at once, signed in |
 | `/mot-de-passe` | `/passwort` | `/password-dimenticata` | a forgotten password: the link by e-mail |
 | `/nouveau-mot-de-passe?t=…` | `/neues-passwort?t=…` | `/nuova-password?t=…` | the link: a new password; signed out everywhere |
-| `/telecharger` | `/herunterladen` | `/scarica` | the desktop app, Mac and Windows (this computer's first), signed in only (the online version's account dialog links to it): [releases.md](releases.md); the files themselves stay reachable for the apps' updates |
+| `/telecharger` | `/herunterladen` | `/scarica` | the desktop app, Mac and Windows (this computer's first), signed in only (the online version: a button beside the account): [releases.md](releases.md); the files themselves stay reachable for the apps' updates |
 | `/app/` | | | the online version (above), signed in only |
 
 What it says is the same for an address with or without an account (no list of who has one to

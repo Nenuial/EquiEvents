@@ -13,7 +13,7 @@ import { Cloud, CloudDownload, CloudOff, HardDrive, RefreshCw, Trash2, TriangleA
 import { Button, Callout, Field, Modal, Switch, Tooltip, buttonClass } from '../ui';
 import type { SyncLook } from '../shell/ShowShell';
 import { ConflictsNotice } from './conflicts';
-import { downloadPage, signOutPage } from '../site';
+import { signOutPage } from '../site';
 
 export interface Account {
   server: string;
@@ -247,12 +247,6 @@ export function AccountButton({ onChange }: { onChange: () => void }) {
                 )}
               </div>
               <ArchiveSetting />
-              {/* The online version: the desktop app's download page (signed in on the site). */}
-              {account.data!.hosted && (
-                <a href={downloadPage(language)} className={`${secondary} justify-self-start`}>
-                  {t('online_download_app')}
-                </a>
-              )}
               <button
                 className={`${secondary} justify-self-start`}
                 onClick={async () => {

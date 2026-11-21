@@ -600,6 +600,7 @@ export const it: Dictionary = {
   import_online_later: 'Più tardi',
   import_online_some: '{n} concorsi messi su equievents.ch. Gli altri restano solo qui: apriteli per metterli online.',
   online_download_app: 'Scarica l’app',
+  download_app_short: 'Scarica l’app',
   online_account: 'Account equievents.ch',
   online_name: 'Nome e cognome',
   online_email: 'Indirizzo e-mail',

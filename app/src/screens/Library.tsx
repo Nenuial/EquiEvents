@@ -4,12 +4,13 @@
 // page of their own (#/archives), by year: archived is only how they are listed.
 
 import { useState } from 'react';
-import { Archive, ArchiveRestore, ArrowLeft, CalendarDays, CloudDownload, Ellipsis, FileDown, FileInput, FolderOpen, Import, MapPin, Plus, Trash2, Trophy, Users } from 'lucide-react';
+import { Archive, ArchiveRestore, ArrowLeft, CalendarDays, CloudDownload, Download, Ellipsis, FileDown, FileInput, FolderOpen, Import, MapPin, Plus, Trash2, Trophy, Users } from 'lucide-react';
 import { call, chooseFile, saveFile, type EventInFile, type ShowSummary } from '../api';
 import { formatDate, usePlural, useT, type Language } from '../i18n';
 import { ErrorNote, useLoad } from '../parts/common';
 import { AccountButton, AfterImport, DeleteShow, OnlineShows, OpenWithKey, useLibrarySync, useRefusal, type AccountView, type PutAnswer } from '../parts/online';
 import { SettingsButton } from '../parts/settings';
+import { downloadPage } from '../site';
 import { UpdateButton } from '../parts/update';
 import { LanguagePicker, ThemeButton } from '../shell/ShowShell';
 import { Button, Card, CheckRow, EmptyState, IconButton, Logo, Menu, MenuItem, MenuSeparator, Modal, Pill, useToast } from '../ui';
@@ -247,6 +248,18 @@ export default function Library({
           <Logo dark />
           <div className="flex-1" />
           <UpdateButton />
+          {/* The online version: the desktop apps, beside the account (the user, 2026-11-21). */}
+          {account.data?.hosted && (
+            <a
+              href={downloadPage(language)}
+              aria-label={t('online_download_app')}
+              title={t('online_download_app')}
+              className="inline-flex h-9 items-center gap-2 rounded-lg bg-white px-3 text-[13px] font-semibold text-nav shadow-xs hover:bg-white/90 pointer-coarse:h-10"
+            >
+              <Download className="size-4 shrink-0" aria-hidden />
+              <span className="hidden sm:inline">{t('download_app_short')}</span>
+            </a>
+          )}
           <AccountButton
             onChange={() => {
               setOnline(v => v + 1);
