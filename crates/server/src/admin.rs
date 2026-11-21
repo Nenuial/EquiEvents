@@ -11,6 +11,9 @@
 //!   it owns released (deleted for everyone, who worked on them told), taken off the others, its
 //!   riders and horses, its online version's files. Its changes in others' shows stay in their
 //!   history.
+//! - **The shows** on equievents.ch, found by name, number or owner, and who works on each (staff);
+//!   administrators give a show another owner, any account (the user, 2026-11-21): the previous
+//!   one stays as a collaborator or leaves, both told by e-mail.
 //!
 //! What staff may do is always the session's own account's, never the one it acts as.
 
@@ -37,6 +40,9 @@ pub fn routes() -> Router<App> {
         .route("/app/admin/accounts/{id}/password", post(password))
         .route("/app/admin/accounts/{id}/reset-link", post(reset_link))
         .route("/app/admin/accounts/{id}/role", post(role))
+        .route("/app/admin/shows", get(show_list))
+        .route("/app/admin/shows/{id}", get(show_details))
+        .route("/app/admin/shows/{id}/owner", post(set_owner))
 }
 
 /// An account as the panel lists it.
@@ -340,6 +346,117 @@ async fn delete(State(app): State<App>, headers: HeaderMap, Path(id): Path<i64>)
             }
             println!("{} deleted the account {} ({released} shows released)", me.email, account.email);
             Json(json!({ "ok": true, "released": released })).into_response()
+        }
+        Err(e) => failed(e),
+    }
+}
+
+/// A show as the panel lists it.
+#[derive(Debug, Clone, Serialize)]
+pub struct ShowRow {
+    pub id: String,
+    pub name: String,
+    /// Swiss Equestrian's event, when the show has one.
+    pub event_id: Option<i64>,
+    /// The show's last day (ISO), when known.
+    pub last_day: Option<String>,
+    pub archived: bool,
+    /// Its owner (none only for a moment, while it changes).
+    pub owner: Option<serde_json::Value>,
+    pub collaborators: i64,
+}
+
+const SHOW_SELECT: &str = "SELECT s.id, s.name, s.event_id, to_char(s.last_day, 'YYYY-MM-DD'), s.archived_at IS NOT NULL,
+        o.id, o.name, o.email,
+        (SELECT count(*) FROM show_members c WHERE c.show_id = s.id AND c.role = 'collaborator')
+     FROM shows s
+     LEFT JOIN show_members m ON m.show_id = s.id AND m.role = 'owner'
+     LEFT JOIN users o ON o.id = m.user_id";
+
+fn show_of(r: &tokio_postgres::Row) -> ShowRow {
+    let owner = r.get::<_, Option<i64>>(5).map(|id| json!({ "id": id, "name": r.get::<_, String>(6), "email": r.get::<_, String>(7) }));
+    ShowRow { id: r.get(0), name: r.get(1), event_id: r.get(2), last_day: r.get(3), archived: r.get(4), owner, collaborators: r.get(8) }
+}
+
+/// The shows whose name, id, Swiss Equestrian event or owner holds `query` (all when empty), the
+/// latest first; 500 at most.
+pub async fn show_rows(pool: &deadpool_postgres::Pool, query: &str) -> Result<Vec<ShowRow>, Error> {
+    let client = pool.get().await?;
+    let query = query.trim().replace(['%', '_', '\\'], "");
+    let like = format!("%{query}%");
+    let rows = client
+        .query(
+            &format!("{SHOW_SELECT} WHERE s.name ILIKE $1 OR s.id ILIKE $1 OR s.event_id::text = $2 OR o.name ILIKE $1 OR o.email ILIKE $1 ORDER BY s.last_day DESC NULLS LAST, s.created_at DESC LIMIT 500"),
+            &[&like, &query],
+        )
+        .await?;
+    Ok(rows.iter().map(show_of).collect())
+}
+
+async fn show_list(State(app): State<App>, headers: HeaderMap, Query(search): Query<Search>) -> Response {
+    if let Err(r) = staff(&app, &headers, false).await {
+        return r;
+    }
+    match show_rows(&app.pool, &search.q).await {
+        Ok(rows) => Json(json!(rows)).into_response(),
+        Err(e) => failed(e),
+    }
+}
+
+/// One show: who works on it (its owner first).
+async fn show_details(State(app): State<App>, headers: HeaderMap, Path(id): Path<String>) -> Response {
+    if let Err(r) = staff(&app, &headers, false).await {
+        return r;
+    }
+    let found = async {
+        let client = app.pool.get().await?;
+        let Some(row) = client.query_opt(&format!("{SHOW_SELECT} WHERE s.id = $1"), &[&id]).await? else { return Ok::<_, Error>(None) };
+        let people = client
+            .query("SELECT u.id, u.name, u.email, m.role FROM show_members m JOIN users u ON u.id = m.user_id WHERE m.show_id = $1 ORDER BY m.role = 'owner' DESC, lower(u.name)", &[&id])
+            .await?
+            .iter()
+            .map(|r| json!({ "id": r.get::<_, i64>(0), "name": r.get::<_, String>(1), "email": r.get::<_, String>(2), "role": r.get::<_, String>(3) }))
+            .collect::<Vec<_>>();
+        Ok(Some(json!({ "show": show_of(&row), "people": people })))
+    };
+    match found.await {
+        Ok(Some(v)) => Json(v).into_response(),
+        Ok(None) => refused(StatusCode::NOT_FOUND, "no such show", "not_found"),
+        Err(e) => failed(e),
+    }
+}
+
+#[derive(Deserialize)]
+struct NewOwnerBody {
+    /// The account to own the show.
+    account: i64,
+    /// The previous owner: `stay` (a collaborator) or `leave`.
+    previous: String,
+}
+
+/// Give a show another owner (administrators): any account; the previous one stays as a
+/// collaborator or leaves; both told.
+async fn set_owner(State(app): State<App>, headers: HeaderMap, Path(id): Path<String>, Json(body): Json<NewOwnerBody>) -> Response {
+    let (me, _) = match staff(&app, &headers, true).await {
+        Ok(v) => v,
+        Err(r) => return r,
+    };
+    let stays = match body.previous.as_str() {
+        "stay" => true,
+        "leave" => false,
+        other => return refused(StatusCode::BAD_REQUEST, &format!("previous owner {other}: stay or leave"), "previous"),
+    };
+    match shows::set_owner(&app.pool, &me, &id, body.account, stays).await {
+        Ok(Ok(changed)) => {
+            let shows::NewOwner { name, previous, owner } = changed;
+            crate::api::notify(&app, &owner.email, notices::owner_set(owner.lang, &owner.name, &name)).await;
+            crate::api::notify(&app, &previous.email, notices::owner_replaced(previous.lang, &previous.name, &owner.name, &name, stays)).await;
+            println!("{} made {} the owner of show {id} ({} {})", me.email, owner.email, previous.email, if stays { "stays" } else { "left" });
+            Json(json!({ "ok": true, "owner": { "name": owner.name, "email": owner.email } })).into_response()
+        }
+        Ok(Err(e)) => {
+            let status = if e == shows::Refused::Owner { StatusCode::CONFLICT } else { StatusCode::NOT_FOUND };
+            refused(status, &e.to_string(), e.code())
         }
         Err(e) => failed(e),
     }

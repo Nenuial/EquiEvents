@@ -27,13 +27,13 @@ export function chosenLanguage(): Language | null {
   }
 }
 
-/** The language the app starts in (the user, 2026-11-21): the one chosen in the app, else on the
- *  site (online: its `equievents_lang`), else the first of the three the browser or the system
- *  asks for, else German. */
+/** The language the app starts in (the user, 2026-11-21): online, the one last chosen, on the
+ *  site or in the app (both keep `equievents_lang`); else the one chosen in the app; else the
+ *  first of the three the browser or the system asks for; else German. */
 export function firstLanguage(): Language {
   const site = inTauri ? null : known(document.cookie.match(/(?:^|;\s*)equievents_lang=([a-z]+)/)?.[1]);
   const asked = (typeof navigator !== 'undefined' ? (navigator.languages ?? [navigator.language]) : []).map(known).find(Boolean) ?? null;
-  return chosenLanguage() ?? site ?? asked ?? 'de';
+  return site ?? chosenLanguage() ?? asked ?? 'de';
 }
 
 /** Online, the site keeps the office's language too: signed out, its pages come in it. */

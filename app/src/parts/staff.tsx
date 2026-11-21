@@ -35,6 +35,22 @@ export interface StaffDetails {
   works_on: { id: string; name: string; owner: string }[];
 }
 
+/** A show on equievents.ch as the panel lists it. */
+export interface StaffShow {
+  id: string;
+  name: string;
+  event_id: number | null;
+  last_day: string | null;
+  archived: boolean;
+  owner: { id: number; name: string; email: string } | null;
+  collaborators: number;
+}
+
+export interface StaffShowDetails {
+  show: StaffShow;
+  people: { id: number; name: string; email: string; role: 'owner' | 'collaborator' }[];
+}
+
 /** The session: in the online version only (elsewhere, none). */
 export const staffMe = () => staff<StaffMe>('me');
 

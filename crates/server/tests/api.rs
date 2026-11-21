@@ -1460,6 +1460,28 @@ async fn staff_help_and_administer_accounts() {
     assert_eq!((status, sent["mail"].as_str()), (StatusCode::OK, Some("off")), "{sent}");
     assert_eq!(mailer.kept().last().unwrap().to, "olga@example.ch");
 
+    // The shows: found by name or owner; another owner (administrators): any account, the
+    // previous one stays or leaves; both told.
+    let (status, found) = online(r, &sam, "GET", "/app/admin/shows?q=olga", None).await;
+    assert_eq!((status, found[0]["id"].as_str(), found[0]["owner"]["name"].as_str(), found[0]["collaborators"].as_i64()), (StatusCode::OK, Some(remote.as_str()), Some("Olga Owner"), Some(1)), "{found}");
+    let owner = format!("/app/admin/shows/{remote}/owner");
+    let carl_id = ids[3];
+    assert_eq!(online(r, &sam, "POST", &owner, Some(json!({ "account": carl_id, "previous": "stay" }))).await.1["code"], "not_staff");
+    let (status, set) = online(r, &ada, "POST", &owner, Some(json!({ "account": carl_id, "previous": "stay" }))).await;
+    assert_eq!((status, set["owner"]["name"].as_str()), (StatusCode::OK, Some("Carl Collab")), "{set}");
+    let (_, details) = online(r, &ada, "GET", &format!("/app/admin/shows/{remote}"), None).await;
+    let people = |d: &Value| d["people"].as_array().unwrap().iter().map(|p| format!("{} {}", p["name"].as_str().unwrap(), p["role"].as_str().unwrap())).collect::<Vec<_>>();
+    assert_eq!(people(&details), ["Carl Collab owner", "Olga Owner collaborator"]);
+    let mails = mailer.kept();
+    assert!(mails.iter().any(|m| m.to == "carl@example.ch" && m.subject.contains("vous êtes responsable") && m.body.contains("L’équipe d’equievents.ch vous a nommé·e responsable")));
+    assert!(mails.iter().any(|m| m.to == "olga@example.ch" && m.body.contains("a nommé Carl Collab responsable") && m.body.contains("Vous y restez comme collaborateur·trice")));
+    assert_eq!(online(r, &ada, "POST", &owner, Some(json!({ "account": carl_id, "previous": "stay" }))).await.1["code"], "owner");
+    assert_eq!(online(r, &ada, "POST", &owner, Some(json!({ "account": olga_id, "previous": "maybe" }))).await.0, StatusCode::BAD_REQUEST);
+    assert_eq!(online(r, &ada, "POST", "/app/admin/shows/nothing/owner", Some(json!({ "account": olga_id, "previous": "stay" }))).await.1["code"], "not_found");
+    // Back to Olga, Carl staying.
+    assert_eq!(online(r, &ada, "POST", &owner, Some(json!({ "account": olga_id, "previous": "stay" }))).await.0, StatusCode::OK);
+    assert_eq!(people(&online(r, &ada, "GET", &format!("/app/admin/shows/{remote}"), None).await.1), ["Olga Owner owner", "Carl Collab collaborator"]);
+
     // Deleting Olga's account: her show released (Carl told), her files gone, Sam no longer
     // acting as her; never one's own.
     assert_eq!(online(r, &sam, "POST", &format!("/app/admin/accounts/{olga_id}/act"), None).await.0, StatusCode::OK);

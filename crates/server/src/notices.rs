@@ -119,6 +119,39 @@ pub fn account_deleted(lang: Lang, name: &str, owner: &str, show: &str) -> Mail 
     (subject, signed(lang, name, &text))
 }
 
+/// For whom an administrator of equievents.ch made a show's owner.
+pub fn owner_set(lang: Lang, name: &str, show: &str) -> Mail {
+    let (subject, text) = match lang {
+        Lang::Fr => (format!("EquiEvents : vous êtes responsable de {show}"), format!("L’équipe d’equievents.ch vous a nommé·e responsable du concours {show} : vous décidez qui y travaille.")),
+        Lang::De => (format!("EquiEvents: Sie sind Verantwortliche:r von {show}"), format!("Das Team von equievents.ch hat Sie als Verantwortliche:n des Turniers {show} eingesetzt: Sie entscheiden, wer daran mitarbeitet.")),
+        Lang::It => (format!("EquiEvents: siete responsabili di {show}"), format!("Il team di equievents.ch vi ha nominati responsabili del concorso {show}: decidete voi chi ci lavora.")),
+    };
+    (subject, signed(lang, name, &text))
+}
+
+/// For a show's previous owner, when an administrator of equievents.ch gave it to someone else
+/// (`stays`: they stay as a collaborator).
+pub fn owner_replaced(lang: Lang, name: &str, owner: &str, show: &str, stays: bool) -> Mail {
+    let (subject, text, after) = match lang {
+        Lang::Fr => (
+            format!("EquiEvents : nouveau responsable pour {show}"),
+            format!("L’équipe d’equievents.ch a nommé {owner} responsable du concours {show}."),
+            if stays { "Vous y restez comme collaborateur·trice." } else { "Vous n’y avez plus accès ; une copie sur vos ordinateurs y reste, sans être partagée." },
+        ),
+        Lang::De => (
+            format!("EquiEvents: neue Verantwortliche oder neuer Verantwortlicher für {show}"),
+            format!("Das Team von equievents.ch hat {owner} als Verantwortliche:n des Turniers {show} eingesetzt."),
+            if stays { "Sie arbeiten weiterhin als Mitarbeiter:in daran." } else { "Sie haben keinen Zugriff mehr; eine Kopie auf Ihren Computern bleibt dort, ohne geteilt zu werden." },
+        ),
+        Lang::It => (
+            format!("EquiEvents: nuovo responsabile per {show}"),
+            format!("Il team di equievents.ch ha nominato {owner} responsabile del concorso {show}."),
+            if stays { "Restate sul concorso come collaboratore/trice." } else { "Non vi avete più accesso; una copia sui vostri computer vi resta, senza essere condivisa." },
+        ),
+    };
+    (subject, signed(lang, name, &format!("{text} {after}")))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -132,5 +165,6 @@ mod tests {
         assert!(access_given(Lang::Fr, "Dora", "Anne", "CSN").1.contains("Anne vous a donné accès au concours CSN"));
         let (subject, body) = request_made(Lang::It, "Anna", "Bruno", "bruno@example.ch", "CSN Lugano", false);
         assert!(subject == "EquiEvents: richiesta di accesso a CSN Lugano" && body.starts_with("Buongiorno Anna,\n"));
+        assert!(owner_replaced(Lang::Fr, "Anne", "Bruno", "CSN", true).1.contains("a nommé Bruno responsable du concours CSN. Vous y restez comme collaborateur·trice."));
     }
 }

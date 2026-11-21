@@ -48,8 +48,11 @@ The same interface as the desktop app, at `www.equievents.ch/app/` (`crates/serv
   by e-mail (said when e-mail is off), the roles (administrator, support; never their own), and
   deleting an account with all its data (never their own): the shows it owns released (deleted
   for everyone, who worked on them told by e-mail), its memberships, sessions, riders and horses,
-  its online version's files; its changes in others' shows stay in their history. What staff
-  may do is always the session's own account's, never the one it acts as; each action is logged.
+  its online version's files; its changes in others' shows stay in their history. A second
+  tab, « Concours »: the shows on equievents.ch, found by name, number or owner, and who works on
+  each; administrators give a show **another owner** (the user, 2026-11-21), any account, the
+  previous one staying as a collaborator or leaving, both told by e-mail. What staff may do is
+  always the session's own account's, never the one it acts as; each action is logged.
 - **Online only**, never offline in the browser (the user, 2026-11-21): that is the desktop
   apps' job. A show imported in the online version stays in its account's copy until put on
   equievents.ch with its key (and is then in the nightly backup like every show).
@@ -272,7 +275,7 @@ the site, the limits, a forgotten password from the form to the new password; th
 owner, requests answered and taken back, transfers staying and leaving, people added and taken
 off; rights, push, pull, signing out; a whole corpus show up and back, identical; staff:
 support refused what only administrators do, acting as an account and back, a new password,
-a reset link, roles, deleting an account and what goes with it).
+a reset link, roles, a show's owner changed and back, deleting an account and what goes with it).
 
 ## Backups
 

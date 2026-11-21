@@ -603,6 +603,45 @@ pub async fn hand_over(pool: &Pool, owner: &User, show: &str, to: i64) -> Outcom
     Ok(contact(pool, to).await?.ok_or(Refused::NotFound))
 }
 
+/// An administrator's change of owner: the show's name, who owned it, who owns it now.
+#[derive(Debug, Clone)]
+pub struct NewOwner {
+    pub name: String,
+    pub previous: Contact,
+    pub owner: Contact,
+}
+
+/// An administrator makes any account `to` the show's owner (the user, 2026-11-21: "admins must
+/// also be able to change the owner of an event"); the previous owner stays as a collaborator
+/// (`stays`) or leaves it. A pending request of the new owner for the show is accepted by it.
+pub async fn set_owner(pool: &Pool, admin: &User, show: &str, to: i64, stays: bool) -> Outcome<NewOwner> {
+    let mut client = pool.get().await?;
+    let tx = client.transaction().await?;
+    let Some(row) = tx.query_opt("SELECT s.name, m.user_id FROM shows s JOIN show_members m ON m.show_id = s.id AND m.role = 'owner' WHERE s.id = $1 FOR UPDATE OF m", &[&show]).await? else {
+        return Ok(Err(Refused::NotFound));
+    };
+    let (name, previous): (String, i64) = (row.get(0), row.get(1));
+    if previous == to {
+        return Ok(Err(Refused::Owner));
+    }
+    if tx.query_opt("SELECT 1 FROM users WHERE id = $1", &[&to]).await?.is_none() {
+        return Ok(Err(Refused::Account));
+    }
+    // One owner at every moment: the previous one first.
+    if stays {
+        tx.execute("UPDATE show_members SET role = 'collaborator' WHERE show_id = $1 AND user_id = $2", &[&show, &previous]).await?;
+    } else {
+        tx.execute("DELETE FROM show_members WHERE show_id = $1 AND user_id = $2", &[&show, &previous]).await?;
+    }
+    tx.execute("INSERT INTO show_members (show_id, user_id, role) VALUES ($1, $2, 'owner') ON CONFLICT (show_id, user_id) DO UPDATE SET role = 'owner'", &[&show, &to]).await?;
+    tx.execute("UPDATE show_requests SET status = 'accepted', decided_at = now(), decided_by = $3 WHERE show_id = $1 AND user_id = $2 AND status = 'pending'", &[&show, &to, &admin.id]).await?;
+    tx.commit().await?;
+    match (contact(pool, previous).await?, contact(pool, to).await?) {
+        (Some(previous), Some(owner)) => Ok(Ok(NewOwner { name, previous, owner })),
+        _ => Ok(Err(Refused::Account)),
+    }
+}
+
 /// The owner releases the event (the user, 2026-11-21): the show is deleted from equievents.ch
 /// for everyone (its log, who worked on it, the requests), and the event's key is free again:
 /// the next to enter it downloads the event fresh and owns it. The show's name and who worked on
