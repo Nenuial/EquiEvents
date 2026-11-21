@@ -46,9 +46,12 @@ jobs:
           key: ci
       - name: Clippy
         run: cargo clippy --locked --workspace --exclude equievents-desktop --all-targets -- -D warnings
-      # Unit tests; the one that compares requests with Rosson's needs the corpus.
+      # Unit tests, but three that read the corpus (requests compared with Rosson's; two entries
+      # of a corpus show).
       - name: Unit tests
-        run: cargo test --locked --workspace --exclude equievents-desktop --lib -- --skip urls_and_headers_as_rossons
+        run: >-
+          cargo test --locked --workspace --exclude equievents-desktop --lib --
+          --skip urls_and_headers_as_rossons --skip an_entry_on_no_start_list --skip addresses_are_read_only
       # The API without the corpus: accounts, keys and owners, Swiss Equestrian (a stand-in
       # answering with the practice event: events, riders and horses, demo events; never sent
       # to), the downloads.
