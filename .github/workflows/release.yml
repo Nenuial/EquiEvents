@@ -9,7 +9,7 @@
 # Run by hand (Actions › Release › Run workflow): the same builds, signed and notarized, kept as
 # the run's artifacts and published nowhere: to try the secrets before the first tag.
 #
-# The repository's secrets (Settings › Secrets and variables › Actions):
+# The secrets, in the environment `release` (Settings › Environments; deployment tags v*, branch main):
 #   TAURI_SIGNING_PRIVATE_KEY           the update key's file (~/.tauri/equievents.key), as text
 #   TAURI_SIGNING_PRIVATE_KEY_PASSWORD  its password
 #   APPLE_CERTIFICATE                   the Developer ID Application certificate and key (.p12), base64
@@ -56,6 +56,8 @@ jobs:
   build:
     name: ${{ matrix.system }}
     needs: check
+    # The secrets are the `release` environment's: only for tags v* and main (its rules).
+    environment: release
     strategy:
       fail-fast: true
       matrix:

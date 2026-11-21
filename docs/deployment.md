@@ -48,7 +48,9 @@ in the repository.
 
 ## 3. The repository's secrets
 
-Settings › Secrets and variables › Actions (the list is also at the top of `release.yml`):
+Settings › Environments › `release`, its deployment branches and tags limited to the tag rule
+`v*` and the branch `main` (the trial build); its secrets (the list is also at the top of
+`release.yml`; only the build job, which names the environment, can read them):
 
 | Secret | What |
 |---|---|

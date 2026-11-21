@@ -44,8 +44,9 @@ the app         asks a moment after the library opens and from ⚙; a button in 
 
 ## Once
 
-In order with the server's own steps: [../deployment.md](../deployment.md). On GitHub: the repository's secrets (Settings › Secrets and variables › Actions), listed at the
-top of `.github/workflows/release.yml`: the update key and its password; the Developer ID
+In order with the server's own steps: [../deployment.md](../deployment.md). On GitHub: the secrets of the environment `release` (Settings › Environments; its deployment
+tags `v*` and branch `main`, so no other branch's workflow reads them), listed at the top of
+`.github/workflows/release.yml`: the update key and its password; the Developer ID
 certificate (exported from the keychain as a .p12, then `base64 -i cert.p12 | pbcopy`) and its
 password; for the notarization an App Store Connect API key (appstoreconnect.apple.com › Users
 and Access › Integrations › App Store Connect API: the key's ID, the issuer ID, the .p8 file) or
