@@ -15,6 +15,9 @@
 // A5 landscape is the top half of an A4 page.
 #set page(width: 210mm, height: if a5 { 148.5mm } else { 297mm }, margin: 0pt)
 #set text(font: fonts, size: 8.5pt, lang: data.language, fill: ink)
+// Figures of equal width, for columns (Inter's are proportional); only figures: its tabular
+// hyphen would open gaps in names (Chalet - à - Gobet).
+#show regex("[0-9]+"): set text(number-width: "tabular")
 #set par(leading: 0.4em)
 
 #let c = data.class

@@ -4,16 +4,16 @@
 //! The data is built by the office (`office::prints`); the templates only lay it out, so what a
 //! print says is tested on its data and on the text of its pages ([`text`]), not on its looks.
 //!
-//! Fonts: the system's sans-serif (Helvetica Neue on macOS; Segoe UI or Arial on Windows; DejaVu
-//! or Liberation on Linux), with Typst's own fonts as the fallback, so a print never fails for
-//! want of a font.
+//! Fonts: Inter, the app's typeface, built in (`assets/fonts`, SIL Open Font License), so a print
+//! is the same on a Mac, on Windows and on equievents.ch (the user, 2026-11-22: the server's had
+//! no fonts and printed in a serif); Typst's own fonts for what Inter lacks.
 
 use std::path::Path;
 use std::sync::OnceLock;
 
 use typst::diag::{FileError, FileResult};
 use typst::foundations::{Bytes, Datetime};
-use typst::layout::{Frame, FrameItem, PagedDocument};
+use typst::layout::{Abs, Frame, FrameItem, PagedDocument, Point};
 use typst::syntax::{FileId, Source, VirtualPath};
 use typst::text::{Font, FontBook};
 use typst::utils::LazyHash;
@@ -87,19 +87,26 @@ pub fn text(template: Template, data: &serde_json::Value) -> Result<Vec<String>,
         .iter()
         .map(|page| {
             let mut out = String::new();
-            collect(&page.frame, &mut out);
+            collect(&page.frame, Point::zero(), &mut None, &mut out);
             out
         })
         .collect())
 }
 
-fn collect(frame: &Frame, out: &mut String) {
-    for (_, item) in frame.items() {
+/// The page's text, its pieces in the order laid out: apart by a space, but pieces side by side
+/// on one line read as one (a number set apart for its figures of equal width: « 25. »).
+fn collect(frame: &Frame, origin: Point, last: &mut Option<Point>, out: &mut String) {
+    for (pos, item) in frame.items() {
+        let at = origin + *pos;
         match item {
-            FrameItem::Group(group) => collect(&group.frame, out),
+            FrameItem::Group(group) => collect(&group.frame, at, last, out),
             FrameItem::Text(text) => {
+                let touching = last.is_some_and(|end| (end.y - at.y).abs() < Abs::pt(0.5) && (end.x - at.x).abs() < Abs::pt(0.5));
+                if !out.is_empty() && !touching {
+                    out.push(' ');
+                }
                 out.push_str(text.text.as_str());
-                out.push(' ');
+                *last = Some(Point::new(at.x + text.width(), at.y));
             }
             _ => {}
         }
@@ -135,40 +142,16 @@ struct Fonts {
     fonts: Vec<Font>,
 }
 
+/// Inter, regular and bold (`assets/fonts`).
+const INTER: [&[u8]; 2] = [include_bytes!("../assets/fonts/Inter-Regular.ttf"), include_bytes!("../assets/fonts/Inter-Bold.ttf")];
+
 fn fonts() -> &'static Fonts {
     static FONTS: OnceLock<Fonts> = OnceLock::new();
     FONTS.get_or_init(|| {
-        let mut fonts: Vec<Font> = Vec::new();
-        for (dir, prefixes) in system_font_files() {
-            let Ok(entries) = std::fs::read_dir(dir) else { continue };
-            for entry in entries.flatten() {
-                let name = entry.file_name().to_string_lossy().to_lowercase();
-                if !prefixes.iter().any(|p| name.starts_with(p)) {
-                    continue;
-                }
-                if let Ok(bytes) = std::fs::read(entry.path()) {
-                    fonts.extend(Font::iter(Bytes::new(bytes)));
-                }
-            }
-        }
+        let mut fonts: Vec<Font> = INTER.iter().flat_map(|data| Font::iter(Bytes::new(*data))).collect();
         fonts.extend(typst_assets::fonts().flat_map(|data| Font::iter(Bytes::new(data))));
         Fonts { book: LazyHash::new(FontBook::from_fonts(&fonts)), fonts }
     })
-}
-
-/// Where the system's sans-serif fonts are, and which files (by the start of their name).
-fn system_font_files() -> Vec<(&'static Path, &'static [&'static str])> {
-    if cfg!(target_os = "macos") {
-        vec![(Path::new("/System/Library/Fonts"), &["helveticaneue"]), (Path::new("/System/Library/Fonts/Supplemental"), &["arial"])]
-    } else if cfg!(target_os = "windows") {
-        vec![(Path::new("C:\\Windows\\Fonts"), &["segoeui", "arial"])]
-    } else {
-        vec![
-            (Path::new("/usr/share/fonts/truetype/dejavu"), &["dejavusans"]),
-            (Path::new("/usr/share/fonts/truetype/liberation"), &["liberationsans"]),
-            (Path::new("/usr/share/fonts/TTF"), &["dejavusans", "liberationsans"]),
-        ]
-    }
 }
 
 /// Typst's view of a print: the template, the shared parts, the data, its images.

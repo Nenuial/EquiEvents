@@ -9,6 +9,9 @@
 
 #set document(title: data.title)
 #set text(font: fonts, size: 8.6pt, fill: ink, lang: data.language, number-type: "lining")
+// Figures of equal width, for columns (Inter's are proportional); only figures: its tabular
+// hyphen would open gaps in names (Chalet - à - Gobet).
+#show regex("[0-9]+"): set text(number-width: "tabular")
 #set par(leading: 0.45em)
 #set page(paper: "a5", margin: (x: 10mm, top: 8mm, bottom: 7mm))
 

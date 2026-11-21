@@ -25,6 +25,9 @@
 
 #set document(title: data.title)
 #set text(font: fonts, size: 8pt, lang: data.language, top-edge: "ascender", bottom-edge: "descender")
+// Figures of equal width, for columns (Inter's are proportional); only figures: its tabular
+// hyphen would open gaps in names (Chalet - à - Gobet).
+#show regex("[0-9]+"): set text(number-width: "tabular")
 #set par(leading: 0pt, spacing: 0pt)
 #set block(spacing: 0pt)
 #set table(inset: (x: 4pt, y: 2pt), stroke: rules)

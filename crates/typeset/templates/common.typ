@@ -12,7 +12,8 @@
 #let brand = rgb("#00283c")
 #let accent = rgb("#c2410c")
 
-#let fonts = ("Helvetica Neue", "Segoe UI", "Arial", "DejaVu Sans", "Liberation Sans", "Libertinus Serif")
+// Inter, built into the app (crates/typeset/assets/fonts): the same on every computer.
+#let fonts = ("Inter",)
 
 // Text that may be missing.
 #let opt(value) = if value == none { "" } else { str(value) }
@@ -44,6 +45,9 @@
 #let setup(body, flipped: false) = {
   set document(title: data.title)
   set text(font: fonts, size: 8.5pt, lang: data.language, fill: ink)
+  // Figures of equal width, for columns (Inter's are proportional); only figures: its tabular
+  // hyphen would open gaps in names (Chalet - à - Gobet).
+  show regex("[0-9]+"): set text(number-width: "tabular")
   set par(leading: 0.45em)
   set page(
     paper: "a4",

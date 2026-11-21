@@ -8,6 +8,9 @@
 #let s = data.sheet
 #set page(paper: "a4", margin: 0pt)
 #set text(font: fonts, size: s.font_pt * 1pt, lang: data.language, fill: ink)
+// Figures of equal width, for columns (Inter's are proportional); only figures: its tabular
+// hyphen would open gaps in names (Chalet - à - Gobet).
+#show regex("[0-9]+"): set text(number-width: "tabular")
 #set par(leading: 0.35em)
 
 #let per-page = s.cols * s.rows

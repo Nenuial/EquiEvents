@@ -6,6 +6,9 @@
 
 #set page(paper: "a4", margin: (top: 2cm, bottom: 2cm, x: 2cm))
 #set text(font: fonts, size: 10pt, lang: data.language, fill: ink)
+// Figures of equal width, for columns (Inter's are proportional); only figures: its tabular
+// hyphen would open gaps in names (Chalet - à - Gobet).
+#show regex("[0-9]+"): set text(number-width: "tabular")
 #set par(leading: 0.55em)
 
 #for (i, letter) in data.letters.enumerate() {
