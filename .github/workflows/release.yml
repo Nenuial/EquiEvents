@@ -1,0 +1,174 @@
+# Releases of the desktop app (docs/architecture/releases.md). A tag vX.Y.Z — the version in
+# app/src-tauri/tauri.conf.json — builds, with scripts/release.mjs as on a computer:
+#   - the Mac app for Apple chips and Intel, signed with the Developer ID, notarized by Apple;
+#   - the Windows setup, not signed for the pilot;
+# each with its update signed by the app's update key; then publishes their files and one
+# latest.json as the GitHub release of that tag. equievents.ch takes them from there: the tag in
+# its .env (RELEASE_TAG), then docker compose build.
+#
+# Run by hand (Actions › Release › Run workflow): the same builds, signed and notarized, kept as
+# the run's artifacts and published nowhere: to try the secrets before the first tag.
+#
+# The repository's secrets (Settings › Secrets and variables › Actions):
+#   TAURI_SIGNING_PRIVATE_KEY           the update key's file (~/.tauri/equievents.key), as text
+#   TAURI_SIGNING_PRIVATE_KEY_PASSWORD  its password
+#   APPLE_CERTIFICATE                   the Developer ID Application certificate and key (.p12), base64
+#   APPLE_CERTIFICATE_PASSWORD          the .p12's password
+#   notarization, either an App Store Connect API key (recommended):
+#     APPLE_API_KEY (its ID), APPLE_API_ISSUER (the issuer ID), APPLE_API_KEY_P8 (the .p8 file, as text)
+#   or the Apple ID: APPLE_ID, APPLE_PASSWORD (an app-specific password), APPLE_TEAM_ID
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: The tag and the app agree
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: version
+        run: |
+          version=$(jq -r .version app/src-tauri/tauri.conf.json)
+          pubkey=$(jq -r .plugins.updater.pubkey app/src-tauri/tauri.conf.json)
+          if [ "$GITHUB_EVENT_NAME" = "push" ] && [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::The tag $GITHUB_REF_NAME is not the app's version v$version (app/src-tauri/tauri.conf.json)."
+            exit 1
+          fi
+          if [ -z "$pubkey" ]; then
+            echo "::error::The app has no update key (plugins.updater.pubkey): commit its public half first (docs/architecture/releases.md)."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: ${{ matrix.system }}
+    needs: check
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - system: macos
+            runner: macos-14
+          - system: windows
+            runner: windows-latest
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # The project's toolchain (Cargo.toml's rust-version); the Mac app for both kinds of Mac.
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: '1.84'
+          targets: ${{ matrix.system == 'macos' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-${{ matrix.system }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci
+        working-directory: app
+
+      - name: The update key
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then echo "::error::No TAURI_SIGNING_PRIVATE_KEY secret."; exit 1; fi
+          dir="$RUNNER_TEMP/tauri"
+          mkdir -p "$dir"
+          printf '%s' "$TAURI_SIGNING_PRIVATE_KEY" > "$dir/equievents.key"
+          # Its public half: the app's (release.mjs checks the two agree).
+          jq -r .plugins.updater.pubkey app/src-tauri/tauri.conf.json > "$dir/equievents.key.pub"
+          echo "TAURI_SIGNING_PRIVATE_KEY_PATH=$dir/equievents.key" >> "$GITHUB_ENV"
+
+      - name: The Developer ID certificate
+        if: matrix.system == 'macos'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          if [ -z "$APPLE_CERTIFICATE" ]; then echo "::error::No APPLE_CERTIFICATE secret."; exit 1; fi
+          keychain="$RUNNER_TEMP/release.keychain-db"
+          password=$(openssl rand -base64 24)
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 3600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          printf '%s' "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security import "$RUNNER_TEMP/certificate.p12" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$keychain"
+          rm "$RUNNER_TEMP/certificate.p12"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain"
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+
+      - name: The notarization key
+        if: matrix.system == 'macos'
+        env:
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: |
+          if [ -n "$APPLE_API_KEY" ] && [ -n "$APPLE_API_KEY_P8" ]; then
+            path="$RUNNER_TEMP/AuthKey_$APPLE_API_KEY.p8"
+            printf '%s' "$APPLE_API_KEY_P8" > "$path"
+            echo "APPLE_API_KEY_PATH=$path" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build (scripts/release.mjs)
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          # An empty secret is no secret: unset, so Tauri does not try it.
+          for name in APPLE_API_KEY APPLE_API_ISSUER APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            if [ -z "${!name}" ]; then unset "$name"; fi
+          done
+          node scripts/release.mjs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.system }}
+          path: release/
+          if-no-files-found: error
+
+  publish:
+    name: The GitHub release
+    needs: [check, build]
+    # A tag only: a run by hand publishes nothing.
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: parts
+      - name: One latest.json for both systems
+        run: |
+          mkdir release
+          jq -s add parts/release-macos/latest.json parts/release-windows/latest.json > release/latest.json
+          cp parts/release-macos/EquiEvents-* parts/release-windows/EquiEvents-* release/
+          ls -l release
+          cat release/latest.json
+      - name: Published
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" release/* --repo "$GITHUB_REPOSITORY" --title "EquiEvents ${{ needs.check.outputs.version }}" --generate-notes

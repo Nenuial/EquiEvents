@@ -1,0 +1,14 @@
+# Only the Rust workspace goes into the image's build.
+.git
+target
+app/node_modules
+app/dist
+app/src-tauri/target
+golden
+vendor
+Rosson.app
+docs
+release
+release-test
+**/.DS_Store
+.env

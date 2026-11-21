@@ -1,0 +1,11 @@
+version: 3.3.15
+files:
+  - url: Rosson-3.3.15-universal-mac.zip
+    sha512: 4ECFL2F9BgEDpPyXQzbS/JHYp31j4FGRCWyqi03SPJ9M/LGAjrSvyUwMXHfa83aA6opNaJgA10L4OZ5rGeWhMg==
+    size: 164762603
+  - url: Rosson-3.3.15.dmg
+    sha512: ZCGLjGCPyQdN9IHdkZFZN1IQ2dPElPvVzgoIA/6dUvicwj5iibtR5EDQ41qEy0UsK5dycUTurVnySpmvG0I7ZA==
+    size: 170910462
+path: Rosson-3.3.15-universal-mac.zip
+sha512: 4ECFL2F9BgEDpPyXQzbS/JHYp31j4FGRCWyqi03SPJ9M/LGAjrSvyUwMXHfa83aA6opNaJgA10L4OZ5rGeWhMg==
+releaseDate: '2026-10-07T10:26:58.426Z'

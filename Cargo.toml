@@ -1,0 +1,13 @@
+[workspace]
+resolver = "2"
+members = ["crates/scoring", "crates/show", "crates/timing", "crates/rosson-import", "crates/se-api", "crates/office", "crates/typeset", "crates/server", "app/src-tauri"]
+
+[workspace.package]
+edition = "2021"
+rust-version = "1.84"
+publish = false
+
+[workspace.dependencies]
+rust_decimal = { version = "1", default-features = false, features = ["std"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

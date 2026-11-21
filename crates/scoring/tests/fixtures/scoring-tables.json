@@ -1,0 +1,251 @@
+{
+ "source": "Swiss Equestrian master data (wertungen) as delivered to Rosson, from golden/corpus/2026.8352",
+ "tables": [
+  {
+   "id": 1,
+   "code": "2PHAC",
+   "name": "2 Phasen: 1. Wertung A mit Zeitmessung, 2. Wertung C",
+   "definition": "{\r\n  \"code\": \"2PHAC\",\r\n  \"ist_phase\": true,\r\n  \"sichtbare_felder\": [\r\n    \"zeit_initial_1\",\r\n    \"strafpunkte_initial_1\",\r\n    \"zeit_initial_2\"\r\n  ],\r\n  \"bloecke\": [\r\n    {\r\n      \"definierte_felder\": [\r\n        \"zeit_initial_2\"\r\n      ],\r\n      \"zeit\": [\r\n        \"zeit_initial_2\"\r\n      ],\r\n      \"strafpunkte\": [],\r\n      \"resultate\": []\r\n    },\r\n    {\r\n      \"definierte_felder\": [\r\n        \"zeit_initial_1\",\r\n        \"strafpunkte_initial_1\"\r\n      ],\r\n      \"zeit\": [\r\n        \"zeit_initial_1\"\r\n      ],\r\n      \"strafpunkte\": [\r\n        \"strafpunkte_initial_1\"\r\n      ],\r\n      \"resultate\": []\r\n    }\r\n  ]\r\n}"
+  },
+  {
+   "id": 2,
+   "code": "2PHAOAZ",
+   "name": "2 Phasen: 1. Wertung A ohne Zeitmessung, 2. A mit Zeitmessung",
+   "definition": "{\r\n  \"code\": \"2PHAOAZ\",\r\n  \"ist_phase\": true,\r\n  \"sichtbare_felder\": [\r\n    \"strafpunkte_initial_1\",\r\n    \"strafpunkte_initial_2\",\r\n    \"zeit_stechen_1\"\r\n  ],\r\n  \"bloecke\": [\r\n    {\r\n      \"definierte_felder\": [\r\n        \"strafpunkte_initial_2\",\r\n        \"zeit_initial_2\"\r\n      ],\r\n      \"zeit\": [\r\n        \"zeit_initial_2\"\r\n      ],\r\n      \"strafpunkte\": [\r\n        \"strafpunkte_initial_2\"\r\n      ],\r\n      \"resultate\": []\r\n    },\r\n    {\r\n      \"definierte_felder\": [\r\n        \"strafpunkte_initial_1\"\r\n      ],\r\n      \"zeit\": [],\r\n      \"strafpunkte\": [\r\n        \"strafpunkte_initial_1\"\r\n      ],\r\n      \"resultate\": []\r\n    }\r\n  ]\r\n}"
+  },
+  {
+   "id": 3,
+   "code": "2PHAOC",
+   "name": "2 Phasen: 1. Wertung A ohne Zeitmessung, 2. Wertung C",
+   "definition": "{\r\n  \"code\": \"2PHAOC\",\r\n  \"ist_phase\": true,\r\n  \"sichtbare_felder\": [\r\n    \"strafpunkte_initial_1\",\r\n    \"zeit_initial_2\"\r\n  ],\r\n  \"bloecke\": [\r\n    {\r\n      \"definierte_felder\": [\r\n        \"zeit_initial_2\"\r\n      ],\r\n      \"zeit\": [\r\n        \"zeit_initial_2\"\r\n      ],\r\n      \"strafpunkte\": [],\r\n      \"resultate\": []\r\n    },\r\n    {\r\n      \"definierte_felder\": [\r\n        \"strafpunkte_initial_1\"\r\n      ],\r\n      \"zeit\": [],\r\n      \"strafpunkte\": [\r\n        \"strafpunkte_initial_1\"\r\n      ],\r\n      \"resultate\": []\r\n    }\r\n  ]\r\n}"
+  },
+  {
+   "id": 4,
+   "code": "2PHAZ",
+   "name": "2 Phasen Wertung A mit Zeitmessung",
+   "definition": "{\r\n  \"code\": \"2PHAZ\",\r\n  \"ist_phase\": true,\r\n  \"sichtbare_felder\": [\r\n    \"strafpunkte_initial_1\",\r\n    \"zeit_initial_1\",\r\n    \"strafpunkte_initial_2\",\r\n    \"zeit_initial_2\"\r\n  ],\r\n  \"bloecke\": [\r\n    {\r\n      \"definierte_felder\": [\r\n        \"strafpunkte_initial_2\",\r\n        \"zeit_initial_2\"\r\n      ],\r\n      \"zeit\": [\r\n        \"zeit_initial_2\"\r\n      ],\r\n      \"strafpunkte\": [\r\n        \"strafpunkte_initial_2\"\r\n      ],\r\n      \"resultate\": []\r\n    },\r\n    {\r\n      \"definierte_felder\": [\r\n        \"strafpunkte_initial_1\",\r\n        \"zeit_initial_1\"\r\n      ],\r\n      \"zeit\": [\r\n        \"zeit_initial_1\"\r\n      ],\r\n      \"strafpunkte\": [\r\n        \"strafpunkte_initial_1\"\r\n      ],\r\n      \"resultate\": []\r\n    }\r\n  ]\r\n}"
+  },
+  {
+   "id": 5,
+   "code": "2PHAZPAZP",
+   "name": "2 Phasen Spez.: 1. Wertung A mit Zm + Punkte, 2. alle A m Zm + Punkte, Zeit 2. Phase",
+   "definition": "{\r\n  \"code\": \"2PHAZPAZP\",\r\n  \"ist_phase\": true,\r\n  \"sichtbare_felder\": [\r\n    \"strafpunkte_initial_1\",\r\n    \"zeit_initial_1\",\r\n    \"strafpunkte_initial_2\",\r\n    \"zeit_initial_2\"\r\n  ],\r\n  \"bloecke\": [\r\n    {\r\n      \"definierte_felder\": [\r\n        \"strafpunkte_initial_1\",\r\n        \"strafpunkte_initial_2\",\r\n        \"zeit_initial_2\"\r\n      ],\r\n      \"zeit\": [\r\n        \"zeit_initial_2\"\r\n      ],\r\n      \"strafpunkte\": [\r\n        \"strafpunkte_initial_1\",\r\n        \"strafpunkte_initial_2\"\r\n      ],\r\n      \"resultate\": []\r\n    }\r\n  ]\r\n}"
+  },
+  {
+   "id": 6,
+   "code": "2PHCAZP",
+   "name": "2 Phasen Spez.: 1. Wertung C, 2. alle A mit Zeitmessung + Punkte, Zeit 1. Phase",
+   "definition": "{\r\n  \"code\": \"2PHCAZP\",\r\n  \"ist_phase\": true,\r\n  \"sichtbare_felder\": [\r\n    \"zeit_initial_1\",\r\n    \"strafpunkte_initial_2\",\r\n    \"zeit_initial_2\"\r\n  ],\r\n  \"bloecke\": [\r\n    {\r\n      \"definierte_felder\": [\r\n        \"zeit_initial_1\"\r\n      ],\r\n      \"zeit\": [\r\n        \"zeit_initial_1\"\r\n      ],\r\n      \"strafpunkte\": [\r\n        \"strafpunkte_initial_2\"\r\n      ],\r\n      \"resultate\": []\r\n    }\r\n  ]\r\n}"
+  },
+  {
+   "id": 7,
+   "code": "AOZM",
+   "name": "Wertung A ohne Zeitmessung",
+   "definition": "{\r\n    \"code\": \"A\",\r\n    \"sichtbare_felder\": [\"strafpunkte_initial_1\"],\r\n    \"bloecke\": [{\r\n        \"definierte_felder\": [\"strafpunkte_initial_1\"],\r\n        \"zeit\": [],\r\n        \"strafpunkte\": [\"strafpunkte_initial_1\"],\r\n        \"resultate\": []\r\n    }]\r\n}\r\n"
+  },
+  {
+   "id": 12,
+   "code": "AZ2RUZ12",
+   "name": "2 Umgänge (2.red.) A mit Zeitmessung (Zeit zählt aus beiden Umg.)",
+   "definition": "{\n    \"code\": \"AZ2RUZ12\",\n    \"sichtbare_felder\": [\"zeit_initial_1\", \"zeit_initial_2\", \"strafpunkte_initial_1\", \"strafpunkte_initial_2\"],\n    \"bloecke\": [{\n        \"definierte_felder\": [\"zeit_initial_1\", \"zeit_initial_2\", \"strafpunkte_initial_1\", \"strafpunkte_initial_2\"],\n        \"zeit\": [\"zeit_initial_1\", \"zeit_initial_2\"],\n        \"strafpunkte\": [\"strafpunkte_initial_1\", \"strafpunkte_initial_2\"],\n        \"resultate\": []\n    }, {\n        \"definierte_felder\": [\"strafpunkte_initial_1\",\"zeit_initial_1\"],\n        \"zeit\": [\"zeit_initial_1\"],\n        \"strafpunkte\": [\"strafpunkte_initial_1\"],\n        \"resultate\": []\n    }]\n}\n"
+  },
+  {
+   "id": 14,
+   "code": "AZ",
+   "name": "Wertung A mit Zeitmessung",
+   "definition": "{\r\n    \"code\": \"AZ\",\r\n    \"sichtbare_felder\": [\"zeit_initial_1\", \"strafpunkte_initial_1\"],\r\n    \"bloecke\": [{\r\n        \"definierte_felder\": [\"zeit_initial_1\", \"strafpunkte_initial_1\"],\r\n        \"zeit\": [\"zeit_initial_1\"],\r\n        \"strafpunkte\": [\"strafpunkte_initial_1\"],\r\n        \"resultate\": []\r\n    }]\r\n}\r\n"
+  },
+  {
+   "id": 17,
+   "code": "AZ1AZ",
+   "name": "Wertung A mit Zeitmessung und 1 Stechen mit Zeitmessung (A)",
+   "definition": "{\r\n    \"code\": \"AZ1AZ\",\r\n    \"sichtbare_felder\": [\"zeit_stechen_1\", \"strafpunkte_stechen_1\", \"strafpunkte_initial_1\", \"zeit_initial_1\"],\r\n    \"bloecke\": [{\r\n        \"definierte_felder\": [\"zeit_stechen_1\", \"strafpunkte_stechen_1\"],\r\n        \"zeit\": [\"zeit_stechen_1\"],\r\n        \"strafpunkte\": [\"strafpunkte_stechen_1\"],\r\n        \"resultate\": []\r\n    }, {\r\n        \"definierte_felder\": [\"zeit_initial_1\", \"strafpunkte_initial_1\"],\r\n        \"zeit\": [\"zeit_initial_1\"],\r\n        \"strafpunkte\": [\"strafpunkte_initial_1\"],\r\n        \"resultate\": []\r\n    }]\r\n}\r\n"
+  },
+  {
+   "id": 18,
+   "code": "AZ1C",
+   "name": "Wertung A mit Zeitmessung und 1 Stechen nach Wertung C",
+   "definition": "{\n    \"code\": \"AZ1C\",\n    \"sichtbare_felder\": [\"zeit_stechen_1\", \"zeit_initial_1\", \"strafpunkte_initial_1\"],\n    \"bloecke\": [{\n        \"definierte_felder\": [\"zeit_stechen_1\"],\n        \"zeit\": [\"zeit_stechen_1\"],\n        \"strafpunkte\": [],\n        \"resultate\": []\n    }, {\n        \"definierte_felder\": [\"strafpunkte_initial_1\", \"zeit_initial_1\"],\n        \"zeit\": [\"zeit_initial_1\"],\n        \"strafpunkte\": [\"strafpunkte_initial_1\"],\n        \"resultate\": []\n    }]\n}\n"
+  },
+  {
+   "id": 19,
+   "code": "AZ2A",
+   "name": "Wertung A mit Zeitmessung und 2 Stechen ohne ZM",
+   "definition": "{\r\n    \"code\": \"AZ2A\",\r\n    \"sichtbare_felder\": [\"strafpunkte_stechen_1\", \"strafpunkte_stechen_2\", \"strafpunkte_initial_1\", \"zeit_initial_1\"],\r\n    \"bloecke\": [{\r\n        \"definierte_felder\": [\"strafpunkte_stechen_2\"],\r\n        \"zeit\": [],\r\n        \"strafpunkte\": [\"strafpunkte_stechen_2\"],\r\n        \"resultate\": []\r\n    }, {\r\n        \"definierte_felder\": [\"strafpunkte_stechen_1\"],\r\n        \"zeit\": [],\r\n        \"strafpunkte\": [\"strafpunkte_stechen_1\"],\r\n        \"resultate\": []\r\n    }, {\r\n        \"definierte_felder\": [\"zeit_initial_1\", \"strafpunkte_initial_1\"],\r\n        \"zeit\": [\"zeit_initial_1\"],\r\n        \"strafpunkte\": [\"strafpunkte_initial_1\"],\r\n        \"resultate\": []\r\n    }]\r\n}\r\n"
+  },
+  {
+   "id": 20,
+   "code": "AZ2AZ",
+   "name": "Wertung A mit Zeitmessung und 2 Stechen mit Zeitmessung (A)",
+   "definition": "{\n    \"code\": \"AZ2AZ\",\n    \"sichtbare_felder\": [\"zeit_stechen_1\", \"strafpunkte_stechen_1\", \"zeit_stechen_2\", \"strafpunkte_stechen_2\", \"strafpunkte_initial_1\", \"zeit_initial_1\"],\n    \"bloecke\": [{\n        \"definierte_felder\": [\"strafpunkte_stechen_2\", \"zeit_stechen_2\"],\n        \"zeit\": [\"zeit_stechen_2\"],\n        \"strafpunkte\": [\"strafpunkte_stechen_2\"],\n        \"resultate\": []\n    }, {\n        \"definierte_felder\": [\"zeit_stechen_1\", \"strafpunkte_stechen_1\"],\n        \"zeit\": [\"zeit_stechen_1\"],\n        \"strafpunkte\": [\"strafpunkte_stechen_1\"],\n        \"resultate\": []\n    }, {\n        \"definierte_felder\": [\"zeit_initial_1\", \"strafpunkte_initial_1\"],\n        \"zeit\": [\"zeit_initial_1\"],\n        \"strafpunkte\": [\"strafpunkte_initial_1\"],\n        \"resultate\": []\n    }]\n}\n"
+  },
+  {
+   "id": 21,
+   "code": "AZ2RUZ2",
+   "name": "2 Umgänge (2.red.) A mit Zeitmessung (Zeit zählt aus dem 2. Umgang)",
+   "definition": "{\r\n    \"code\": \"AZ2RUZ2\",\r\n    \"sichtbare_felder\": [\"zeit_initial_1\", \"zeit_initial_2\", \"strafpunkte_initial_1\", \"strafpunkte_initial_2\"],\r\n    \"bloecke\": [{\r\n        \"definierte_felder\": [\"strafpunkte_initial_1\", \"strafpunkte_initial_2\",\"zeit_initial_2\"],\r\n        \"zeit\": [ \"zeit_initial_2\"],\r\n        \"strafpunkte\": [\"strafpunkte_initial_1\", \"strafpunkte_initial_2\"],\r\n        \"resultate\": []\r\n    }, {\r\n        \"definierte_felder\": [\"strafpunkte_initial_1\",\"zeit_initial_1\"],\r\n        \"zeit\": [\"zeit_initial_1\"],\r\n        \"strafpunkte\": [\"strafpunkte_initial_1\"],\r\n        \"resultate\": []\r\n    }]\r\n}"
+  },
+  {
+   "id": 23,
+   "code": "AZ2RU1AZZ2",
+   "name": "2 Umgänge (2.red.) A mit Zeitmessung + 1 Stechen A mit Zeitmessung (Zeit zählt aus dem 2. Umgang)",
+   "definition": "{\r\n    \"code\": \"AZ2RU1AZZ2\",\r\n    \"sichtbare_felder\": [\"zeit_initial_1\", \"zeit_initial_2\", \"strafpunkte_stechen_1\", \"zeit_stechen_1\", \"strafpunkte_initial_1\", \"strafpunkte_initial_2\"],\r\n    \"bloecke\": [{\r\n        \"definierte_felder\": [\"zeit_stechen_1\", \"strafpunkte_stechen_1\"],\r\n        \"zeit\": [\"zeit_stechen_1\"],\r\n        \"strafpunkte\": [\"strafpunkte_stechen_1\"],\r\n        \"resultate\": []\r\n    }, {\r\n        \"definierte_felder\": [ \"strafpunkte_initial_1\",\"strafpunkte_initial_2\", \"zeit_initial_2\"],\r\n        \"zeit\": [\"zeit_initial_2\"],\r\n        \"strafpunkte\": [\"strafpunkte_initial_1\",\"strafpunkte_initial_2\"],\r\n        \"resultate\": []\r\n    }, {\r\n        \"definierte_felder\": [\"strafpunkte_initial_1\", \"zeit_initial_1\"],\r\n        \"zeit\": [\"zeit_initial_1\"],\r\n        \"strafpunkte\": [\"strafpunkte_initial_1\"],\r\n        \"resultate\": []\r\n    }]\r\n}\r\n"
+  },
+  {
+   "id": 24,
+   "code": "AZ2RUSAZ2",
+   "name": "2 Umgänge (2.red.) A mit Zeitmessung + 1 Siegerrunde A mit Zeitmessung (Zeit zählt aus dem 2. Umgang)",
+   "definition": "{\n    \"code\": \"AZ2RUSAZ2\",\n    \"siegerrunde\": true,\n    \"sichtbare_felder\": [\"zeit_initial_1\", \"strafpunkte_initial_1\",\"zeit_initial_2\", \"strafpunkte_initial_2\", \"strafpunkte_stechen_1\", \"zeit_stechen_1\"],\n    \"bloecke\": [{\n        \"definierte_felder\": [\"zeit_stechen_1\"],\n        \"zeit\": [\"zeit_stechen_1\"],\n        \"strafpunkte\": [\"strafpunkte_initial_1\",\"strafpunkte_initial_2\"],\n        \"resultate\": []\n    }, {\n        \"definierte_felder\": [\"strafpunkte_initial_1\",\"strafpunkte_initial_2\", \"zeit_initial_2\"],\n        \"zeit\": [\"zeit_initial_2\"],\n        \"strafpunkte\": [\"strafpunkte_initial_1\",\"strafpunkte_initial_2\"],\n        \"resultate\": []\n    }, {\n        \"definierte_felder\": [\"strafpunkte_initial_1\",\"zeit_initial_1\"],\n        \"zeit\": [\"zeit_initial_1\"],\n        \"strafpunkte\": [\"strafpunkte_initial_1\"],\n        \"resultate\": []\n    }]\n}"
+  },
+  {
+   "id": 25,
+   "code": "AZ2S1.A2.C",
+   "name": "Wertung A mit Zeitmessung und 2 Stechen, 1. (A), 2. (C)",
+   "definition": "{\n    \"code\": \"AZ2S1.A2.C\",\n    \"sichtbare_felder\": [\"strafpunkte_stechen_1\", \"strafpunkte_stechen_2\", \"strafpunkte_initial_1\", \"zeit_initial_1\"],\n    \"bloecke\": [{\n        \"definierte_felder\": [\"zeit_stechen_2\"],\n        \"zeit\": [\"zeit_stechen_2\"],\n        \"strafpunkte\": [],\n        \"resultate\": []\n    }, {\n        \"definierte_felder\": [\"strafpunkte_stechen_1\"],\n        \"zeit\": [],\n        \"strafpunkte\": [\"strafpunkte_stechen_1\"],\n        \"resultate\": []\n    }, {\n        \"definierte_felder\": [\"zeit_initial_1\", \"strafpunkte_initial_1\"],\n        \"zeit\": [\"zeit_initial_1\"],\n        \"strafpunkte\": [\"strafpunkte_initial_1\"],\n        \"resultate\": []\n    }]\n}\n"
+  },
+  {
+   "id": 26,
+   "code": "AZ2UZ12",
+   "name": "2 Umgängen A mit Zeitmessung ",
+   "definition": "{\r\n    \"code\": \"AZ2UZ12\",\r\n    \"sichtbare_felder\": [\"zeit_initial_1\", \"zeit_initial_2\", \"strafpunkte_initial_1\", \"strafpunkte_initial_2\"],\r\n    \"bloecke\": [{\r\n        \"definierte_felder\": [\"strafpunkte_initial_1\", \"strafpunkte_initial_2\", \"zeit_initial_2\"],\r\n        \"zeit\": [\"zeit_initial_1\",\"zeit_initial_2\"],\r\n        \"strafpunkte\": [\"strafpunkte_initial_1\", \"strafpunkte_initial_2\"],\r\n        \"resultate\": []\r\n    }, {\r\n        \"definierte_felder\": [\"strafpunkte_initial_1\", \"zeit_initial_1\"],\r\n        \"zeit\": [\"zeit_initial_1\"],\r\n        \"strafpunkte\": [\"strafpunkte_initial_1\"],\r\n        \"resultate\": []\r\n    }]\r\n}\r\n"
+  },
+  {
+   "id": 27,
+   "code": "AZ2RU1AZZ12",
+   "name": "2 Umgänge (2.red.) A mit Zeitmessung + 1 Stechen A mit Zeitmessung (Zeit zählt aus beiden Umg.)",
+   "definition": "{\r\n    \"code\": \"AZ2RU1AZZ12\",\r\n    \"sichtbare_felder\": [\"zeit_initial_1\", \"zeit_initial_2\", \"strafpunkte_stechen_1\", \"zeit_stechen_1\", \"strafpunkte_initial_1\", \"strafpunkte_initial_2\"],\r\n    \"bloecke\": [{\r\n        \"definierte_felder\": [\"zeit_stechen_1\", \"strafpunkte_stechen_1\"],\r\n        \"zeit\": [\"zeit_stechen_1\"],\r\n        \"strafpunkte\": [\"strafpunkte_stechen_1\"],\r\n        \"resultate\": []\r\n    }, {\r\n        \"definierte_felder\": [\"strafpunkte_initial_1\", \"strafpunkte_initial_2\", \"zeit_initial_2\"],\r\n        \"zeit\": [\"zeit_initial_1\",\"zeit_initial_2\"],\r\n        \"strafpunkte\": [\"strafpunkte_initial_1\", \"strafpunkte_initial_2\"],\r\n        \"resultate\": []\r\n    }, {\r\n        \"definierte_felder\": [\"strafpunkte_initial_1\", \"zeit_initial_1\"],\r\n        \"zeit\": [\"zeit_initial_1\"],\r\n        \"strafpunkte\": [\"strafpunkte_initial_1\"],\r\n        \"resultate\": []\r\n    }]\r\n}\r\n"
+  },
+  {
+   "id": 28,
+   "code": "AZ2UC",
+   "name": "2 Umgängen: 1. A mit Zeitmessung, 2. Wertung C",
+   "definition": "{\r\n    \"code\": \"AZ2UC\",\r\n    \"sichtbare_felder\": [\"zeit_initial_1\", \"zeit_initial_2\", \"strafpunkte_stechen_1\", \"zeit_stechen_1\", \"strafpunkte_initial_1\"],\r\n    \"bloecke\": [{\r\n        \"definierte_felder\": [\"strafpunkte_initial_1\", \"zeit_initial_1\", \"zeit_initial_2\"],\r\n        \"zeit\": [\"zeit_initial_1\", \"zeit_initial_2\"],\r\n        \"strafpunkte\": [\"strafpunkte_initial_1\"],\r\n        \"resultate\": []\r\n    }]\r\n}\r\n"
+  },
+  {
+   "id": 29,
+   "code": "AZAZSA",
+   "name": "Wertung A mit Zeitmessung und Siegerrunde (A Zm) (m. Punkten aus N.P.)",
+   "definition": "{\n    \"code\": \"AZAZSA\",\n    \"siegerrunde\": true,\n    \"sichtbare_felder\": [\"strafpunkte_stechen_1\",\"zeit_stechen_1\", \"strafpunkte_initial_1\", \"zeit_initial_1\"],\n    \"bloecke\": [{\n        \"definierte_felder\": [\"strafpunkte_stechen_1\",\"zeit_stechen_1\"],\n        \"zeit\": [\"zeit_stechen_1\"],\n        \"strafpunkte\": [\"strafpunkte_stechen_1\", \"strafpunkte_initial_1\"],\n        \"resultate\": []\n    }, {\n        \"definierte_felder\": [\"zeit_initial_1\", \"strafpunkte_initial_1\"],\n        \"zeit\": [\"zeit_initial_1\"],\n        \"strafpunkte\": [\"strafpunkte_initial_1\"],\n        \"resultate\": []\n    }]\n}"
+  },
+  {
+   "id": 30,
+   "code": "AZAZSA0",
+   "name": "Wertung A mit Zeitmessung und Siegerrunde (A) (Start mit 0 Punkten)",
+   "definition": "{\n    \"code\": \"AZAZSA0\",\n    \"siegerrunde\": true,\n    \"sichtbare_felder\": [\"strafpunkte_stechen_1\",\"zeit_stechen_1\", \"strafpunkte_initial_1\", \"zeit_initial_1\",],\n    \"bloecke\": [{\n        \"definierte_felder\": [\"strafpunkte_stechen_1\",\"zeit_stechen_1\"],\n        \"zeit\": [\"zeit_stechen_1\"],\n        \"strafpunkte\": [\"strafpunkte_stechen_1\"],\n        \"resultate\": []\n    }, {\n        \"definierte_felder\": [\"zeit_initial_1\", \"strafpunkte_initial_1\"],\n        \"zeit\": [\"zeit_initial_1\"],\n        \"strafpunkte\": [\"strafpunkte_initial_1\"],\n        \"resultate\": []\n    }]\n}"
+  },
+  {
+   "id": 31,
+   "code": "AZAZSC0",
+   "name": "Wertung A mit Zeitmessung und Siegerrunde (C) (Start bei 0)",
+   "definition": "{\n    \"code\": \"AZAZSC0\",\n    \"siegerrunde\": true,\n    \"sichtbare_felder\": [\"zeit_stechen_1\", \"strafpunkte_initial_1\", \"zeit_initial_1\"],\n    \"bloecke\": [{\n        \"definierte_felder\": [\"zeit_stechen_1\"],\n        \"zeit\": [\"zeit_stechen_1\"],\n        \"strafpunkte\": [],\n        \"resultate\": []\n    }, {\n        \"definierte_felder\": [\"zeit_initial_1\", \"strafpunkte_initial_1\"],\n        \"zeit\": [\"zeit_initial_1\"],\n        \"strafpunkte\": [\"strafpunkte_initial_1\"],\n        \"resultate\": []\n    }]\n}"
+  },
+  {
+   "id": 35,
+   "code": "AZI",
+   "name": "Wertung A mit Zeitmessung Idealzeit",
+   "definition": "{\n    \"code\": \"AZI\",\n    \"sichtbare_felder\": [\"strafpunkte_initial_1\",\"zeit_initial_1\"],\n    \"bloecke\": [{\n        \"idealzeit\": true,\n        \"definierte_felder\": [\"strafpunkte_initial_1\",\"zeit_initial_1\"],\n        \"zeit\": [\"zeit_initial_1\"],\n        \"strafpunkte\": [\"strafpunkte_initial_1\"],\n        \"resultate\": []\n    }]\n}\n"
+  },
+  {
+   "id": 39,
+   "code": "BARR",
+   "name": "Barrierenspringen",
+   "definition": "{\n    \"code\": \"BARR\",\n    \"sichtbare_felder\": [\"strafpunkte_initial_1\",\"strafpunkte_stechen_1\",\"strafpunkte_stechen_2\",\"strafpunkte_stechen_3\",\"strafpunkte_stechen_4\"],\n    \"bloecke\": [{\n        \"definierte_felder\": [\"strafpunkte_stechen_4\"],\n        \"zeit\": [],\n        \"strafpunkte\": [\"strafpunkte_stechen_4\"],\n        \"resultate\": []\n    }, {\n        \"definierte_felder\": [\"strafpunkte_stechen_3\"],\n        \"zeit\": [],\n        \"strafpunkte\": [\"strafpunkte_stechen_3\"],\n        \"resultate\": []\n    }, {\n        \"definierte_felder\": [\"strafpunkte_stechen_2\"],\n        \"zeit\": [],\n        \"strafpunkte\": [\"strafpunkte_stechen_2\"],\n        \"resultate\": []\n    }, {\n        \"definierte_felder\": [\"strafpunkte_stechen_1\"],\n        \"zeit\": [],\n        \"strafpunkte\": [\"strafpunkte_stechen_1\"],\n        \"resultate\": []\n    }, {\n        \"definierte_felder\": [\"strafpunkte_initial_1\"],\n        \"zeit\": [],\n        \"strafpunkte\": [\"strafpunkte_initial_1\"],\n        \"resultate\": []\n    }]\n}\n"
+  },
+  {
+   "id": 40,
+   "code": "C",
+   "name": "Wertung C",
+   "definition": "{\n    \"code\": \"C\",\n    \"sichtbare_felder\": [\"zeit_initial_1\"],\n    \"bloecke\": [{\n        \"definierte_felder\": [\"zeit_initial_1\"],\n        \"zeit\": [\"zeit_initial_1\"],\n        \"strafpunkte\": [],\n        \"resultate\": []\n    }]\n}\n"
+  },
+  {
+   "id": 41,
+   "code": "C1AZ",
+   "name": "Wertung C und 1 Stechen mit Zeitmessung (A)",
+   "definition": "{\n    \"code\": \"C1AZ\",\n    \"sichtbare_felder\": [\"zeit_initial_1\", \"strafpunkte_stechen_1\", \"zeit_stechen_1\"],\n    \"bloecke\": [{\n        \"definierte_felder\": [\"zeit_stechen_1\", \"strafpunkte_stechen_1\"],\n        \"zeit\": [\"zeit_initial_1\"],\n        \"strafpunkte\": [\"strafpunkte_stechen_1\"],\n        \"resultate\": []\n    }, {\n        \"definierte_felder\": [\"zeit_initial_1\"],\n        \"zeit\": [\"zeit_initial_1\"],\n        \"strafpunkte\": [],\n        \"resultate\": []\n    }]\n}\n"
+  },
+  {
+   "id": 42,
+   "code": "DERBY",
+   "name": "Derby",
+   "definition": "{\n    \"code\": \"DERBY\",\n    \"sichtbare_felder\": [\"zeit_initial_1\", \"strafpunkte_initial_1\"],\n    \"bloecke\": [{\n        \"definierte_felder\": [\"zeit_initial_1\", \"strafpunkte_initial_1\"],\n        \"zeit\": [\"zeit_initial_1\"],\n        \"strafpunkte\": [\"strafpunkte_initial_1\"],\n        \"resultate\": []\n    }]\n}\n"
+  },
+  {
+   "id": 44,
+   "code": "JAGD",
+   "name": "Jagdspringen",
+   "definition": "{\n    \"code\": \"DERBY\",\n    \"sichtbare_felder\": [\"zeit_initial_1\"],\n    \"bloecke\": [{\n        \"definierte_felder\": [\"zeit_initial_1\"],\n        \"zeit\": [\"zeit_initial_1\"],\n        \"strafpunkte\": [],\n        \"resultate\": []\n    }]\n}\n"
+  },
+  {
+   "id": 55,
+   "code": "KNOCK",
+   "name": "Knock-out Springen",
+   "definition": "{\n    \"code\": \"PUIS\",\n    \"sichtbare_felder\": [\"strafpunkte_initial_1\",\"strafpunkte_stechen_1\",\"strafpunkte_stechen_2\",\"strafpunkte_stechen_3\",\"strafpunkte_stechen_4\"],\n    \"bloecke\": [{\n        \"definierte_felder\": [\"strafpunkte_stechen_4\"],\n        \"zeit\": [],\n        \"strafpunkte\": [\"strafpunkte_stechen_4\"],\n        \"resultate\": []\n    }, {\n        \"definierte_felder\": [\"strafpunkte_stechen_3\"],\n        \"zeit\": [],\n        \"strafpunkte\": [\"strafpunkte_stechen_3\"],\n        \"resultate\": []\n    }, {\n        \"definierte_felder\": [\"strafpunkte_stechen_2\"],\n        \"zeit\": [],\n        \"strafpunkte\": [\"strafpunkte_stechen_2\"],\n        \"resultate\": []\n    }, {\n        \"definierte_felder\": [\"strafpunkte_stechen_1\"],\n        \"zeit\": [],\n        \"strafpunkte\": [\"strafpunkte_stechen_1\"],\n        \"resultate\": []\n    }, {\n        \"definierte_felder\": [\"strafpunkte_initial_1\"],\n        \"zeit\": [],\n        \"strafpunkte\": [\"strafpunkte_initial_1\"],\n        \"resultate\": []\n    }]\n}\n"
+  },
+  {
+   "id": 58,
+   "code": "PROG",
+   "name": "Progressives Punktespringen",
+   "definition": "{\n    \"code\": \"PROG\",\n    \"sichtbare_felder\": [\"zeit_initial_1\", \"strafpunkte_initial_1\"],\n    \"bloecke\": [{\n        \"prog\": true,\n        \"definierte_felder\": [\"zeit_initial_1\", \"strafpunkte_initial_1\"],\n        \"zeit\": [\"zeit_initial_1\"],\n        \"strafpunkte\": [\"strafpunkte_initial_1\"],\n        \"resultate\": []\n    }]\n}\n"
+  },
+  {
+   "id": 59,
+   "code": "PROG2SAC",
+   "name": "Progressives Punktespringen und 2 Stechen, 1. (A), 2. (C)",
+   "definition": "{\n    \"code\": \"PROG2SAC\",\n    \"sichtbare_felder\": [\"zeit_initial_1\", \"strafpunkte_initial_1\", \"strafpunkte_stechen_1\", \"zeit_stechen_1\", \"zeit_stechen_2\"],\n    \"bloecke\": [{\n        \"definierte_felder\": [\"zeit_stechen_2\"],\n        \"zeit\": [\"zeit_stechen_2\"],\n        \"strafpunkte\": [],\n        \"resultate\": []\n    }, {\n        \"definierte_felder\": [\"zeit_stechen_1\", \"strafpunkte_stechen_1\"],\n        \"zeit\": [\"zeit_stechen_1\"],\n        \"strafpunkte\": [\"strafpunkte_stechen_1\"],\n        \"resultate\": []\n    }, {\n        \"prog\": true,\n        \"definierte_felder\": [\"zeit_initial_1\", \"strafpunkte_initial_1\"],\n        \"zeit\": [\"zeit_initial_1\"],\n        \"strafpunkte\": [\"strafpunkte_initial_1\"],\n        \"resultate\": []\n    }]\n}\n"
+  },
+  {
+   "id": 60,
+   "code": "PROGJO",
+   "name": "Progressives Punktespringen mit Joker",
+   "definition": "{\n    \"code\": \"PROGJO\",\n    \"sichtbare_felder\": [\"zeit_initial_1\", \"strafpunkte_initial_1\"],\n    \"bloecke\": [{\n        \"prog\": true,\n        \"definierte_felder\": [\"zeit_initial_1\", \"strafpunkte_initial_1\"],\n        \"zeit\": [\"zeit_initial_1\"],\n        \"strafpunkte\": [\"strafpunkte_initial_1\"],\n        \"resultate\": []\n    }]\n}\n"
+  },
+  {
+   "id": 61,
+   "code": "PUIS",
+   "name": "Puissance",
+   "definition": "{\n    \"code\": \"PUIS\",\n    \"sichtbare_felder\": [\"strafpunkte_initial_1\",\"strafpunkte_stechen_1\",\"strafpunkte_stechen_2\",\"strafpunkte_stechen_3\",\"strafpunkte_stechen_4\"],\n    \"bloecke\": [{\n        \"definierte_felder\": [\"strafpunkte_stechen_4\"],\n        \"zeit\": [],\n        \"strafpunkte\": [\"strafpunkte_stechen_4\"],\n        \"resultate\": []\n    }, {\n        \"definierte_felder\": [\"strafpunkte_stechen_3\"],\n        \"zeit\": [],\n        \"strafpunkte\": [\"strafpunkte_stechen_3\"],\n        \"resultate\": []\n    }, {\n        \"definierte_felder\": [\"strafpunkte_stechen_2\"],\n        \"zeit\": [],\n        \"strafpunkte\": [\"strafpunkte_stechen_2\"],\n        \"resultate\": []\n    }, {\n        \"definierte_felder\": [\"strafpunkte_stechen_1\"],\n        \"zeit\": [],\n        \"strafpunkte\": [\"strafpunkte_stechen_1\"],\n        \"resultate\": []\n    }, {\n        \"definierte_felder\": [\"strafpunkte_initial_1\"],\n        \"zeit\": [],\n        \"strafpunkte\": [\"strafpunkte_initial_1\"],\n        \"resultate\": []\n    }]\n}\n"
+  },
+  {
+   "id": 62,
+   "code": "PUNKT",
+   "name": "Punktespringen",
+   "definition": "{\n    \"code\": \"PUNKT\",\n    \"sichtbare_felder\": [\"zeit_initial_1\", \"strafpunkte_initial_1\"],\n    \"bloecke\": [{\n        \"prog\": true,\n        \"definierte_felder\": [\"zeit_initial_1\", \"strafpunkte_initial_1\"],\n        \"zeit\": [\"zeit_initial_1\"],\n        \"strafpunkte\": [\"strafpunkte_initial_1\"],\n        \"resultate\": []\n    }]\n}\n"
+  },
+  {
+   "id": 63,
+   "code": "STIL",
+   "name": "Stilprüfung",
+   "definition": "{\n    \"code\": \"STIL\",\n    \"sichtbare_felder\": [\"zeit_initial_1\", \"strafpunkte_initial_1\"],\n    \"bloecke\": [{\n        \"prog\": true,\n        \"definierte_felder\": [\"zeit_initial_1\", \"strafpunkte_initial_1\"],\n        \"zeit\": [\"zeit_initial_1\"],\n        \"strafpunkte\": [\"strafpunkte_initial_1\"],\n        \"resultate\": []\n    }]\n}\n"
+  },
+  {
+   "id": 64,
+   "code": "ZEIT",
+   "name": "Zeitspringen",
+   "definition": "{\n    \"code\": \"ZEIT\",\n    \"sichtbare_felder\": [\"zeit_initial_1\"],\n    \"bloecke\": [{\n        \"definierte_felder\": [\"zeit_initial_1\"],\n        \"zeit\": [\"zeit_initial_1\"],\n        \"strafpunkte\": [],\n        \"resultate\": []\n    }]\n}\n"
+  },
+  {
+   "id": 66,
+   "code": "Gymk",
+   "name": "Gymkhana",
+   "definition": ""
+  },
+  {
+   "id": 101,
+   "code": "Rücke",
+   "name": "Rückeprüfung",
+   "definition": ""
+  },
+  {
+   "id": 102,
+   "code": "STILOZM",
+   "name": "Stilprüfung ohne Zeitmessung",
+   "definition": "{\n  \"code\": \"STILOZM\",\n  \"sichtbare_felder\": [\n    \"strafpunkte_initial_1\"\n  ],\n  \"bloecke\": [\n    {\n      \"prog\": true,\n      \"definierte_felder\": [\n        \"strafpunkte_initial_1\"\n      ],\n      \"zeit\": [],\n      \"strafpunkte\": [\n        \"strafpunkte_initial_1\"\n      ],\n      \"resultate\": []\n    }\n  ]\n}"
+  },
+  {
+   "id": 103,
+   "code": "STILMIDEAL",
+   "name": "Stilprüfung mit Idealzeit",
+   "definition": null
+  }
+ ]
+}

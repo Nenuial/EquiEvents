@@ -1,0 +1,29 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "EquiEvents",
+  "version": "0.1.0",
+  "identifier": "ch.equievents.office",
+  "build": {
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../dist",
+    "beforeDevCommand": { "script": "npm run dev", "cwd": "..", "wait": false },
+    "beforeBuildCommand": { "script": "npm run build", "cwd": ".." }
+  },
+  "app": {
+    "windows": [
+      { "title": "EquiEvents", "width": 1440, "height": 900, "minWidth": 1000, "minHeight": 640 }
+    ],
+    "security": { "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:" }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app", "dmg", "nsis"],
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
+    "category": "Utility",
+    "shortDescription": "Show office for Swiss Equestrian events",
+    "macOS": { "minimumSystemVersion": "11.0" }
+  },
+  "plugins": {
+    "updater": { "pubkey": "", "requireSignedVersion": true, "windows": { "installMode": "passive" } }
+  }
+}

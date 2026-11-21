@@ -1,0 +1,93 @@
+# Checks on every push to main and every pull request (docs/deployment.md). The golden corpus
+# (real shows: personal data) stays on the developer's computer and is never in this public
+# repository, so what needs it runs there only; here: clippy, the crates' unit tests, the
+# server's API tests that need no corpus (against Postgres), the UI's types and build, and the
+# server's image. The desktop app itself builds in the release workflow (Mac and Windows).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust:
+    name: Rust
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        # The server's version (docker-compose.yml).
+        image: postgres:18.4-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: host=localhost user=postgres password=postgres dbname=postgres
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@v4
+      # The project's toolchain (Cargo.toml's rust-version).
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: '1.84'
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ci
+      - name: Clippy
+        run: cargo clippy --locked --workspace --exclude equievents-desktop --all-targets -- -D warnings
+      # Unit tests; the one that compares requests with Rosson's needs the corpus.
+      - name: Unit tests
+        run: cargo test --locked --workspace --exclude equievents-desktop --lib -- --skip urls_and_headers_as_rossons
+      # The API without the corpus: accounts, keys and owners, Swiss Equestrian (a stand-in
+      # answering with the practice event: events, riders and horses, demo events; never sent
+      # to), the downloads.
+      - name: The server's API
+        run: |
+          cargo test --locked -p server --test downloads
+          cargo test --locked -p server --test api -- \
+            accounts_shows_and_sync anyone_makes_an_account the_site_signs_people_up_and_resets_passwords \
+            the_key_decides_who_owns_a_show events_come_from_swiss_equestrian \
+            without_swiss_equestrian_the_app_names_the_event a_show_of_the_server_sends_and_updates_from_there \
+            the_server_never_sends_to_swiss_equestrian
+
+  ui:
+    name: The app's interface
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci
+      # Types, then the build (what the desktop app and the web app ship).
+      - run: npm run build
+
+  image:
+    name: The server's image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      # As on the server (docker compose build), without a release of the desktop app.
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -1,0 +1,1482 @@
+{
+ "1 to 20 labels across, 1 to 30 down": {
+  "fr": "De 1 à 20 étiquettes en largeur, de 1 à 30 en hauteur.",
+  "de": "1 bis 20 Etiketten nebeneinander, 1 bis 30 untereinander.",
+  "it": "Da 1 a 20 etichette in larghezza, da 1 a 30 in altezza."
+ },
+ "EquiEvents does not answer": {
+  "fr": "EquiEvents ne répond pas.",
+  "de": "EquiEvents antwortet nicht.",
+  "it": "EquiEvents non risponde."
+ },
+ "EquiEvents does not answer ({})": {
+  "fr": "EquiEvents ne répond pas ({1}).",
+  "de": "EquiEvents antwortet nicht ({1}).",
+  "it": "EquiEvents non risponde ({1})."
+ },
+ "Swiss Equestrian can only be reached by the pilot's version of EquiEvents (from April 2027); until then, send to the simulation": {
+  "fr": "Swiss Equestrian n’est accessible qu’avec la version pilote d’EquiEvents (dès avril 2027). D’ici là, envoyez à la simulation.",
+  "de": "Swiss Equestrian ist nur mit der Pilotversion von EquiEvents erreichbar (ab April 2027). Bis dahin an die Simulation senden.",
+  "it": "Swiss Equestrian è raggiungibile solo con la versione pilota di EquiEvents (da aprile 2027). Fino ad allora, inviare alla simulazione."
+ },
+ "Swiss Equestrian could not be reached: {}": {
+  "fr": "Impossible de joindre Swiss Equestrian : {1}",
+  "de": "Swiss Equestrian ist nicht erreichbar: {1}",
+  "it": "Impossibile raggiungere Swiss Equestrian: {1}"
+ },
+ "Swiss Equestrian is still preparing the data; try again in a few minutes": {
+  "fr": "Swiss Equestrian prépare encore les données : réessayez dans quelques minutes.",
+  "de": "Swiss Equestrian bereitet die Daten noch vor: Bitte in einigen Minuten nochmals versuchen.",
+  "it": "Swiss Equestrian sta ancora preparando i dati: riprovare tra qualche minuto."
+ },
+ "Swiss Equestrian refused the request (404): access_key '{}' not found": {
+  "fr": "Swiss Equestrian ne connaît pas la clé d’accès de ce concours (« {1} ») : elle n’est peut-être plus valable.",
+  "de": "Swiss Equestrian kennt den Zugangsschlüssel dieses Turniers nicht («{1}»): Er ist vielleicht nicht mehr gültig.",
+  "it": "Swiss Equestrian non conosce la chiave d’accesso di questo concorso («{1}»): forse non è più valida."
+ },
+ "Swiss Equestrian refused the request ({}): {}": {
+  "fr": "Swiss Equestrian a refusé la demande ({1}) : {2}",
+  "de": "Swiss Equestrian hat die Anfrage abgelehnt ({1}): {2}",
+  "it": "Swiss Equestrian ha rifiutato la richiesta ({1}): {2}"
+ },
+ "Swiss Equestrian sent an answer that cannot be read: {}": {
+  "fr": "La réponse de Swiss Equestrian est illisible : {1}",
+  "de": "Die Antwort von Swiss Equestrian ist nicht lesbar: {1}",
+  "it": "La risposta di Swiss Equestrian non è leggibile: {1}"
+ },
+ "Swiss Equestrian, {}: {}": {
+  "fr": "Swiss Equestrian, {1} : {2}",
+  "de": "Swiss Equestrian, {1}: {2}",
+  "it": "Swiss Equestrian, {1}: {2}"
+ },
+ "a block has at least one starter": {
+  "fr": "Un bloc doit compter au moins un partant.",
+  "de": "Ein Block muss mindestens einen Starter haben.",
+  "it": "Un blocco deve avere almeno un partente."
+ },
+ "a break ends after it starts": {
+  "fr": "Une pause doit finir après son début.",
+  "de": "Eine Pause muss nach ihrem Beginn enden.",
+  "it": "Una pausa deve finire dopo il suo inizio."
+ },
+ "a class does not follow itself": {
+  "fr": "Une épreuve ne peut pas être préparée d’après elle-même.",
+  "de": "Eine Prüfung kann nicht Folgeprüfung von sich selbst sein.",
+  "it": "Una gara non può essere preparata in base a sé stessa."
+ },
+ "a class is in the ranking twice": {
+  "fr": "Une épreuve figure deux fois dans le classement.",
+  "de": "Eine Prüfung ist zweimal in der Wertung.",
+  "it": "Una gara figura due volte nella classifica."
+ },
+ "a dressage class has no levels": {
+  "fr": "Une épreuve de dressage n’a pas de niveaux.",
+  "de": "Eine Dressurprüfung hat keine Stufen.",
+  "it": "Una gara di dressage non ha livelli."
+ },
+ "a guest horse needs a name": {
+  "fr": "Un cheval invité doit avoir un nom.",
+  "de": "Ein Gastpferd braucht einen Namen.",
+  "it": "Un cavallo ospite deve avere un nome."
+ },
+ "a horse of the show or of Swiss Equestrian's registry, or a guest horse": {
+  "fr": "Choisissez un cheval du concours ou du registre de Swiss Equestrian, ou un cheval invité.",
+  "de": "Ein Pferd des Turniers oder aus dem Register von Swiss Equestrian wählen, oder ein Gastpferd.",
+  "it": "Scegliere un cavallo del concorso o del registro di Swiss Equestrian, oppure un cavallo ospite."
+ },
+ "a new team needs a name": {
+  "fr": "Une nouvelle équipe doit avoir un nom.",
+  "de": "Eine neue Mannschaft braucht einen Namen.",
+  "it": "Una nuova squadra deve avere un nome."
+ },
+ "a rank is 1 or more": {
+  "fr": "Le rang doit être 1 ou plus.",
+  "de": "Der Rang muss 1 oder höher sein.",
+  "it": "Il rango deve essere 1 o più."
+ },
+ "a ranking over several classes needs at least two classes": {
+  "fr": "Un classement sur plusieurs épreuves doit compter au moins deux épreuves.",
+  "de": "Ein Klassement über mehrere Prüfungen braucht mindestens zwei Prüfungen.",
+  "it": "Una classifica su più gare richiede almeno due gare."
+ },
+ "a rider of the show or of Swiss Equestrian's registry": {
+  "fr": "Choisissez un cavalier du concours ou du registre de Swiss Equestrian.",
+  "de": "Einen Reiter des Turniers oder aus dem Register von Swiss Equestrian wählen.",
+  "it": "Scegliere un cavaliere del concorso o del registro di Swiss Equestrian."
+ },
+ "a rider's horses' sections": {
+  "fr": "Il manque les séries des chevaux d’un cavalier.",
+  "de": "Es fehlen die Serien der Pferde eines Reiters.",
+  "it": "Mancano le serie dei cavalli di un cavaliere."
+ },
+ "a role without its class": {
+  "fr": "Il manque l’épreuve d’un rôle.",
+  "de": "Bei einer Funktion fehlt die Prüfung.",
+  "it": "Manca la gara di un ruolo."
+ },
+ "a section is a number": {
+  "fr": "Une série s’indique par un numéro.",
+  "de": "Eine Serie wird als Nummer angegeben.",
+  "it": "Una serie si indica con un numero."
+ },
+ "a section without riders": {
+  "fr": "Une série est vide.",
+  "de": "Eine Serie ist leer.",
+  "it": "Una serie è vuota."
+ },
+ "a sheet needs a name": {
+  "fr": "La feuille d’étiquettes doit avoir un nom.",
+  "de": "Der Etikettenbogen braucht einen Namen.",
+  "it": "Il foglio di etichette deve avere un nome."
+ },
+ "a show needs a name": {
+  "fr": "Le concours doit avoir un nom.",
+  "de": "Das Turnier braucht einen Namen.",
+  "it": "Il concorso deve avere un nome."
+ },
+ "a team class: the entry joins a team or makes a new one": {
+  "fr": "Épreuve par équipes : choisissez une équipe pour l’inscription ou créez-en une nouvelle.",
+  "de": "Mannschaftsprüfung: die Nennung einer Mannschaft zuteilen oder eine neue Mannschaft bilden.",
+  "it": "Gara a squadre: scegliere una squadra per l’iscrizione o crearne una nuova."
+ },
+ "a team needs a name": {
+  "fr": "Une équipe doit avoir un nom.",
+  "de": "Eine Mannschaft braucht einen Namen.",
+  "it": "Una squadra deve avere un nome."
+ },
+ "a team without its id": {
+  "fr": "Il manque l’identifiant d’une équipe.",
+  "de": "Bei einer Mannschaft fehlt die ID.",
+  "it": "Manca l’identificativo di una squadra."
+ },
+ "access_key '{}' not found": {
+  "fr": "clé d’accès « {1} » inconnue",
+  "de": "Zugangsschlüssel «{1}» unbekannt",
+  "it": "chiave d’accesso «{1}» sconosciuta"
+ },
+ "aligned left, center or right": {
+  "fr": "Alignement : à gauche, centré ou à droite.",
+  "de": "Ausrichtung: links, zentriert oder rechts.",
+  "it": "Allineamento: a sinistra, centrato o a destra."
+ },
+ "an entry is a number": {
+  "fr": "Une inscription s’indique par un numéro.",
+  "de": "Eine Nennung wird als Nummer angegeben.",
+  "it": "Un’iscrizione si indica con un numero."
+ },
+ "an entry moves to a class of the same discipline": {
+  "fr": "Une inscription ne peut être déplacée que dans une épreuve de la même discipline.",
+  "de": "Eine Nennung kann nur in eine Prüfung derselben Disziplin verschoben werden.",
+  "it": "Un’iscrizione si può spostare solo in una gara della stessa disciplina."
+ },
+ "an event's show is opened with the event's key (access_key)": {
+  "fr": "Un concours de Swiss Equestrian s’ouvre avec sa clé d’accès.",
+  "de": "Ein Turnier von Swiss Equestrian wird mit seinem Zugangsschlüssel geöffnet.",
+  "it": "Un concorso di Swiss Equestrian si apre con la sua chiave d’accesso."
+ },
+ "an operation without id": {
+  "fr": "Une modification sans identifiant a été refusée par equievents.ch.",
+  "de": "equievents.ch hat eine Änderung ohne Kennung abgelehnt.",
+  "it": "equievents.ch ha rifiutato una modifica senza identificativo."
+ },
+ "archive after 1 to 104 weeks": {
+  "fr": "Le délai d’archivage va de 1 à 104 semaines.",
+  "de": "Die Frist zum Archivieren beträgt 1 bis 104 Wochen.",
+  "it": "Il termine di archiviazione va da 1 a 104 settimane."
+ },
+ "at least one placed rider": {
+  "fr": "Il faut au moins un cavalier classé.",
+  "de": "Es braucht mindestens einen klassierten Reiter.",
+  "it": "Serve almeno un cavaliere classificato."
+ },
+ "at least one starter": {
+  "fr": "Il faut au moins un partant.",
+  "de": "Es braucht mindestens einen Starter.",
+  "it": "Serve almeno un partente."
+ },
+ "at most 12 extra lines": {
+  "fr": "12 lignes supplémentaires au plus.",
+  "de": "Höchstens 12 zusätzliche Zeilen.",
+  "it": "Al massimo 12 righe aggiuntive."
+ },
+ "at most 9 levels": {
+  "fr": "9 niveaux au plus.",
+  "de": "Höchstens 9 Stufen.",
+  "it": "Al massimo 9 livelli."
+ },
+ "at most {} operations at a time": {
+  "fr": "Au plus {1} modifications à la fois.",
+  "de": "Höchstens {1} Änderungen auf einmal.",
+  "it": "Al massimo {1} modifiche alla volta."
+ },
+ "bad UTF-8 in an escape": {
+  "fr": "Caractère codé non valable (UTF-8).",
+  "de": "Ungültiges kodiertes Zeichen (UTF-8).",
+  "it": "Carattere codificato non valido (UTF-8)."
+ },
+ "bad escape at {}": {
+  "fr": "Caractère codé non valable à la position {1}.",
+  "de": "Ungültiges kodiertes Zeichen an Position {1}.",
+  "it": "Carattere codificato non valido alla posizione {1}."
+ },
+ "busy": {
+  "fr": "EquiEvents est occupé : réessayez dans un instant.",
+  "de": "EquiEvents ist beschäftigt: Bitte gleich nochmals versuchen.",
+  "it": "EquiEvents è occupato: riprovare tra un istante."
+ },
+ "class option {}": {
+  "fr": "Option d’épreuve pas encore prise en charge : {1}",
+  "de": "Prüfungsoption noch nicht unterstützt: {1}",
+  "it": "Opzione della gara non ancora supportata: {1}"
+ },
+ "class {} cannot be the qualifier of class {}": {
+  "fr": "L’épreuve {1} ne peut pas être la qualification de l’épreuve {2}.",
+  "de": "Prüfung {1} kann nicht die Qualifikation von Prüfung {2} sein.",
+  "it": "La gara {1} non può essere la qualificazione della gara {2}."
+ },
+ "class {} has judges' sheets: delete its results first": {
+  "fr": "L’épreuve {1} a des notes de juge : supprimez d’abord ses résultats.",
+  "de": "Prüfung {1} hat Richternoten: zuerst die Resultate löschen.",
+  "it": "La gara {1} ha voti dei giudici: eliminare prima i risultati."
+ },
+ "class {} has marks: the programme cannot change": {
+  "fr": "L’épreuve {1} a des notes : sa reprise ne peut plus changer.",
+  "de": "Prüfung {1} hat Noten: Das Programm kann nicht mehr geändert werden.",
+  "it": "La gara {1} ha dei voti: la ripresa non può più cambiare."
+ },
+ "class {} has no field {}": {
+  "fr": "L’épreuve {1} n’a pas de champ {2}.",
+  "de": "Prüfung {1} hat kein Feld {2}.",
+  "it": "La gara {1} non ha il campo {2}."
+ },
+ "class {} has no phases": {
+  "fr": "L’épreuve {1} n’a pas d’épreuves partielles.",
+  "de": "Prüfung {1} hat keine Teilprüfungen.",
+  "it": "La gara {1} non ha prove parziali."
+ },
+ "class {} has no scoring table": {
+  "fr": "L’épreuve {1} n’a pas de barème.",
+  "de": "Prüfung {1} hat keine Wertung.",
+  "it": "La gara {1} non ha una tabella."
+ },
+ "class {} has results": {
+  "fr": "L’épreuve {1} a des résultats.",
+  "de": "Prüfung {1} hat Resultate.",
+  "it": "La gara {1} ha dei risultati."
+ },
+ "class {} has results: delete them before changing its scoring table": {
+  "fr": "L’épreuve {1} a des résultats : supprimez-les pour changer de barème.",
+  "de": "Prüfung {1} hat Resultate: zum Ändern der Wertung zuerst löschen.",
+  "it": "La gara {1} ha dei risultati: eliminarli per cambiare tabella."
+ },
+ "class {} has results: its starters stay": {
+  "fr": "L’épreuve {1} a des résultats : ses partants restent sur la liste.",
+  "de": "Prüfung {1} hat Resultate: Die Starter bleiben auf der Liste.",
+  "it": "La gara {1} ha dei risultati: i partenti restano in lista."
+ },
+ "class {} has team results: not yet in the app": {
+  "fr": "L’épreuve {1} a des résultats par équipes : leur suppression n’est pas encore possible dans EquiEvents.",
+  "de": "Prüfung {1} hat Mannschaftsresultate: Diese zu löschen ist in EquiEvents noch nicht möglich.",
+  "it": "La gara {1} ha risultati a squadre: eliminarli non è ancora possibile in EquiEvents."
+ },
+ "class {} is a dressage class: add ranks or percentages": {
+  "fr": "L’épreuve {1} est une épreuve de dressage : additionnez les rangs ou faites la moyenne des pourcentages.",
+  "de": "Prüfung {1} ist eine Dressurprüfung: Ränge addieren oder den Durchschnitt der Prozente nehmen.",
+  "it": "La gara {1} è una gara di dressage: sommare i ranghi o fare la media delle percentuali."
+ },
+ "class {} is already set up": {
+  "fr": "L’épreuve {1} est déjà préparée.",
+  "de": "Prüfung {1} ist schon vorbereitet.",
+  "it": "La gara {1} è già preparata."
+ },
+ "class {} is final": {
+  "fr": "L’épreuve {1} est définitive.",
+  "de": "Prüfung {1} ist definitiv.",
+  "it": "La gara {1} è definitiva."
+ },
+ "class {} was taken away": {
+  "fr": "L’épreuve {1} a été supprimée sur un autre ordinateur.",
+  "de": "Prüfung {1} wurde auf einem anderen Computer gelöscht.",
+  "it": "La gara {1} è stata eliminata su un altro computer."
+ },
+ "class {} is final: its numbers cannot change; reopen it first": {
+  "fr": "L’épreuve {1} est définitive, ses numéros de départ ne peuvent pas changer : rouvrez-la d’abord.",
+  "de": "Prüfung {1} ist definitiv, ihre Startnummern bleiben: zuerst wieder öffnen.",
+  "it": "La gara {1} è definitiva, i suoi numeri di partenza non possono cambiare: riaprirla prima."
+ },
+ "class {} is final: reopen it to change the levels": {
+  "fr": "L’épreuve {1} est définitive : rouvrez-la pour changer les niveaux.",
+  "de": "Prüfung {1} ist definitiv: zum Ändern der Stufen wieder öffnen.",
+  "it": "La gara {1} è definitiva: riaprirla per cambiare i livelli."
+ },
+ "class {} is final; reopen it first": {
+  "fr": "L’épreuve {1} est définitive : rouvrez-la d’abord.",
+  "de": "Prüfung {1} ist definitiv: zuerst wieder öffnen.",
+  "it": "La gara {1} è definitiva: riaprirla prima."
+ },
+ "class {} is neither show jumping nor dressage": {
+  "fr": "L’épreuve {1} n’est ni une épreuve de saut ni une épreuve de dressage.",
+  "de": "Prüfung {1} ist weder eine Spring- noch eine Dressurprüfung.",
+  "it": "La gara {1} non è né una gara di salto né una gara di dressage."
+ },
+ "class {} is not a dressage class": {
+  "fr": "L’épreuve {1} n’est pas une épreuve de dressage.",
+  "de": "Prüfung {1} ist keine Dressurprüfung.",
+  "it": "La gara {1} non è una gara di dressage."
+ },
+ "class {} is not a dressage class: add ranks": {
+  "fr": "L’épreuve {1} n’est pas une épreuve de dressage : additionnez les rangs.",
+  "de": "Prüfung {1} ist keine Dressurprüfung: Ränge addieren.",
+  "it": "La gara {1} non è una gara di dressage: sommare i ranghi."
+ },
+ "class {} is not a driving phase": {
+  "fr": "L’épreuve {1} n’est pas une épreuve partielle d’attelage.",
+  "de": "Prüfung {1} ist keine Teilprüfung im Fahren.",
+  "it": "La gara {1} non è una prova parziale di attacchi."
+ },
+ "class {} is not a multitest": {
+  "fr": "L’épreuve {1} n’est pas un multi-test.",
+  "de": "Prüfung {1} ist kein Multitest.",
+  "it": "La gara {1} non è un multitest."
+ },
+ "class {} is not a phase": {
+  "fr": "L’épreuve {1} n’est pas une épreuve partielle.",
+  "de": "Prüfung {1} ist keine Teilprüfung.",
+  "it": "La gara {1} non è una prova parziale."
+ },
+ "class {} is not an eventing dressage or jumping phase": {
+  "fr": "L’épreuve {1} n’est pas le dressage ou le saut d’un concours complet.",
+  "de": "Prüfung {1} ist nicht die Dressur oder das Springen einer Vielseitigkeit.",
+  "it": "La gara {1} non è il dressage o il salto di un concorso completo."
+ },
+ "class {} is not a driving class made of phases": {
+  "fr": "L’épreuve {1} n’est pas une épreuve d’attelage en plusieurs parties.",
+  "de": "Prüfung {1} ist keine Fahrprüfung aus mehreren Teilprüfungen.",
+  "it": "La gara {1} non è una gara di attacchi in più prove."
+ },
+ "class {} has a presentation": {
+  "fr": "L’épreuve {1} a déjà une présentation.",
+  "de": "Prüfung {1} hat schon eine Präsentation.",
+  "it": "La gara {1} ha già una presentazione."
+ },
+ "the class has no phases": {
+  "fr": "L’épreuve n’a pas d’épreuves partielles.",
+  "de": "Die Prüfung hat keine Teilprüfungen.",
+  "it": "La gara non ha prove parziali."
+ },
+ "{}: {} is not a mark (0 to 10, in halves)": {
+  "fr": "{1} : {2} n’est pas une note valable (de 0 à 10, par demi-points).",
+  "de": "{1}: {2} ist keine gültige Note (0 bis 10, in halben Punkten).",
+  "it": "{1}: {2} non è un voto valido (da 0 a 10, a mezzi punti)."
+ },
+ "class {} has no judges": {
+  "fr": "L’épreuve {1} n’a pas de juges.",
+  "de": "Prüfung {1} hat keine Richter:innen.",
+  "it": "La gara {1} non ha giudici."
+ },
+ "class {} has no Tag der Jugend programme": {
+  "fr": "L’épreuve {1} n’a pas de programme de la Journée de la jeunesse.",
+  "de": "Prüfung {1} hat kein Programm des Tags der Jugend.",
+  "it": "La gara {1} non ha un programma della Giornata della gioventù."
+ },
+ "class {} is not a team jumping class": {
+  "fr": "L’épreuve {1} n’est pas une épreuve de saut par équipes.",
+  "de": "Prüfung {1} ist kein Equipenspringen.",
+  "it": "La gara {1} non è una gara di salto a squadre."
+ },
+ "class {} is not a team dressage class": {
+  "fr": "L’épreuve {1} n’est pas une épreuve de dressage par équipes.",
+  "de": "Prüfung {1} ist keine Dressurprüfung für Mannschaften.",
+  "it": "La gara {1} non è una gara di dressage a squadre."
+ },
+ "class {} is not set up": {
+  "fr": "L’épreuve {1} n’est pas encore préparée.",
+  "de": "Prüfung {1} ist noch nicht vorbereitet.",
+  "it": "La gara {1} non è ancora preparata."
+ },
+ "class {} uses it and is final: reopen it first": {
+  "fr": "L’épreuve {1} utilise ce barème et elle est définitive : rouvrez-la d’abord.",
+  "de": "Prüfung {1} verwendet diese Wertung und ist definitiv: zuerst wieder öffnen.",
+  "it": "La gara {1} usa questa tabella ed è definitiva: riaprirla prima."
+ },
+ "class {} uses it as its qualifier": {
+  "fr": "L’épreuve {1} utilise cette épreuve comme qualification.",
+  "de": "Prüfung {1} verwendet diese Prüfung als Qualifikation.",
+  "it": "La gara {1} usa questa gara come qualificazione."
+ },
+ "class {}: no team {}": {
+  "fr": "Épreuve {1} : pas d’équipe {2}.",
+  "de": "Prüfung {1}: keine Mannschaft {2}.",
+  "it": "Gara {1}: nessuna squadra {2}."
+ },
+ "class {}: the judges give a total, not marks": {
+  "fr": "Épreuve {1} : les juges donnent un total, pas des notes.",
+  "de": "Prüfung {1}: Die Richter geben ein Total, keine Noten.",
+  "it": "Gara {1}: i giudici danno un totale, non dei voti."
+ },
+ "class {}: the judges mark each movement": {
+  "fr": "Épreuve {1} : les juges notent chaque mouvement.",
+  "de": "Prüfung {1}: Die Richter benoten jede Lektion.",
+  "it": "Gara {1}: i giudici danno un voto a ogni movimento."
+ },
+ "class {}: {}": {
+  "fr": "Épreuve {1} : {2}",
+  "de": "Prüfung {1}: {2}",
+  "it": "Gara {1}: {2}"
+ },
+ "class {}: {} has marks on the judges' sheets; delete those results first": {
+  "fr": "Épreuve {1} : des notes de juge sont saisies au nom de {2}. Supprimez d’abord ces résultats.",
+  "de": "Prüfung {1}: Unter dem Namen {2} sind Richternoten erfasst. Zuerst diese Resultate löschen.",
+  "it": "Gara {1}: ci sono voti del giudice inseriti a nome di {2}. Eliminare prima questi risultati."
+ },
+ "discipline {}": {
+  "fr": "Discipline pas encore prise en charge : {1}",
+  "de": "Disziplin noch nicht unterstützt: {1}",
+  "it": "Disciplina non ancora supportata: {1}"
+ },
+ "driving: {}": {
+  "fr": "Attelage : {1}",
+  "de": "Fahren: {1}",
+  "it": "Attacchi: {1}"
+ },
+ "each horse goes in one of the sections": {
+  "fr": "Chaque cheval doit aller dans une des séries.",
+  "de": "Jedes Pferd muss in eine der Serien.",
+  "it": "Ogni cavallo deve andare in una delle serie."
+ },
+ "enter the event's access key first (given by Swiss Equestrian)": {
+  "fr": "Saisissez d’abord la clé d’accès du concours (donnée par Swiss Equestrian).",
+  "de": "Zuerst den Zugangsschlüssel des Turniers eingeben (von Swiss Equestrian).",
+  "it": "Inserire prima la chiave d’accesso del concorso (fornita da Swiss Equestrian)."
+ },
+ "entries: numbers": {
+  "fr": "Les inscriptions s’indiquent par des numéros.",
+  "de": "Nennungen werden als Nummern angegeben.",
+  "it": "Le iscrizioni si indicano con numeri."
+ },
+ "entry id {}": {
+  "fr": "Identifiant d’inscription non valable : {1}",
+  "de": "Ungültige Nennungs-ID: {1}",
+  "it": "Identificativo d’iscrizione non valido: {1}"
+ },
+ "entry {} does not start in class {}": {
+  "fr": "Ce cavalier ne prend pas le départ dans l’épreuve {2}.",
+  "de": "Dieser Reiter startet nicht in Prüfung {2}.",
+  "it": "Questo cavaliere non parte nella gara {2}."
+ },
+ "entry {} exists": {
+  "fr": "L’inscription {1} existe déjà.",
+  "de": "Nennung {1} gibt es schon.",
+  "it": "L’iscrizione {1} esiste già."
+ },
+ "entry {}: {}": {
+  "fr": "Inscription {1} : {2}",
+  "de": "Nennung {1}: {2}",
+  "it": "Iscrizione {1}: {2}"
+ },
+ "eventing classes are not divided": {
+  "fr": "Une épreuve en plusieurs phases (concours complet, attelage) ne se divise pas.",
+  "de": "Eine Prüfung in mehreren Phasen (Vielseitigkeit, Fahren) wird nicht unterteilt.",
+  "it": "Una gara in più fasi (completo, attacchi) non si divide."
+ },
+ "getOffizielle: no officials in the response": {
+  "fr": "getOffizielle : la réponse de Swiss Equestrian ne contient aucun officiel.",
+  "de": "getOffizielle: Die Antwort von Swiss Equestrian enthält keine Offiziellen.",
+  "it": "getOffizielle: la risposta di Swiss Equestrian non contiene ufficiali."
+ },
+ "getStammdaten: no master data in the response": {
+  "fr": "getStammdaten : la réponse de Swiss Equestrian ne contient pas de données de base.",
+  "de": "getStammdaten: Die Antwort von Swiss Equestrian enthält keine Stammdaten.",
+  "it": "getStammdaten: la risposta di Swiss Equestrian non contiene dati di base."
+ },
+ "getVeranstaltung: an entry without id": {
+  "fr": "getVeranstaltung : une inscription n’a pas d’identifiant.",
+  "de": "getVeranstaltung: Eine Nennung hat keine ID.",
+  "it": "getVeranstaltung: un’iscrizione non ha identificativo."
+ },
+ "getVeranstaltung: entry {} without rider": {
+  "fr": "getVeranstaltung : l’inscription {1} n’a pas de cavalier.",
+  "de": "getVeranstaltung: Nennung {1} hat keinen Reiter.",
+  "it": "getVeranstaltung: l’iscrizione {1} non ha cavaliere."
+ },
+ "getVeranstaltung: no event in the response": {
+  "fr": "getVeranstaltung : la réponse de Swiss Equestrian ne contient pas de concours.",
+  "de": "getVeranstaltung: Die Antwort von Swiss Equestrian enthält kein Turnier.",
+  "it": "getVeranstaltung: la risposta di Swiss Equestrian non contiene alcun concorso."
+ },
+ "give each of the rider's horses in the class once": {
+  "fr": "Indiquez chacun des chevaux du cavalier dans l’épreuve une seule fois.",
+  "de": "Jedes Pferd des Reiters in der Prüfung genau einmal angeben.",
+  "it": "Indicare ogni cavallo del cavaliere nella gara una sola volta."
+ },
+ "given by Swiss Equestrian: it stays": {
+  "fr": "Rôle donné par Swiss Equestrian : il ne peut pas être retiré.",
+  "de": "Von Swiss Equestrian vergebene Funktion: Sie kann nicht entfernt werden.",
+  "it": "Ruolo dato da Swiss Equestrian: non può essere rimosso."
+ },
+ "given by Swiss Equestrian: only the days and who is responsible can change": {
+  "fr": "Rôle donné par Swiss Equestrian : seuls les jours de travail et « Responsable » peuvent changer.",
+  "de": "Von Swiss Equestrian vergebene Funktion: Nur die Arbeitstage und «Verantwortlich» lassen sich ändern.",
+  "it": "Ruolo dato da Swiss Equestrian: si possono cambiare solo i giorni di lavoro e «Responsabile»."
+ },
+ "kind {}: access or ownership": {
+  "fr": "Demande inconnue ({1}) : accès ou responsabilité du concours.",
+  "de": "Unbekannte Anfrage ({1}): Zugang oder Verantwortung für das Turnier.",
+  "it": "Richiesta sconosciuta ({1}): accesso o responsabilità del concorso."
+ },
+ "late change for final class {}": {
+  "fr": "Changement tardif : l’épreuve {1} est déjà définitive.",
+  "de": "Verspätete Änderung: Prüfung {1} ist schon definitiv.",
+  "it": "Modifica tardiva: la gara {1} è già definitiva."
+ },
+ "layout: {}": {
+  "fr": "Mise en page : {1}",
+  "de": "Darstellung: {1}",
+  "it": "Impaginazione: {1}"
+ },
+ "missing argument classes": {
+  "fr": "Il manque une donnée : classes",
+  "de": "Es fehlt eine Angabe: classes",
+  "it": "Manca un dato: classes"
+ },
+ "missing argument entries": {
+  "fr": "Il manque une donnée : entries",
+  "de": "Es fehlt eine Angabe: entries",
+  "it": "Manca un dato: entries"
+ },
+ "missing argument penalties": {
+  "fr": "Il manque une donnée : penalties",
+  "de": "Es fehlt eine Angabe: penalties",
+  "it": "Manca un dato: penalties"
+ },
+ "missing argument entry": {
+  "fr": "Il manque une donnée : entry",
+  "de": "Es fehlt eine Angabe: entry",
+  "it": "Manca un dato: entry"
+ },
+ "missing argument entry or team": {
+  "fr": "Il manque une donnée : entry ou team",
+  "de": "Es fehlt eine Angabe: entry oder team",
+  "it": "Manca un dato: entry o team"
+ },
+ "missing argument fixed": {
+  "fr": "Il manque une donnée : fixed",
+  "de": "Es fehlt eine Angabe: fixed",
+  "it": "Manca un dato: fixed"
+ },
+ "missing argument from": {
+  "fr": "Il manque une donnée : from",
+  "de": "Es fehlt eine Angabe: from",
+  "it": "Manca un dato: from"
+ },
+ "missing argument groups": {
+  "fr": "Il manque une donnée : groups",
+  "de": "Es fehlt eine Angabe: groups",
+  "it": "Manca un dato: groups"
+ },
+ "missing argument horse": {
+  "fr": "Il manque une donnée : horse",
+  "de": "Es fehlt eine Angabe: horse",
+  "it": "Manca un dato: horse"
+ },
+ "missing argument id": {
+  "fr": "Il manque une donnée : id",
+  "de": "Es fehlt eine Angabe: id",
+  "it": "Manca un dato: id"
+ },
+ "missing argument judge": {
+  "fr": "Il manque une donnée : judge",
+  "de": "Es fehlt eine Angabe: judge",
+  "it": "Manca un dato: judge"
+ },
+ "missing argument model": {
+  "fr": "Il manque une donnée : model",
+  "de": "Es fehlt eine Angabe: model",
+  "it": "Manca un dato: model"
+ },
+ "missing argument not_starting": {
+  "fr": "Il manque une donnée : not_starting",
+  "de": "Es fehlt eine Angabe: not_starting",
+  "it": "Manca un dato: not_starting"
+ },
+ "missing argument parts": {
+  "fr": "Il manque une donnée : parts",
+  "de": "Es fehlt eine Angabe: parts",
+  "it": "Manca un dato: parts"
+ },
+ "missing argument person": {
+  "fr": "Il manque une donnée : person",
+  "de": "Es fehlt eine Angabe: person",
+  "it": "Manca un dato: person"
+ },
+ "missing argument phases": {
+  "fr": "Il manque une donnée : phases",
+  "de": "Es fehlt eine Angabe: phases",
+  "it": "Manca un dato: phases"
+ },
+ "missing argument published": {
+  "fr": "Il manque une donnée : published",
+  "de": "Es fehlt eine Angabe: published",
+  "it": "Manca un dato: published"
+ },
+ "missing argument role (its id)": {
+  "fr": "Il manque une donnée : role (identifiant du rôle)",
+  "de": "Es fehlt eine Angabe: role (ID der Funktion)",
+  "it": "Manca un dato: role (ID del ruolo)"
+ },
+ "missing argument roles": {
+  "fr": "Il manque une donnée : roles",
+  "de": "Es fehlt eine Angabe: roles",
+  "it": "Manca un dato: roles"
+ },
+ "missing argument sections": {
+  "fr": "Il manque une donnée : sections",
+  "de": "Es fehlt eine Angabe: sections",
+  "it": "Manca un dato: sections"
+ },
+ "missing argument show": {
+  "fr": "Il manque une donnée : show",
+  "de": "Es fehlt eine Angabe: show",
+  "it": "Manca un dato: show"
+ },
+ "missing argument step": {
+  "fr": "Il manque une donnée : step",
+  "de": "Es fehlt eine Angabe: step",
+  "it": "Manca un dato: step"
+ },
+ "missing argument table": {
+  "fr": "Il manque une donnée : table",
+  "de": "Es fehlt eine Angabe: table",
+  "it": "Manca un dato: table"
+ },
+ "missing argument to": {
+  "fr": "Il manque une donnée : to",
+  "de": "Es fehlt eine Angabe: to",
+  "it": "Manca un dato: to"
+ },
+ "missing argument {}": {
+  "fr": "Il manque une donnée : {1}",
+  "de": "Es fehlt eine Angabe: {1}",
+  "it": "Manca un dato: {1}"
+ },
+ "movement {}: not a number": {
+  "fr": "Mouvement {1} : la note n’est pas un nombre.",
+  "de": "Lektion {1}: Die Note ist keine Zahl.",
+  "it": "Movimento {1}: il voto non è un numero."
+ },
+ "movement {}: {} is not a mark (0 to 10, in halves)": {
+  "fr": "Mouvement {1} : {2} n’est pas une note valable (de 0 à 10, par demi-points).",
+  "de": "Lektion {1}: {2} ist keine gültige Note (0 bis 10, in halben Punkten).",
+  "it": "Movimento {1}: {2} non è un voto valido (da 0 a 10, a mezzi punti)."
+ },
+ "movement {}: {} is not a mark (0 to 10, in tenths)": {
+  "fr": "Mouvement {1} : {2} n’est pas une note valable (de 0 à 10, par dixièmes).",
+  "de": "Lektion {1}: {2} ist keine gültige Note (0 bis 10, in Zehnteln).",
+  "it": "Movimento {1}: {2} non è un voto valido (da 0 a 10, a decimi)."
+ },
+ "movement {}: {} is not a number": {
+  "fr": "Mouvement {1} : « {2} » n’est pas un nombre.",
+  "de": "Lektion {1}: «{2}» ist keine Zahl.",
+  "it": "Movimento {1}: «{2}» non è un numero."
+ },
+ "no account for {}": {
+  "fr": "Pas de compte pour {1} : la personne doit d’abord en créer un sur equievents.ch.",
+  "de": "Kein Konto für {1}: Die Person muss zuerst eines auf equievents.ch eröffnen.",
+  "it": "Nessun account per {1}: la persona deve prima crearne uno su equievents.ch."
+ },
+ "no class to enter": {
+  "fr": "Aucune épreuve choisie pour l’inscription.",
+  "de": "Keine Prüfung für die Nennung gewählt.",
+  "it": "Nessuna gara scelta per l’iscrizione."
+ },
+ "no definitions of {}": {
+  "fr": "Aucune définition de ce type : {1}",
+  "de": "Keine Definitionen dieser Art: {1}",
+  "it": "Nessuna definizione di questo tipo: {1}"
+ },
+ "no entry to change": {
+  "fr": "Aucune inscription à changer.",
+  "de": "Keine Nennung zum Ändern.",
+  "it": "Nessuna iscrizione da cambiare."
+ },
+ "no event": {
+  "fr": "Les données du concours manquent.",
+  "de": "Die Daten des Turniers fehlen.",
+  "it": "Mancano i dati del concorso."
+ },
+ "no horse given": {
+  "fr": "Aucun cheval indiqué.",
+  "de": "Kein Pferd angegeben.",
+  "it": "Nessun cavallo indicato."
+ },
+ "no labels called {}": {
+  "fr": "Étiquettes inconnues : {1}",
+  "de": "Unbekannte Etiketten: {1}",
+  "it": "Etichette sconosciute: {1}"
+ },
+ "jury penalties are more than 0": {
+  "fr": "Une pénalité du jury est plus grande que 0.",
+  "de": "Strafpunkte der Jury sind grösser als 0.",
+  "it": "Una penalità della giuria è maggiore di 0."
+ },
+ "the penalty is not a number": {
+  "fr": "La pénalité n’est pas un nombre.",
+  "de": "Die Strafpunkte sind keine Zahl.",
+  "it": "La penalità non è un numero."
+ },
+ "the master data has no reason for eliminated": {
+  "fr": "Les données de base n’ont pas de motif « éliminé ».",
+  "de": "Die Stammdaten haben keinen Grund «ausgeschieden».",
+  "it": "I dati di base non hanno il motivo «eliminato»."
+ },
+ "no penalty {}": {
+  "fr": "Pénalité n° {1} inconnue.",
+  "de": "Strafe Nr. {1} unbekannt.",
+  "it": "Penalità n. {1} sconosciuta."
+ },
+ "no programme": {
+  "fr": "L’épreuve n’a pas de reprise.",
+  "de": "Die Prüfung hat kein Programm.",
+  "it": "La gara non ha una ripresa."
+ },
+ "no published class": {
+  "fr": "Épreuve publiée introuvable.",
+  "de": "Ausgeschriebene Prüfung nicht gefunden.",
+  "it": "Gara pubblicata non trovata."
+ },
+ "no published class {}": {
+  "fr": "Épreuve publiée introuvable : {1}",
+  "de": "Ausgeschriebene Prüfung nicht gefunden: {1}",
+  "it": "Gara pubblicata non trovata: {1}"
+ },
+ "no rule called {}": {
+  "fr": "Règle de répartition inconnue : {1}",
+  "de": "Unbekannte Aufteilungsregel: {1}",
+  "it": "Regola di suddivisione sconosciuta: {1}"
+ },
+ "no scoring table": {
+  "fr": "L’épreuve n’a pas de barème.",
+  "de": "Die Prüfung hat keine Wertung.",
+  "it": "La gara non ha una tabella."
+ },
+ "no show {} in the library": {
+  "fr": "Le concours {1} n’est pas sur cet ordinateur.",
+  "de": "Das Turnier {1} ist nicht auf diesem Computer.",
+  "it": "Il concorso {1} non è su questo computer."
+ },
+ "no start order called {}": {
+  "fr": "Ordre de départ inconnu : {1}",
+  "de": "Unbekannte Startreihenfolge: {1}",
+  "it": "Ordine di partenza sconosciuto: {1}"
+ },
+ "no team {} in class {}": {
+  "fr": "L’équipe {1} n’est pas dans l’épreuve {2}.",
+  "de": "Die Mannschaft {1} ist nicht in der Prüfung {2}.",
+  "it": "La squadra {1} non è nella gara {2}."
+ },
+ "no {} in the answer": {
+  "fr": "La réponse de Swiss Equestrian ne contient pas « {1} ».",
+  "de": "In der Antwort von Swiss Equestrian fehlt «{1}».",
+  "it": "Nella risposta di Swiss Equestrian manca «{1}»."
+ },
+ "not JSON: {}": {
+  "fr": "Ce n’est pas du JSON valable : {1}",
+  "de": "Kein gültiges JSON: {1}",
+  "it": "JSON non valido: {1}"
+ },
+ "not a driving class": {
+  "fr": "Ce n’est pas une épreuve d’attelage.",
+  "de": "Das ist keine Fahrprüfung.",
+  "it": "Non è una gara di attacchi."
+ },
+ "not a horse of the registry": {
+  "fr": "Ce cheval n’est pas dans le registre de Swiss Equestrian.",
+  "de": "Dieses Pferd ist nicht im Register von Swiss Equestrian.",
+  "it": "Questo cavallo non è nel registro di Swiss Equestrian."
+ },
+ "not a number": {
+  "fr": "Ce n’est pas un nombre.",
+  "de": "Das ist keine Zahl.",
+  "it": "Non è un numero."
+ },
+ "not a number: {}": {
+  "fr": "Ce n’est pas un nombre : {1}",
+  "de": "Keine Zahl: {1}",
+  "it": "Non è un numero: {1}"
+ },
+ "not a phase": {
+  "fr": "Cette épreuve n’est pas une épreuve partielle.",
+  "de": "Diese Prüfung ist keine Teilprüfung.",
+  "it": "Questa gara non è una prova parziale."
+ },
+ "not a scoring table the app can read: {}": {
+  "fr": "EquiEvents ne peut pas lire ce barème : {1}",
+  "de": "EquiEvents kann diese Wertung nicht lesen: {1}",
+  "it": "EquiEvents non riesce a leggere questa tabella: {1}"
+ },
+ "not a sheet: {}": {
+  "fr": "Feuille d’étiquettes non valable : {1}",
+  "de": "Ungültiger Etikettenbogen: {1}",
+  "it": "Foglio di etichette non valido: {1}"
+ },
+ "not a show: {}": {
+  "fr": "Ce n’est pas un concours : {1}",
+  "de": "Das ist kein Turnier: {1}",
+  "it": "Non è un concorso: {1}"
+ },
+ "not a starter of this class": {
+  "fr": "Ce n’est pas un partant de cette épreuve.",
+  "de": "Das ist kein Starter dieser Prüfung.",
+  "it": "Non è un partente di questa gara."
+ },
+ "not a test the app can read: {}": {
+  "fr": "EquiEvents ne peut pas lire cette reprise : {1}",
+  "de": "EquiEvents kann dieses Programm nicht lesen: {1}",
+  "it": "EquiEvents non riesce a leggere questa ripresa: {1}"
+ },
+ "not one of its class's phases": {
+  "fr": "Cette épreuve partielle n’appartient pas à son épreuve.",
+  "de": "Diese Teilprüfung gehört nicht zu ihrer Prüfung.",
+  "it": "Questa prova parziale non appartiene alla sua gara."
+ },
+ "not reachable": {
+  "fr": "Les serveurs de Swiss Equestrian ne sont pas accessibles avec cette version.",
+  "de": "Die Server von Swiss Equestrian sind mit dieser Version nicht erreichbar.",
+  "it": "I server di Swiss Equestrian non sono raggiungibili con questa versione."
+ },
+ "nothing to export called {}": {
+  "fr": "Export inconnu : {1}",
+  "de": "Unbekannter Export: {1}",
+  "it": "Esportazione sconosciuta: {1}"
+ },
+ "nothing to print called {}": {
+  "fr": "Impression inconnue : {1}",
+  "de": "Unbekannter Druck: {1}",
+  "it": "Stampa sconosciuta: {1}"
+ },
+ "nothing to redo": {
+  "fr": "Rien à rétablir.",
+  "de": "Nichts wiederherzustellen.",
+  "it": "Niente da ripristinare."
+ },
+ "nothing to send called {}": {
+  "fr": "Envoi inconnu : {1}",
+  "de": "Unbekannte Sendung: {1}",
+  "it": "Invio sconosciuto: {1}"
+ },
+ "nothing to undo": {
+  "fr": "Rien à annuler.",
+  "de": "Nichts rückgängig zu machen.",
+  "it": "Niente da annullare."
+ },
+ "nothing to {}": {
+  "fr": "Rien à annuler ou à rétablir.",
+  "de": "Nichts rückgängig zu machen oder wiederherzustellen.",
+  "it": "Niente da annullare o da ripristinare."
+ },
+ "one or two rounds; 1 to 12 obstacles": {
+  "fr": "Une ou deux manches ; de 1 à 12 obstacles.",
+  "de": "Ein oder zwei Umgänge; 1 bis 12 Hindernisse.",
+  "it": "Una o due manche; da 1 a 12 ostacoli."
+ },
+ "only Swiss Equestrian's production server is downloaded from": {
+  "fr": "Les téléchargements se font uniquement depuis le serveur de production de Swiss Equestrian.",
+  "de": "Heruntergeladen wird nur vom Produktionsserver von Swiss Equestrian.",
+  "it": "Si scarica solo dal server di produzione di Swiss Equestrian."
+ },
+ "only entries made by the office can be taken back; this one: does not start": {
+  "fr": "Seules les inscriptions faites par le secrétariat peuvent être retirées. Celle-ci : marquez-la non-partante.",
+  "de": "Nur vom Turniersekretariat erfasste Nennungen lassen sich zurücknehmen. Diese hier: als Nichtstarter markieren.",
+  "it": "Solo le iscrizioni fatte dalla segreteria si possono rimuovere. Questa: segnarla come non partente."
+ },
+ "only the demo event's download is allowed": {
+  "fr": "Seul le téléchargement de la manifestation test est permis.",
+  "de": "Nur das Herunterladen der Testveranstaltung ist erlaubt.",
+  "it": "È consentito solo scaricare la manifestazione di prova."
+ },
+ "only the riders' and horses' download is allowed": {
+  "fr": "Seul le téléchargement des cavaliers et des chevaux est permis.",
+  "de": "Nur das Herunterladen der Reiter und Pferde ist erlaubt.",
+  "it": "È consentito solo scaricare i cavalieri e i cavalli."
+ },
+ "only to another section of the same class": {
+  "fr": "On ne peut déplacer que vers une autre série de la même épreuve.",
+  "de": "Nur in eine andere Serie derselben Prüfung verschiebbar.",
+  "it": "Si può spostare solo in un’altra serie della stessa gara."
+ },
+ "operation {}: {}": {
+  "fr": "Modification {1} : {2}",
+  "de": "Änderung {1}: {2}",
+  "it": "Modifica {1}: {2}"
+ },
+ "penalties and times are not negative": {
+  "fr": "Les pénalités et les temps ne peuvent pas être négatifs.",
+  "de": "Strafpunkte und Zeiten können nicht negativ sein.",
+  "it": "Penalità e tempi non possono essere negativi."
+ },
+ "phase {}": {
+  "fr": "Épreuve partielle {1}",
+  "de": "Teilprüfung {1}",
+  "it": "Prova parziale {1}"
+ },
+ "practice event: {}": {
+  "fr": "Concours d’exercice : {1}",
+  "de": "Übungsturnier: {1}",
+  "it": "Concorso di esercitazione: {1}"
+ },
+ "prizes are not negative": {
+  "fr": "Les prix ne peuvent pas être négatifs.",
+  "de": "Preise können nicht negativ sein.",
+  "it": "I premi non possono essere negativi."
+ },
+ "prizes for at most 30 ranks": {
+  "fr": "Les prix vont au plus jusqu’au 30e rang.",
+  "de": "Preise höchstens bis zum 30. Rang.",
+  "it": "Premi al massimo fino al 30° rango."
+ },
+ "prizes: {}": {
+  "fr": "Prix : {1}",
+  "de": "Preise: {1}",
+  "it": "Premi: {1}"
+ },
+ "programme {}: no tables": {
+  "fr": "Reprise {1} : aucun tableau dans la définition.",
+  "de": "Programm {1}: keine Tabellen in der Definition.",
+  "it": "Ripresa {1}: nessuna tabella nella definizione."
+ },
+ "programme {}: {}": {
+  "fr": "Reprise {1} : {2}",
+  "de": "Programm {1}: {2}",
+  "it": "Ripresa {1}: {2}"
+ },
+ "published: numbers": {
+  "fr": "Donnée non valable : published (nombres attendus)",
+  "de": "Ungültige Angabe: published (Zahlen erwartet)",
+  "it": "Dato non valido: published (servono dei numeri)"
+ },
+ "result {}: field {}: {}": {
+  "fr": "Résultat {1}, champ {2} : {3}",
+  "de": "Resultat {1}, Feld {2}: {3}",
+  "it": "Risultato {1}, campo {2}: {3}"
+ },
+ "say why the class is reopened": {
+  "fr": "Indiquez pourquoi l’épreuve est rouverte.",
+  "de": "Geben Sie an, warum die Prüfung wieder geöffnet wird.",
+  "it": "Indicare perché la gara viene riaperta."
+ },
+ "scoring table {}: {}": {
+  "fr": "Barème {1} : {2}",
+  "de": "Wertung {1}: {2}",
+  "it": "Tabella {1}: {2}"
+ },
+ "sizes in millimetres, labels at least 10 × 5 mm": {
+  "fr": "Tailles en millimètres ; une étiquette mesure au moins 10 × 5 mm.",
+  "de": "Grössen in Millimetern; eine Etikette misst mindestens 10 × 5 mm.",
+  "it": "Misure in millimetri; un’etichetta misura almeno 10 × 5 mm."
+ },
+ "start numbers are given class by class; fix them for the whole event first": {
+  "fr": "Les numéros de départ sont attribués épreuve par épreuve : choisissez d’abord des numéros fixes pour tout le concours.",
+  "de": "Die Startnummern werden Prüfung für Prüfung vergeben: zuerst feste Startnummern für das ganze Turnier wählen.",
+  "it": "I numeri di partenza sono assegnati gara per gara: scegliere prima numeri fissi per tutto il concorso."
+ },
+ "starts are at least a minute apart": {
+  "fr": "Les départs sont espacés d’au moins une minute.",
+  "de": "Zwischen zwei Starts liegt mindestens eine Minute.",
+  "it": "Le partenze distano almeno un minuto l’una dall’altra."
+ },
+ "team class in discipline {}": {
+  "fr": "Épreuve par équipes (discipline {1}) : pas encore prise en charge.",
+  "de": "Mannschaftsprüfung (Disziplin {1}): noch nicht unterstützt.",
+  "it": "Gara a squadre (disciplina {1}): non ancora supportata."
+ },
+ "team classes are divided by teams": {
+  "fr": "Une épreuve par équipes se divise par équipes.",
+  "de": "Eine Mannschaftsprüfung wird nach Mannschaften unterteilt.",
+  "it": "Una gara a squadre si divide per squadre."
+ },
+ "team classes: entries move with their team (not yet in the app)": {
+  "fr": "Épreuves par équipes : les inscriptions se déplacent avec leur équipe (pas encore dans EquiEvents).",
+  "de": "Mannschaftsprüfungen: Nennungen werden mit ihrer Mannschaft verschoben (noch nicht in EquiEvents).",
+  "it": "Gare a squadre: le iscrizioni si spostano con la loro squadra (non ancora in EquiEvents)."
+ },
+ "team classes: one at a time (each its team)": {
+  "fr": "Épreuves par équipes : une seule à la fois (chacune a son équipe).",
+  "de": "Mannschaftsprüfungen: nur eine auf einmal (jede mit ihrer Mannschaft).",
+  "it": "Gare a squadre: una sola alla volta (ognuna ha la sua squadra)."
+ },
+ "team classes: the order is set by teams": {
+  "fr": "Épreuves par équipes : l’ordre se fait par équipes.",
+  "de": "Mannschaftsprüfungen: Die Reihenfolge wird nach Mannschaften festgelegt.",
+  "it": "Gare a squadre: l’ordine si stabilisce per squadre."
+ },
+ "team classes: the order is set by teams (not yet in the app)": {
+  "fr": "Épreuves par équipes : l’ordre se fait par équipes (pas encore dans EquiEvents).",
+  "de": "Mannschaftsprüfungen: Die Reihenfolge wird nach Mannschaften festgelegt (noch nicht in EquiEvents).",
+  "it": "Gare a squadre: l’ordine si stabilisce per squadre (non ancora in EquiEvents)."
+ },
+ "team dressage with programmes chosen by the riders": {
+  "fr": "Dressage par équipes avec des reprises choisies par les cavaliers : pas encore pris en charge.",
+  "de": "Mannschaftsdressur mit von den Reitern gewählten Programmen: noch nicht unterstützt.",
+  "it": "Dressage a squadre con riprese scelte dai cavalieri: non ancora supportato."
+ },
+ "team {} does not start in class {}": {
+  "fr": "L’équipe {1} ne part pas dans l’épreuve {2}.",
+  "de": "Die Mannschaft {1} startet nicht in der Prüfung {2}.",
+  "it": "La squadra {1} non parte nella gara {2}."
+ },
+ "team {} has entries": {
+  "fr": "L’équipe {1} a des inscriptions.",
+  "de": "Die Mannschaft {1} hat Nennungen.",
+  "it": "La squadra {1} ha delle iscrizioni."
+ },
+ "team {}: {}": {
+  "fr": "Équipe {1} : {2}",
+  "de": "Mannschaft {1}: {2}",
+  "it": "Squadra {1}: {2}"
+ },
+ "teams are ranked by ranks or penalties added": {
+  "fr": "Les équipes se classent par rangs additionnés ou par pénalités additionnées.",
+  "de": "Mannschaften werden nach addierten Rängen oder addierten Strafpunkten rangiert.",
+  "it": "Le squadre si classificano per ranghi sommati o per penalità sommate."
+ },
+ "temps accordé à saisir (manche {}, licence {}) · erlaubte Zeit eingeben (Umgang {}, Lizenz {})": {
+  "fr": "Saisissez le temps accordé (manche {1}, licence {2}).",
+  "de": "Erlaubte Zeit eingeben (Umgang {1}, Lizenz {2}).",
+  "it": "Inserire il tempo accordato (manche {1}, licenza {2})."
+ },
+ "temps idéal à saisir (Détails…) · Idealzeit eingeben (Details…)": {
+  "fr": "Saisissez le temps idéal (Détails…).",
+  "de": "Idealzeit eingeben (Details…).",
+  "it": "Inserire il tempo ideale (Dettagli…)."
+ },
+ "text of 5 to 30 points": {
+  "fr": "La taille du texte va de 5 à 30 points.",
+  "de": "Die Schriftgrösse liegt zwischen 5 und 30 Punkt.",
+  "it": "La dimensione del testo va da 5 a 30 punti."
+ },
+ "the class has no programme": {
+  "fr": "L’épreuve n’a pas de reprise.",
+  "de": "Die Prüfung hat kein Programm.",
+  "it": "La gara non ha una ripresa."
+ },
+ "the class has no qualifier": {
+  "fr": "L’épreuve n’a pas de qualification.",
+  "de": "Die Prüfung hat keine Qualifikation.",
+  "it": "La gara non ha una qualificazione."
+ },
+ "the class that breaks ties must be one of the ranking's": {
+  "fr": "L’épreuve qui départage doit faire partie du classement.",
+  "de": "Die Prüfung, die bei Gleichstand entscheidet, muss zur Rangliste gehören.",
+  "it": "La gara che decide in caso di parità deve far parte della classifica."
+ },
+ "the class to follow has no start list": {
+  "fr": "L’épreuve à suivre n’a pas de liste de départ.",
+  "de": "Die Prüfung, der gefolgt werden soll, hat keine Startliste.",
+  "it": "La gara da seguire non ha una lista di partenza."
+ },
+ "the entry has no horse {}": {
+  "fr": "L’inscription n’a pas de cheval n° {1}.",
+  "de": "Die Nennung hat kein Pferd Nr. {1}.",
+  "it": "L’iscrizione non ha un cavallo n. {1}."
+ },
+ "the entry is for another class": {
+  "fr": "L’inscription est pour une autre épreuve.",
+  "de": "Die Nennung gilt für eine andere Prüfung.",
+  "it": "L’iscrizione è per un’altra gara."
+ },
+ "the entry is on a start list already": {
+  "fr": "L’inscription est déjà sur une liste de départ.",
+  "de": "Die Nennung ist schon auf einer Startliste.",
+  "it": "L’iscrizione è già su una lista di partenza."
+ },
+ "the event's id is needed with its key (event_id)": {
+  "fr": "Le numéro de la manifestation doit accompagner sa clé d’accès.",
+  "de": "Die Nummer der Veranstaltung muss mit ihrem Zugangsschlüssel kommen.",
+  "it": "Il numero della manifestazione deve accompagnare la sua chiave d’accesso."
+ },
+ "the import is inconsistent (operation {}: {})": {
+  "fr": "Le fichier importé est incohérent (opération {1} : {2})",
+  "de": "Die importierte Datei ist widersprüchlich (Operation {1}: {2})",
+  "it": "Il file importato è incoerente (operazione {1}: {2})"
+ },
+ "the labels take {} × {} mm: more than an A4 page (210 × 297)": {
+  "fr": "Les étiquettes occupent {1} × {2} mm : plus qu’une page A4 (210 × 297).",
+  "de": "Die Etiketten brauchen {1} × {2} mm: mehr als eine A4-Seite (210 × 297).",
+  "it": "Le etichette occupano {1} × {2} mm: più di una pagina A4 (210 × 297)."
+ },
+ "the library is busy": {
+  "fr": "EquiEvents est occupé : réessayez dans un instant.",
+  "de": "EquiEvents ist beschäftigt: Bitte gleich nochmals versuchen.",
+  "it": "EquiEvents è occupato: riprovare tra un istante."
+ },
+ "the line goes after a starter (1 or more) and says something": {
+  "fr": "La ligne vient après un partant (n° 1 ou plus) et doit avoir un texte.",
+  "de": "Die Zeile kommt nach einem Starter (Nr. 1 oder höher) und braucht einen Text.",
+  "it": "La riga va dopo un partente (n. 1 o più) e deve avere un testo."
+ },
+ "the logo is not an image": {
+  "fr": "Le logo n’est pas une image.",
+  "de": "Das Logo ist kein Bild.",
+  "it": "Il logo non è un’immagine."
+ },
+ "the logo is too large (at most 400 px)": {
+  "fr": "Le logo est trop grand (400 px au plus).",
+  "de": "Das Logo ist zu gross (höchstens 400 px).",
+  "it": "Il logo è troppo grande (al massimo 400 px)."
+ },
+ "the phase's class is gone": {
+  "fr": "L’épreuve dont fait partie cette épreuve partielle n’existe plus.",
+  "de": "Die Prüfung dieser Teilprüfung gibt es nicht mehr.",
+  "it": "La gara di questa prova parziale non esiste più."
+ },
+ "the ranking \"{}\" counts it": {
+  "fr": "Le classement « {1} » compte cette épreuve.",
+  "de": "Die Rangliste «{1}» zählt diese Prüfung mit.",
+  "it": "La classifica «{1}» comprende questa gara."
+ },
+ "the ranking has no class": {
+  "fr": "Le classement n’a pas d’épreuve.",
+  "de": "Die Rangliste hat keine Prüfung.",
+  "it": "La classifica non ha gare."
+ },
+ "the ranking needs a name": {
+  "fr": "Le classement doit avoir un nom.",
+  "de": "Die Rangliste braucht einen Namen.",
+  "it": "La classifica deve avere un nome."
+ },
+ "the request could not be recorded; try again": {
+  "fr": "La demande n’a pas pu être enregistrée : réessayez.",
+  "de": "Die Anfrage konnte nicht gespeichert werden: Bitte nochmals versuchen.",
+  "it": "Non è stato possibile registrare la richiesta: riprovare."
+ },
+ "the request went missing": {
+  "fr": "La demande a disparu entre-temps.",
+  "de": "Die Anfrage ist inzwischen verschwunden.",
+  "it": "Nel frattempo la richiesta è scomparsa."
+ },
+ "the server gave no show id": {
+  "fr": "Le serveur n’a pas renvoyé d’identifiant pour le concours.",
+  "de": "Der Server hat keine Kennung für das Turnier geliefert.",
+  "it": "Il server non ha restituito un identificativo per il concorso."
+ },
+ "the server gave no token": {
+  "fr": "Le serveur n’a pas renvoyé de jeton de connexion.",
+  "de": "Der Server hat kein Anmelde-Token geliefert.",
+  "it": "Il server non ha restituito un token di accesso."
+ },
+ "the show has no event": {
+  "fr": "Le concours n’a pas de manifestation.",
+  "de": "Das Turnier hat keine Veranstaltung.",
+  "it": "Il concorso non ha una manifestazione."
+ },
+ "the show has no event from Swiss Equestrian": {
+  "fr": "Le concours n’a pas de manifestation de Swiss Equestrian.",
+  "de": "Das Turnier hat keine Veranstaltung von Swiss Equestrian.",
+  "it": "Il concorso non ha una manifestazione di Swiss Equestrian."
+ },
+ "the show is not on equievents.ch": {
+  "fr": "Le concours n’est pas sur equievents.ch.",
+  "de": "Das Turnier ist nicht auf equievents.ch.",
+  "it": "Il concorso non è su equievents.ch."
+ },
+ "the show was being made by someone else; try again": {
+  "fr": "Quelqu’un d’autre créait ce concours au même moment : réessayez.",
+  "de": "Jemand anderes hat dieses Turnier gleichzeitig erstellt: Bitte nochmals versuchen.",
+  "it": "Qualcun altro stava creando questo concorso nello stesso momento: riprovare."
+ },
+ "the start lists of class {} were sent to Swiss Equestrian: withdraw them first": {
+  "fr": "Les listes de départ de l’épreuve {1} ont été envoyées à Swiss Equestrian : retirez-les d’abord.",
+  "de": "Die Startlisten der Prüfung {1} wurden an Swiss Equestrian gesendet: zuerst zurückziehen.",
+  "it": "Le liste di partenza della gara {1} sono state inviate a Swiss Equestrian: ritirarle prima."
+ },
+ "the team {} is full ({} riders)": {
+  "fr": "L’équipe {1} est complète ({2} cavaliers).",
+  "de": "Die Mannschaft {1} ist komplett ({2} Reiter).",
+  "it": "La squadra {1} è al completo ({2} cavalieri)."
+ },
+ "the total is not a number": {
+  "fr": "Le total n’est pas un nombre.",
+  "de": "Das Total ist keine Zahl.",
+  "it": "Il totale non è un numero."
+ },
+ "there is no sheet there": {
+  "fr": "Il n’y a pas de notes à cet endroit.",
+  "de": "Hier sind keine Noten.",
+  "it": "Qui non ci sono voti."
+ },
+ "this rider is entered with this horse in class {} already": {
+  "fr": "Ce cavalier est déjà inscrit avec ce cheval dans l’épreuve {1}.",
+  "de": "Dieser Reiter ist mit diesem Pferd schon in der Prüfung {1} genannt.",
+  "it": "Questo cavaliere è già iscritto con questo cavallo nella gara {1}."
+ },
+ "today's date": {
+  "fr": "Impossible de connaître la date du jour.",
+  "de": "Das heutige Datum lässt sich nicht bestimmen.",
+  "it": "Impossibile determinare la data di oggi."
+ },
+ "unknown assignment {}": {
+  "fr": "Attribution de rôle inconnue : {1}",
+  "de": "Unbekannte Funktionszuteilung: {1}",
+  "it": "Assegnazione di ruolo sconosciuta: {1}"
+ },
+ "unknown class {}": {
+  "fr": "Épreuve inconnue : {1}",
+  "de": "Unbekannte Prüfung: {1}",
+  "it": "Gara sconosciuta: {1}"
+ },
+ "unknown command {}": {
+  "fr": "Commande inconnue : {1}",
+  "de": "Unbekannter Befehl: {1}",
+  "it": "Comando sconosciuto: {1}"
+ },
+ "unknown entry {}": {
+  "fr": "Inscription inconnue : {1}",
+  "de": "Unbekannte Nennung: {1}",
+  "it": "Iscrizione sconosciuta: {1}"
+ },
+ "unknown error": {
+  "fr": "L’action n’a pas pu être effectuée.",
+  "de": "Die Aktion konnte nicht ausgeführt werden.",
+  "it": "Non è stato possibile eseguire l’operazione."
+ },
+ "unknown horse {}": {
+  "fr": "Cheval inconnu : {1}",
+  "de": "Unbekanntes Pferd: {1}",
+  "it": "Cavallo sconosciuto: {1}"
+ },
+ "unknown import mode {}": {
+  "fr": "Mode d’importation inconnu : {1}",
+  "de": "Unbekannte Importart: {1}",
+  "it": "Modalità d’importazione sconosciuta: {1}"
+ },
+ "unknown person {}": {
+  "fr": "Personne inconnue : {1}",
+  "de": "Unbekannte Person: {1}",
+  "it": "Persona sconosciuta: {1}"
+ },
+ "unknown programme {}": {
+  "fr": "Reprise inconnue : {1}",
+  "de": "Unbekanntes Programm: {1}",
+  "it": "Ripresa sconosciuta: {1}"
+ },
+ "unknown published class": {
+  "fr": "L’épreuve publiée est introuvable.",
+  "de": "Die ausgeschriebene Prüfung wurde nicht gefunden.",
+  "it": "La gara pubblicata non è stata trovata."
+ },
+ "unknown published class {}": {
+  "fr": "Épreuve publiée inconnue : {1}",
+  "de": "Unbekannte ausgeschriebene Prüfung: {1}",
+  "it": "Gara pubblicata sconosciuta: {1}"
+ },
+ "unknown ranking {}": {
+  "fr": "Classement inconnu : {1}",
+  "de": "Unbekannte Rangliste: {1}",
+  "it": "Classifica sconosciuta: {1}"
+ },
+ "unknown reason {}": {
+  "fr": "Motif inconnu : {1}",
+  "de": "Unbekannter Grund: {1}",
+  "it": "Motivo sconosciuto: {1}"
+ },
+ "unknown rider {}": {
+  "fr": "Cavalier inconnu : {1}",
+  "de": "Unbekannter Reiter: {1}",
+  "it": "Cavaliere sconosciuto: {1}"
+ },
+ "unknown role at the event {}": {
+  "fr": "Rôle d’officiel du concours inconnu : {1}",
+  "de": "Unbekannte Funktion am Turnier: {1}",
+  "it": "Ruolo di ufficiale del concorso sconosciuto: {1}"
+ },
+ "unknown role {}": {
+  "fr": "Rôle inconnu : {1}",
+  "de": "Unbekannte Funktion: {1}",
+  "it": "Ruolo sconosciuto: {1}"
+ },
+ "unknown scoring table {}": {
+  "fr": "Barème inconnu : {1}",
+  "de": "Unbekannte Wertung: {1}",
+  "it": "Tabella sconosciuta: {1}"
+ },
+ "unknown team {}": {
+  "fr": "Équipe inconnue : {1}",
+  "de": "Unbekannte Mannschaft: {1}",
+  "it": "Squadra sconosciuta: {1}"
+ },
+ "unknown test {}": {
+  "fr": "Reprise inconnue : {1}",
+  "de": "Unbekanntes Programm: {1}",
+  "it": "Ripresa sconosciuta: {1}"
+ },
+ "unknown tie-break {}": {
+  "fr": "Départage inconnu : {1}",
+  "de": "Unbekannter Entscheid bei Gleichstand: {1}",
+  "it": "Criterio di parità sconosciuto: {1}"
+ },
+ "unknown way of ranking {}": {
+  "fr": "Mode de classement inconnu : {1}",
+  "de": "Unbekannte Art der Rangierung: {1}",
+  "it": "Metodo di classifica sconosciuto: {1}"
+ },
+ "unknown {} {}": {
+  "fr": "Introuvable : {1} {2}",
+  "de": "Nicht gefunden: {1} {2}",
+  "it": "Non trovato: {1} {2}"
+ },
+ "{} is not a date (YYYY-MM-DD)": {
+  "fr": "{1} n’est pas une date (AAAA-MM-JJ).",
+  "de": "{1} ist kein Datum (JJJJ-MM-TT).",
+  "it": "{1} non è una data (AAAA-MM-GG)."
+ },
+ "{} is not a driving phase": {
+  "fr": "{1} n’est pas une épreuve partielle d’attelage.",
+  "de": "{1} ist keine Teilprüfung im Fahren.",
+  "it": "{1} non è una prova parziale di attacchi."
+ },
+ "{} is not a number": {
+  "fr": "{1} n’est pas un nombre.",
+  "de": "{1} ist keine Zahl.",
+  "it": "{1} non è un numero."
+ },
+ "{} is not a phase of the class": {
+  "fr": "{1} n’est pas une épreuve partielle de cette épreuve.",
+  "de": "{1} ist keine Teilprüfung dieser Prüfung.",
+  "it": "{1} non è una prova parziale di questa gara."
+ },
+ "{} is not a time (75 or 1:15)": {
+  "fr": "{1} n’est pas un temps (75 ou 1:15).",
+  "de": "{1} ist keine Zeit (75 oder 1:15).",
+  "it": "{1} non è un tempo (75 o 1:15)."
+ },
+ "{} is not a time of day (10:12:30)": {
+  "fr": "{1} n’est pas une heure (10:12:30).",
+  "de": "{1} ist keine Uhrzeit (10:12:30).",
+  "it": "{1} non è un orario (10:12:30)."
+ },
+ "{} is not a total (0 to the programme's maximum)": {
+  "fr": "{1} n’est pas un total valable (de 0 au maximum de la reprise).",
+  "de": "{1} ist kein gültiges Total (0 bis zum Maximum des Programms).",
+  "it": "{1} non è un totale valido (da 0 al massimo della ripresa)."
+ },
+ "{} is not an item of the multitest": {
+  "fr": "{1} n’est pas un point du multi-test.",
+  "de": "{1} ist kein Punkt des Multitests.",
+  "it": "{1} non è un punto del multitest."
+ },
+ "{} is not registered with Swiss Equestrian for {}": {
+  "fr": "{1} n’est pas enregistré auprès de Swiss Equestrian pour {2}.",
+  "de": "{1} ist bei Swiss Equestrian für {2} nicht registriert.",
+  "it": "{1} non è registrato presso Swiss Equestrian per il {2}."
+ },
+ "{} sections for {} starters?": {
+  "fr": "Impossible de diviser {2} partants en {1} séries.",
+  "de": "{2} Starter lassen sich nicht in {1} Serien teilen.",
+  "it": "Impossibile dividere {2} partenti in {1} serie."
+ },
+ "{} sections for {} teams?": {
+  "fr": "Impossible de diviser {2} équipes en {1} séries.",
+  "de": "{2} Mannschaften lassen sich nicht in {1} Serien teilen.",
+  "it": "Impossibile dividere {2} squadre in {1} serie."
+ },
+ "{} sections?": {
+  "fr": "Impossible de diviser en {1} séries.",
+  "de": "Eine Teilung in {1} Serien ist nicht möglich.",
+  "it": "Impossibile dividere in {1} serie."
+ },
+ "{} {} has no guest licence: a guest horse is only for riders with one": {
+  "fr": "{1} {2} n’a pas de licence d’invité : un cheval invité est réservé aux cavaliers qui en ont une.",
+  "de": "{1} {2} hat keine Gastlizenz: Ein Gastpferd ist nur für Reiter mit Gastlizenz.",
+  "it": "{1} {2} non ha una licenza ospite: un cavallo ospite è riservato ai cavalieri che ne hanno una."
+ },
+ "{}: {} is not allowed (items 0 to 10 in tenths; penalties A and C whole, B in halves)": {
+  "fr": "{1} : {2} n’est pas admis (points de 0 à 10 au dixième ; pénalités A et C en nombres entiers, B par demi-point).",
+  "de": "{1}: {2} ist nicht zulässig (Punkte 0 bis 10 in Zehnteln; Strafpunkte A und C ganzzahlig, B in Halben).",
+  "it": "{1}: {2} non è ammesso (punti da 0 a 10 in decimi; penalità A e C intere, B per mezzi punti)."
+ },
+ "missing argument ids": {
+  "fr": "Il manque une donnée : ids",
+  "de": "Es fehlt eine Angabe: ids",
+  "it": "Manca un dato: ids"
+ },
+ "no conflict {}": {
+  "fr": "Ce changement n’est plus à revoir.",
+  "de": "Diese Änderung ist nicht mehr zu prüfen.",
+  "it": "Questa modifica non è più da rivedere."
+ },
+ "the other version is not known": {
+  "fr": "L’autre version n’est pas connue sur cet ordinateur.",
+  "de": "Die andere Version ist auf diesem Computer nicht bekannt.",
+  "it": "L’altra versione non è nota su questo computer."
+ },
+ "this conflict has no other version to put back": {
+  "fr": "Il n’y a pas d’autre version à remettre.",
+  "de": "Es gibt keine andere Version zum Wiederherstellen.",
+  "it": "Non c’è un’altra versione da ripristinare."
+ },
+ "team {} is not in class {}": {
+  "fr": "Cette équipe ne part pas dans l’épreuve {2}.",
+  "de": "Diese Equipe startet nicht in Prüfung {2}.",
+  "it": "Questa squadra non parte nella gara {2}."
+ },
+ "missing argument class": {
+  "fr": "Il manque l’épreuve.",
+  "de": "Die Prüfung fehlt.",
+  "it": "Manca la gara."
+ },
+ "equievents.ch does not answer: sending to Swiss Equestrian waits for the connection": {
+  "fr": "equievents.ch ne répond pas : l’envoi à Swiss Equestrian attend que la connexion revienne.",
+  "de": "equievents.ch antwortet nicht: Das Senden an Swiss Equestrian wartet, bis die Verbindung zurück ist.",
+  "it": "equievents.ch non risponde: l’invio a Swiss Equestrian attende che la connessione ritorni."
+ },
+ "sign in to equievents.ch to send to Swiss Equestrian": {
+  "fr": "Connectez-vous à equievents.ch pour envoyer à Swiss Equestrian.",
+  "de": "Melden Sie sich bei equievents.ch an, um an Swiss Equestrian zu senden.",
+  "it": "Accedete a equievents.ch per inviare a Swiss Equestrian."
+ },
+ "you no longer work on this show on equievents.ch": {
+  "fr": "Vous ne travaillez plus sur ce concours sur equievents.ch.",
+  "de": "Sie arbeiten auf equievents.ch nicht mehr an diesem Turnier.",
+  "it": "Non lavorate più a questo concorso su equievents.ch."
+ },
+ "this computer's clock runs ahead: some changes wait; set the computer's time, then send": {
+  "fr": "L’horloge de cet ordinateur est en avance : certains changements attendent. Réglez l’heure de l’ordinateur, puis envoyez.",
+  "de": "Die Uhr dieses Computers geht vor: Einige Änderungen warten. Stellen Sie die Uhrzeit des Computers, dann senden Sie.",
+  "it": "L’orologio di questo computer è avanti: alcune modifiche attendono. Regolate l’ora del computer, poi inviate."
+ },
+ "the show has no event's key on equievents.ch": {
+  "fr": "Ce concours n’a pas de clé de Swiss Equestrian sur equievents.ch.",
+  "de": "Dieses Turnier hat auf equievents.ch keinen Schlüssel von Swiss Equestrian.",
+  "it": "Questo concorso non ha una chiave di Swiss Equestrian su equievents.ch."
+ },
+ "the server could not do it": {
+  "fr": "Le serveur n’a pas pu le faire.",
+  "de": "Der Server konnte es nicht tun.",
+  "it": "Il server non ha potuto farlo."
+ },
+ "equievents.ch does not answer; try again once the connection is back": {
+  "fr": "equievents.ch ne répond pas. Réessayez quand la connexion est revenue.",
+  "de": "equievents.ch antwortet nicht. Versuchen Sie es wieder, sobald die Verbindung zurück ist.",
+  "it": "equievents.ch non risponde. Riprovate quando la connessione è tornata."
+ },
+ "sign in to equievents.ch first": {
+  "fr": "Connectez-vous d’abord à equievents.ch.",
+  "de": "Melden Sie sich zuerst bei equievents.ch an.",
+  "it": "Accedete prima a equievents.ch."
+ },
+ "Swiss Equestrian does not know the show's key: it only accepts the key of an event that is not over yet": {
+  "fr": "Swiss Equestrian ne connaît pas la clé de ce concours : il n’accepte que la clé d’un événement qui n’est pas encore terminé.",
+  "de": "Swiss Equestrian kennt den Schlüssel dieses Turniers nicht: Es akzeptiert nur den Schlüssel einer Veranstaltung, die noch nicht vorbei ist.",
+  "it": "Swiss Equestrian non conosce la chiave di questo concorso: accetta solo la chiave di una manifestazione non ancora terminata."
+ },
+ "too many downloads from Swiss Equestrian for this account; try again in an hour": {
+  "fr": "Trop de téléchargements de Swiss Equestrian pour ce compte. Réessayez dans une heure.",
+  "de": "Zu viele Downloads von Swiss Equestrian für dieses Konto. Versuchen Sie es in einer Stunde wieder.",
+  "it": "Troppi download da Swiss Equestrian per questo account. Riprovate tra un’ora."
+ },
+ "put the show on equievents.ch first: the riders and horses are downloaded there, with its key": {
+  "fr": "Mettez d’abord le concours sur equievents.ch : c’est là que les cavaliers et chevaux sont téléchargés, avec sa clé.",
+  "de": "Stellen Sie das Turnier zuerst auf equievents.ch: Dort werden die Reiter und Pferde heruntergeladen, mit seinem Schlüssel.",
+  "it": "Mettete prima il concorso su equievents.ch: è lì che cavalieri e cavalli vengono scaricati, con la sua chiave."
+ }
+}

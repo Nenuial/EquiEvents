@@ -1,0 +1,5 @@
+#!/bin/sh
+# Nothing of the golden corpus pushed: every commit not on the remote yet, checked
+# (scripts/corpus-guard.mjs). Once per clone: git config core.hooksPath .githooks
+command -v node >/dev/null 2>&1 || { echo "pre-push: node is needed for the corpus guard" >&2; exit 1; }
+exec node "$(git rev-parse --show-toplevel)/scripts/corpus-guard.mjs" --push

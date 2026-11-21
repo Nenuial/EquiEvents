@@ -1,0 +1,26 @@
+# The old app bundle and anything extracted from it (reference only, never committed)
+/Rosson.app/
+/vendor/
+
+# Build output and dependencies (also excluded from Dropbox sync, see README)
+node_modules/
+target/
+
+# Raw show exports must never be committed
+*_export_*.txt
+rosson_export_*.txt
+
+# The golden corpus (real shows, leak-checked but with riders' and horses' names): kept on this
+# computer for the tests, never in the repository, which is public (golden/README.md)
+/golden/corpus/
+
+.DS_Store
+
+# The app's UI build and Tauri's generated files
+/app/dist/
+/app/src-tauri/gen/
+.env
+
+# Desktop releases (scripts/release.mjs): copied to the server, never committed
+/release/
+/release-test/

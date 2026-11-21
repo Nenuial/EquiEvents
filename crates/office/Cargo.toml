@@ -1,0 +1,31 @@
+[package]
+name = "office"
+version = "0.1.0"
+description = "The show office application: the show library, imports and exports, and what each screen shows, for every front end (desktop, browser)."
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+show = { path = "../show" }
+scoring = { path = "../scoring" }
+se-api = { path = "../se-api" }
+rosson-import = { path = "../rosson-import" }
+timing = { path = "../timing" }
+typeset = { path = "../typeset" }
+rust_xlsxwriter = "0.79"
+serde.workspace = true
+serde_json.workspace = true
+rust_decimal.workspace = true
+tiny_http = "0.12"
+# HTTP: equievents.ch (the sync), Swiss Equestrian's demo events and its riders and horses.
+ureq = "2.12"
+
+[dev-dependencies]
+tempfile = "3"
+calamine = "0.28"
+regex = "1"
+
+[[bin]]
+name = "office-dev-server"
+path = "src/bin/dev_server.rs"

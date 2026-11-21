@@ -1,0 +1,257 @@
+@import "tailwindcss";
+
+/* The app's look (docs/ux/design.md): Swiss Equestrian navy and an accent (coral by default,
+   or pétrole, bordeaux, laiton, cobalt: `data-accent` on <html>), surfaces in layers (page,
+   card, raised, sunken), a light and a dark theme chosen in the settings (`data-theme` on
+   <html>, set by ui/theme.tsx; the system's choice by default). */
+
+@theme {
+  --color-brand: #00283c;
+  --color-brand-dark: #001a28;
+  --color-brand-light: #0d4a6c;
+  --color-accent: var(--accent);
+  --color-accent-dark: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
+  --color-mark: var(--mark);
+  --color-accent-nav: var(--accent-nav);
+  --color-page: var(--bg);
+  --color-card: var(--surface);
+  --color-raised: var(--surface-2);
+  --color-sunken: var(--surface-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-ink-4: var(--ink-4);
+  --color-hover: var(--hover);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+  --color-nav: var(--nav);
+  --color-nav-2: var(--nav-2);
+
+  --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  --shadow-xs: 0 1px 1px rgb(var(--shadow-rgb) / 0.06);
+  --shadow-card: 0 1px 2px rgb(var(--shadow-rgb) / 0.06), 0 1px 3px rgb(var(--shadow-rgb) / 0.05);
+  --shadow-lift: 0 4px 12px -2px rgb(var(--shadow-rgb) / 0.12), 0 2px 4px -2px rgb(var(--shadow-rgb) / 0.08);
+  --shadow-pop: 0 24px 48px -12px rgb(var(--shadow-rgb) / 0.35), 0 8px 16px -8px rgb(var(--shadow-rgb) / 0.2);
+
+  --animate-fade-in: fade-in 0.16s ease-out;
+  --animate-modal-in: modal-in 0.2s cubic-bezier(0.2, 0.9, 0.25, 1);
+  --animate-sheet-in: sheet-in 0.24s cubic-bezier(0.2, 0.9, 0.25, 1);
+  --animate-pop-in: pop-in 0.14s ease-out;
+  --animate-toast-in: toast-in 0.22s cubic-bezier(0.2, 0.9, 0.25, 1);
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes modal-in {
+    from { opacity: 0; transform: translateY(8px) scale(0.98); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes sheet-in {
+    from { transform: translateY(100%); }
+    to { transform: none; }
+  }
+  @keyframes pop-in {
+    from { opacity: 0; transform: scale(0.97); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: none; }
+  }
+}
+
+/* Light (the default). */
+:root {
+  --bg: #f3f5f8;
+  --surface: #ffffff;
+  --surface-2: #f8fafc;
+  --surface-3: #eef2f6;
+  --line: #e4e9f0;
+  --line-strong: #d3dbe5;
+  --ink: #0d1b2a;
+  --ink-2: #3a4859;
+  --ink-3: #66768a;
+  --ink-4: #98a5b5;
+  --hover: #f0f4f8;
+  --accent: #e5484d;
+  --accent-strong: #cc3a3f;
+  --accent-soft: rgb(229 72 77 / 0.1);
+  /* Text on the accent (main buttons, chosen chips). */
+  --on-accent: #ffffff;
+  /* The logo's tile: the accent, the same in both themes. */
+  --mark: #e5484d;
+  /* The accent on the navy frame (sidebar, the start page's header), the same in both themes. */
+  --accent-nav: #ff8a7d;
+  --ok: #138a4c;
+  --warn: #b76e00;
+  --danger: #d32f3a;
+  --info: #1f6fc4;
+  --nav: #00283c;
+  --nav-2: #0a3650;
+  --shadow-rgb: 16 32 48;
+  color-scheme: light;
+}
+
+/* Dark: deep navy, never black; the same accent, lifted. */
+:root[data-theme="dark"] {
+  --bg: #060f17;
+  --surface: #0c1824;
+  --surface-2: #10202f;
+  --surface-3: #15293b;
+  --line: #1b3043;
+  --line-strong: #264057;
+  --ink: #e9eff6;
+  --ink-2: #b8c6d4;
+  --ink-3: #8195a9;
+  --ink-4: #5d7186;
+  --hover: #132637;
+  --accent: #ef5559;
+  --accent-strong: #ff7477;
+  --accent-soft: rgb(255 107 110 / 0.14);
+  --ok: #3ccf8a;
+  --warn: #f2b54a;
+  --danger: #ff6370;
+  --info: #5aa8ff;
+  --nav: #0a1b29;
+  --nav-2: #0f2435;
+  --shadow-rgb: 0 0 0;
+  color-scheme: dark;
+}
+
+/* The accents other than coral (settings), light then dark. In the dark theme the lifted accents
+   take navy text, which reads better on them than white. Laiton moves warnings to orange, away
+   from its brass; cobalt moves information to cyan, away from its blue. */
+:root[data-accent="petrole"] { --accent: #0b7179; --accent-strong: #095c63; --accent-soft: rgb(11 113 121 / 0.1); --mark: #0b7179; --accent-nav: #72d6d6; }
+:root[data-accent="bordeaux"] { --accent: #9b2743; --accent-strong: #7f1f37; --accent-soft: rgb(155 39 67 / 0.09); --mark: #9b2743; --accent-nav: #f294aa; }
+:root[data-accent="laiton"] { --accent: #8c6214; --accent-strong: #73500f; --accent-soft: rgb(140 98 20 / 0.1); --mark: #8c6214; --accent-nav: #e9c06b; --warn: #c2410c; }
+:root[data-accent="cobalt"] { --accent: #2d52cc; --accent-strong: #2343aa; --accent-soft: rgb(45 82 204 / 0.09); --mark: #2d52cc; --accent-nav: #a7bbff; --info: #0e7490; }
+:root[data-accent="petrole"][data-theme="dark"] { --accent: #3fc2c4; --accent-strong: #72d6d6; --accent-soft: rgb(63 194 196 / 0.15); --on-accent: #06131d; }
+:root[data-accent="bordeaux"][data-theme="dark"] { --accent: #e5728d; --accent-strong: #f294aa; --accent-soft: rgb(229 114 141 / 0.15); --on-accent: #06131d; }
+:root[data-accent="laiton"][data-theme="dark"] { --accent: #dcaa45; --accent-strong: #e9c06b; --accent-soft: rgb(220 170 69 / 0.15); --on-accent: #06131d; --warn: #fb923c; }
+:root[data-accent="cobalt"][data-theme="dark"] { --accent: #86a2ff; --accent-strong: #a7bbff; --accent-soft: rgb(134 162 255 / 0.15); --on-accent: #06131d; --info: #22d3ee; }
+
+/* Before the app sets the theme: the system's. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --bg: #060f17;
+    --surface: #0c1824;
+    --surface-2: #10202f;
+    --surface-3: #15293b;
+    --line: #1b3043;
+    --line-strong: #264057;
+    --ink: #e9eff6;
+    --ink-2: #b8c6d4;
+    --ink-3: #8195a9;
+    --ink-4: #5d7186;
+    --hover: #132637;
+    --nav: #0a1b29;
+    --nav-2: #0f2435;
+    color-scheme: dark;
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.45;
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: default;
+}
+table {
+  border-collapse: collapse;
+}
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+::selection {
+  background: var(--accent-soft);
+}
+
+/* Form fields, one look everywhere (ui/Field.tsx). */
+@layer components {
+  .field {
+    @apply h-9 w-full min-w-0 rounded-lg border border-line-strong bg-card px-3 text-[13px] text-ink shadow-xs transition-[border-color,box-shadow] outline-none placeholder:text-ink-4 focus:border-info focus:ring-3 focus:ring-info/20 disabled:opacity-50;
+  }
+  textarea.field {
+    @apply h-auto py-2 leading-snug;
+  }
+  select.field {
+    @apply appearance-none bg-no-repeat pr-8;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%2366768a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+    background-position: right 0.6rem center;
+  }
+  .field-sm {
+    @apply h-8 px-2.5 text-xs;
+  }
+  /* Buttons written as classes (where a <Button> does not fit): the same look. */
+  .btn {
+    @apply inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg font-semibold whitespace-nowrap transition-colors select-none focus-visible:ring-2 focus-visible:ring-info/60 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-45;
+  }
+  .btn-sm {
+    @apply h-8 px-2.5 text-xs;
+  }
+  .btn-md {
+    @apply h-9 px-3.5 text-[13px];
+  }
+  .btn-primary {
+    @apply bg-accent text-on-accent shadow-xs hover:bg-accent-dark;
+  }
+  .btn-secondary {
+    @apply border border-line-strong bg-card text-ink shadow-xs hover:bg-hover;
+  }
+  .btn-ghost {
+    @apply text-ink-2 hover:bg-hover hover:text-ink;
+  }
+  .btn-danger {
+    @apply border border-danger/35 bg-card text-danger hover:bg-danger/8;
+  }
+  .btn-on {
+    @apply border-accent bg-accent-soft text-accent;
+  }
+  .check {
+    @apply size-4 shrink-0 cursor-pointer rounded border-line-strong accent-[var(--accent)];
+  }
+  @media (pointer: coarse) {
+    .btn-sm {
+      @apply h-10 px-3.5;
+    }
+    .btn-md {
+      @apply h-11 px-4;
+    }
+    .field {
+      @apply h-11 text-[15px];
+    }
+    .field-sm {
+      @apply h-10 text-sm;
+    }
+  }
+}
+
+/* Thin, quiet scrollbars. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}

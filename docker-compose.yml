@@ -1,0 +1,81 @@
+# EquiEvents — eq-db (Postgres), eq-web (the API the apps sync with, the site where people make
+# their accounts and download the desktop app, Swiss Equestrian: events downloaded with their key,
+# start lists and results sent), eq-worker (nightly backups). Served at
+# https://www.equievents.ch by Nginx Proxy Manager on the external `npm` network, as Gestion
+# Concours (docs/architecture/server.md).
+networks:
+  npm: { external: true, name: npm }
+  internal: { driver: bridge }
+
+services:
+  db:
+    # The same major version as development (Homebrew's 18).
+    image: postgres:18.4-alpine
+    container_name: eq-db
+    restart: unless-stopped
+    networks: [internal]
+    environment:
+      POSTGRES_DB: equievents
+      POSTGRES_USER: equievents
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+    # Postgres 18's images keep the cluster under /var/lib/postgresql/18/docker: the volume is its parent.
+    volumes: [pgdata:/var/lib/postgresql]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U equievents -d equievents"], interval: 5s, timeout: 5s, retries: 10 }
+
+  web:
+    build:
+      context: .
+      # The desktop apps' release in the image: a GitHub release (docs/architecture/releases.md).
+      args:
+        RELEASES_REPO: ${RELEASES_REPO:-}
+        RELEASE_TAG: ${RELEASE_TAG:-}
+      secrets: [github_token]
+    image: equievents-server:latest
+    container_name: eq-web
+    command: ["web"]
+    # A small init as PID 1: signals reach the server, zombies are reaped.
+    init: true
+    restart: unless-stopped
+    networks: [internal, npm]
+    depends_on: { db: { condition: service_healthy } }
+    environment: &env
+      TZ: Europe/Zurich
+      DATABASE_URL: postgres://equievents:${DB_PASSWORD}@db:5432/equievents
+      APP_URL: ${APP_URL:-https://www.equievents.ch}
+      # E-mail (password-reset links), as Gestion Concours: off | redirect | send.
+      MAIL_MODE: ${MAIL_MODE:-off}
+      MAIL_REDIRECT_TO: ${MAIL_REDIRECT_TO:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-info@equievents.ch}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-EquiEvents}
+      MAIL_REPLY_TO: ${MAIL_REPLY_TO:-}
+      # Swiss Equestrian (docs/architecture/server.md): where events, their updates and the riders
+      # and horses are downloaded from (production, stage; none: development). Nothing is ever
+      # sent to it: the apps' « Envoyer » goes to the server's simulation.
+      SE_SERVER: ${SE_SERVER:-production}
+    healthcheck: { test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health >/dev/null || exit 1"], interval: 30s, timeout: 5s, retries: 3, start_period: 20s }
+
+  worker:
+    image: equievents-server:latest
+    container_name: eq-worker
+    command: ["worker"]
+    init: true
+    stop_grace_period: 30s
+    restart: unless-stopped
+    networks: [internal]
+    depends_on: { db: { condition: service_healthy }, web: { condition: service_started } }
+    environment:
+      <<: *env
+      BACKUP_AT: ${BACKUP_AT:-02:30}
+      BACKUP_KEEP: ${BACKUP_KEEP:-14}
+    volumes: [backups:/data/backups]
+
+volumes: { pgdata: {}, backups: {} }
+
+# A private repository's token for the release's files (read-only contents); unset for a public one.
+secrets:
+  github_token:
+    environment: GITHUB_TOKEN

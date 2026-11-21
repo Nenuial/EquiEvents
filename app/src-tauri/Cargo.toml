@@ -1,0 +1,33 @@
+[package]
+name = "equievents-desktop"
+version = "0.1.0"
+description = "EquiEvents for the show office: the desktop app (macOS, Windows)."
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+office = { path = "../../crates/office" }
+serde_json.workspace = true
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+# Opening a print with the system's PDF viewer (npm @tauri-apps/plugin-opener on the same version).
+tauri-plugin-opener = "=2.5.3"
+# Access keys of events in the system's keychain (macOS Keychain, Windows Credential Manager).
+keyring = { version = "3.6", features = ["apple-native", "windows-native"] }
+# Updates from equievents.ch (docs/architecture/releases.md); 2.12: the last for Rust 1.84.
+tauri-plugin-updater = "2.12"
+
+[dev-dependencies]
+axum = "0.8"
+base64 = "0.22"
+flate2 = "1"
+minisign = "0.7"
+server = { path = "../../crates/server" }
+tar = "0.4"
+tauri = { version = "2", features = ["test"] }
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net"] }

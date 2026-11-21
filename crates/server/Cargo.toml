@@ -1,0 +1,38 @@
+[package]
+name = "server"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+description = "equievents.ch: the master copy of every show, the apps' sync, backups"
+
+[[bin]]
+name = "equievents-server"
+path = "src/main.rs"
+
+[dependencies]
+show = { path = "../show" }
+se-api = { path = "../se-api" }
+serde.workspace = true
+serde_json.workspace = true
+axum = "0.8"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "process", "time", "fs"] }
+tokio-postgres = { version = "0.7", features = ["with-serde_json-1"] }
+deadpool-postgres = "0.14"
+argon2 = { version = "0.5", features = ["std"] }
+sha2 = "0.10"
+rand = "0.8"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+lettre = { version = "0.11", default-features = false, features = ["builder", "smtp-transport", "tokio1", "tokio1-rustls-tls", "hostname"] }
+# The desktop apps' downloads (`downloads`): files served with ranges, versions compared.
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.6", features = ["fs"] }
+semver = "1"
+# Swiss Equestrian (`se`): downloads, blocking, off the async threads.
+ureq = "2.12"
+
+[dev-dependencies]
+rosson-import = { path = "../rosson-import" }
+http-body-util = "0.1"
+office = { path = "../office" }
+tempfile = "3"

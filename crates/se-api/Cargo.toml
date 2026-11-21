@@ -1,0 +1,17 @@
+[package]
+name = "se-api"
+version = "0.1.0"
+description = "The Swiss Equestrian show-organiser API (my.swiss-equestrian.ch/api/veranstaltersoftware/v2), as Rosson uses it."
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+show = { path = "../show" }
+scoring = { path = "../scoring" }
+rust_decimal.workspace = true
+
+[dev-dependencies]
+rosson-import = { path = "../rosson-import" }
