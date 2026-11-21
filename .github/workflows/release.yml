@@ -126,7 +126,8 @@ jobs:
           # Apple's intermediate for Developer ID certificates (G2): not on every runner, and without
           # it the certificate is not trusted (no signing identity).
           curl -fsSL https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer -o "$RUNNER_TEMP/DeveloperIDG2CA.cer"
-          security import "$RUNNER_TEMP/DeveloperIDG2CA.cer" -k "$keychain" -A
+          # (A .p12 exported from Keychain Access may carry it already: then nothing to add.)
+          security import "$RUNNER_TEMP/DeveloperIDG2CA.cer" -k "$keychain" -A 2>/dev/null || echo "Developer ID G2 intermediate: in the .p12 already"
           security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain"
           security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
           # What can sign (names only): none means the .p12 has no private key (export it from
