@@ -59,7 +59,8 @@ jobs:
     # The secrets are the `release` environment's: only for tags v* and main (its rules).
     environment: release
     strategy:
-      fail-fast: true
+      # A release: both systems or none. A run by hand: each system on its own (a trial).
+      fail-fast: ${{ github.event_name == 'push' }}
       matrix:
         include:
           - system: macos
