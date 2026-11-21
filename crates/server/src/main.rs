@@ -13,7 +13,9 @@
 //! - `create-user "Prénom Nom" e-mail`, `set-password e-mail`: for support;
 //! - `set-role e-mail admin|support|none`: an account's role (administrators also give them in
 //!   the online version's « Comptes »);
-//! - `backup`: a backup now.
+//! - `backup`: a backup now;
+//! - `mail-preview [file.html]`: every e-mail it sends, light and dark, in the three languages, on
+//!   one page to look at (nothing sent, no database).
 //!
 //! The database: `DATABASE_URL`.
 
@@ -41,6 +43,13 @@ async fn main() -> ExitCode {
 
 async fn run(args: &[String]) -> Result<(), db::Error> {
     let command = args.first().map(String::as_str).unwrap_or("web");
+    // Every e-mail, to look at before any is sent (no database needed).
+    if command == "mail-preview" {
+        let file = std::path::PathBuf::from(args.get(1).cloned().unwrap_or_else(|| "equievents-mails.html".into()));
+        std::fs::write(&file, server::notices::preview(&env("APP_URL", "https://www.equievents.ch")))?;
+        println!("every e-mail, light and dark, in the three languages: {}", file.display());
+        return Ok(());
+    }
     let database_url = std::env::var("DATABASE_URL").map_err(|_| "DATABASE_URL is not set")?;
     let pool = db::pool(&database_url)?;
     let migrated = db::migrate(&pool).await?;
@@ -110,7 +119,7 @@ async fn run(args: &[String]) -> Result<(), db::Error> {
             println!("{email}: {}", if admin { "administrator" } else if support { "support" } else { "no role" });
         }
         "backup" => println!("backup: {}", backup::run(&backups()?).await?.display()),
-        other => return Err(format!("unknown command {other} (web, worker, migrate, create-admin, create-user, set-password, set-role, backup)").into()),
+        other => return Err(format!("unknown command {other} (web, worker, migrate, create-admin, create-user, set-password, set-role, backup, mail-preview)").into()),
     }
     Ok(())
 }

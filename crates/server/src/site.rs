@@ -497,22 +497,29 @@ async fn forgot_form(lang: Lang) -> Response {
 }
 
 /// The e-mail with the reset link.
-pub fn reset_mail(lang: Lang, site: &str, name: &str, email: &str, token: &str) -> (String, String) {
+pub fn reset_mail(lang: Lang, site: &str, name: &str, email: &str, token: &str) -> crate::letter::Letter {
     let link = format!("{}{}?t={token}", site.trim_end_matches('/'), Path::Reset.of(lang));
-    match lang {
+    let (topic, open, label, otherwise) = match lang {
         Lang::Fr => (
-            "EquiEvents : nouveau mot de passe".into(),
-            format!("Bonjour {name},\n\nPour choisir un nouveau mot de passe pour votre compte EquiEvents ({email}), ouvrez ce lien dans l’heure :\n\n{link}\n\nSi vous n’avez rien demandé, ignorez cet e-mail : votre mot de passe ne change pas.\n\nEquiEvents\n"),
+            "nouveau mot de passe",
+            format!("Pour choisir un nouveau mot de passe pour votre compte EquiEvents ({email}), ouvrez ce lien dans l’heure :"),
+            "Choisir un nouveau mot de passe",
+            "Si vous n’avez rien demandé, ignorez cet e-mail : votre mot de passe ne change pas.",
         ),
         Lang::De => (
-            "EquiEvents: neues Passwort".into(),
-            format!("Guten Tag {name}\n\nUm ein neues Passwort für Ihr EquiEvents-Konto ({email}) zu wählen, öffnen Sie diesen Link innerhalb einer Stunde:\n\n{link}\n\nFalls Sie nichts angefordert haben, ignorieren Sie diese E-Mail: Ihr Passwort bleibt unverändert.\n\nEquiEvents\n"),
+            "neues Passwort",
+            format!("Um ein neues Passwort für Ihr EquiEvents-Konto ({email}) zu wählen, öffnen Sie diesen Link innerhalb einer Stunde:"),
+            "Neues Passwort wählen",
+            "Falls Sie nichts angefordert haben, ignorieren Sie diese E-Mail: Ihr Passwort bleibt unverändert.",
         ),
         Lang::It => (
-            "EquiEvents: nuova password".into(),
-            format!("Buongiorno {name},\n\nPer scegliere una nuova password per il vostro account EquiEvents ({email}), aprite questo link entro un’ora:\n\n{link}\n\nSe non avete chiesto nulla, ignorate questa e-mail: la vostra password non cambia.\n\nEquiEvents\n"),
+            "nuova password",
+            format!("Per scegliere una nuova password per il vostro account EquiEvents ({email}), aprite questo link entro un’ora:"),
+            "Scegliere una nuova password",
+            "Se non avete chiesto nulla, ignorate questa e-mail: la vostra password non cambia.",
         ),
-    }
+    };
+    crate::letter::Letter::new(lang, topic, name, vec![open]).link(label, link).after(otherwise)
 }
 
 /// Ask for a reset link: sent if the address has an account; the answer is the same either way
@@ -523,11 +530,12 @@ pub async fn send_reset_link(app: &App, lang: Lang, email: &str) -> Result<(), c
         return Ok(());
     }
     let Some((token, user)) = auth::reset_start(&app.pool, &email).await? else { return Ok(()) };
-    let (subject, body) = reset_mail(lang, &app.site_url, &user.name, &user.email, &token);
+    let letter = reset_mail(lang, &app.site_url, &user.name, &user.email, &token);
+    let (subject, text, html) = (letter.subject(), letter.text(&app.site_url), letter.html(&app.site_url, &user.email));
     let mailer = app.mailer.clone();
     // Sent in the background: the answer comes as fast for an address without an account.
     let send = async move {
-        if let Err(e) = mailer.send(&user.email, &subject, &body).await {
+        if let Err(e) = mailer.send(&user.email, &subject, &text, Some(&html)).await {
             eprintln!("reset e-mail to {} not sent: {e}", user.email);
         }
     };
@@ -661,12 +669,15 @@ mod tests {
 
     #[test]
     fn the_reset_mail() {
-        let (subject, body) = reset_mail(Lang::De, "https://www.equievents.ch/", "Anne Office", "anne@example.ch", "abc123");
-        assert_eq!(subject, "EquiEvents: neues Passwort");
+        let site = "https://www.equievents.ch/";
+        let letter = reset_mail(Lang::De, site, "Anne Office", "anne@example.ch", "abc123");
+        let body = letter.text(site);
+        assert_eq!(letter.subject(), "EquiEvents: neues Passwort");
         assert!(body.contains("https://www.equievents.ch/neues-passwort?t=abc123") && body.starts_with("Guten Tag Anne Office"));
-        let (_, body) = reset_mail(Lang::Fr, "https://www.equievents.ch", "Anne", "anne@example.ch", "abc123");
-        assert!(body.contains("https://www.equievents.ch/nouveau-mot-de-passe?t=abc123"));
-        let (subject, body) = reset_mail(Lang::It, "https://www.equievents.ch", "Anna", "anna@example.ch", "abc123");
-        assert!(subject == "EquiEvents: nuova password" && body.starts_with("Buongiorno Anna,") && body.contains("/nuova-password?t=abc123"));
+        assert!(letter.html(site, "anne@example.ch").contains(r#"href="https://www.equievents.ch/neues-passwort?t=abc123""#));
+        assert!(reset_mail(Lang::Fr, site, "Anne", "anne@example.ch", "abc123").text(site).contains("https://www.equievents.ch/nouveau-mot-de-passe?t=abc123"));
+        let letter = reset_mail(Lang::It, site, "Anna", "anna@example.ch", "abc123");
+        let body = letter.text(site);
+        assert!(letter.subject() == "EquiEvents: nuova password" && body.starts_with("Buongiorno Anna,") && body.contains("/nuova-password?t=abc123"));
     }
 }

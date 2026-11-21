@@ -130,11 +130,12 @@ impl From<Refused> for ApiError {
     }
 }
 
-/// An e-mail, in the background (tests wait for it).
-pub(crate) async fn notify(app: &App, to: &str, (subject, body): notices::Mail) {
+/// An e-mail (its text and its HTML), in the background (tests wait for it).
+pub(crate) async fn notify(app: &App, to: &str, letter: notices::Letter) {
+    let (subject, text, html) = (letter.subject(), letter.text(&app.site_url), letter.html(&app.site_url, to));
     let (mailer, to) = (app.mailer.clone(), to.to_string());
     let send = async move {
-        if let Err(e) = mailer.send(&to, &subject, &body).await {
+        if let Err(e) = mailer.send(&to, &subject, &text, Some(&html)).await {
             eprintln!("e-mail to {to} not sent: {e}");
         }
     };

@@ -106,7 +106,9 @@ memory (a restart forgets them; the app asks again).
 
 Until the mailbox `info@equievents.ch` exists with the domain's SPF, DKIM and DMARC, `MAIL_MODE=off`
 (a forgotten password then needs an administrator: « Comptes », a new password). Then `MAIL_MODE=redirect` with
-`MAIL_REDIRECT_TO` to try it, then `send`.
+`MAIL_REDIRECT_TO` to try it, then `send`. What the e-mails look like (HTML and text, light and
+dark, the three languages), before any is sent: `docker compose exec web equievents-server
+mail-preview /tmp/mails.html`, then `docker compose cp web:/tmp/mails.html .` and open it.
 
 ## 7. Checking it works
 

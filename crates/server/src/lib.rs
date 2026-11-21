@@ -10,6 +10,7 @@ pub mod backup;
 pub mod db;
 pub mod downloads;
 pub mod lang;
+pub mod letter;
 pub mod limit;
 pub mod mail;
 pub mod notices;

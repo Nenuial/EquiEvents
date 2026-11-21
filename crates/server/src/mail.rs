@@ -1,5 +1,6 @@
-//! E-mail (password-reset links), through SMTP as Gestion Concours sends its own (the same
-//! settings, `MAIL_MODE`, `SMTP_*`):
+//! E-mail (password-reset links, the notices about shows), through SMTP as Gestion Concours
+//! sends its own (the same settings, `MAIL_MODE`, `SMTP_*`); each as plain text and HTML together
+//! (`letter`), the mark inline:
 //!
 //! - `off`: nothing is sent; the recipient and subject are logged, the e-mail is kept in memory
 //!   (the tests read it there);
@@ -10,7 +11,7 @@
 
 use std::sync::{Arc, Mutex};
 
-use lettre::message::{header::ContentType, Mailbox};
+use lettre::message::{header::ContentType, Attachment, Mailbox, MultiPart, SinglePart};
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
 
@@ -21,7 +22,9 @@ use crate::db::Error;
 pub struct Mail {
     pub to: String,
     pub subject: String,
+    /// The plain text.
     pub body: String,
+    pub html: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -90,9 +93,28 @@ impl Mailer {
         self.kept.lock().map(|k| k.clone()).unwrap_or_default()
     }
 
-    /// Send a plain-text e-mail (or keep it, `off`).
-    pub async fn send(&self, to: &str, subject: &str, body: &str) -> Result<(), Error> {
-        let mail = Mail { to: to.to_string(), subject: subject.to_string(), body: body.to_string() };
+    /// The e-mail as it goes out: the text, or the text and the HTML with its mark beside it
+    /// (the mail app shows what it can).
+    fn message(&self, recipient: &str, subject: &str, body: &str, html: Option<&str>) -> Result<Message, Error> {
+        let mut message = Message::builder().from(self.from.clone()).to(recipient.parse()?).subject(subject);
+        if let Some(r) = &self.reply_to {
+            message = message.reply_to(r.clone());
+        }
+        Ok(match html {
+            Some(html) => message.multipart(
+                MultiPart::alternative().singlepart(SinglePart::plain(body.to_string())).multipart(
+                    MultiPart::related()
+                        .singlepart(SinglePart::html(html.to_string()))
+                        .singlepart(Attachment::new_inline(crate::letter::MARK_ID.to_string()).body(crate::letter::MARK.to_vec(), ContentType::parse("image/png").map_err(|e| e.to_string())?)),
+                ),
+            )?,
+            None => message.header(ContentType::TEXT_PLAIN).body(body.to_string())?,
+        })
+    }
+
+    /// Send an e-mail, its plain text and its HTML (or keep it, `off`).
+    pub async fn send(&self, to: &str, subject: &str, body: &str, html: Option<&str>) -> Result<(), Error> {
+        let mail = Mail { to: to.to_string(), subject: subject.to_string(), body: body.to_string(), html: html.map(str::to_string) };
         let (Some(smtp), recipient) = (&self.smtp, match &self.mode {
             Mode::Off => {
                 println!("mail off, not sent: to {to}: {subject}");
@@ -108,11 +130,7 @@ impl Mailer {
         }) else {
             return Err("no SMTP server".into());
         };
-        let mut message = Message::builder().from(self.from.clone()).to(recipient.parse()?).subject(subject).header(ContentType::TEXT_PLAIN);
-        if let Some(r) = &self.reply_to {
-            message = message.reply_to(r.clone());
-        }
-        let message = message.body(body.to_string())?;
+        let message = self.message(&recipient, subject, body, html)?;
         let builder = if smtp.port == 465 {
             AsyncSmtpTransport::<Tokio1Executor>::relay(&smtp.host)?
         } else {
@@ -142,10 +160,20 @@ mod tests {
         assert!(Mailer::from_env(env(&[("MAIL_MODE", "loud")])).is_err());
     }
 
+    #[test]
+    fn text_and_html_with_the_mark() {
+        let raw = String::from_utf8(Mailer::off().message("anne@example.ch", "EquiEvents : test", "Bonjour", Some("<p>Bonjour</p>")).unwrap().formatted()).unwrap();
+        assert!(raw.contains("multipart/alternative") && raw.contains("multipart/related") && raw.contains("text/plain") && raw.contains("text/html"), "{raw}");
+        assert!(raw.contains("Content-ID: <mark@equievents.ch>") && raw.contains("image/png") && raw.contains("Content-Disposition: inline"), "{raw}");
+        assert!(raw.find("text/plain").unwrap() < raw.find("text/html").unwrap(), "the HTML last: the one mail apps prefer");
+        let plain = String::from_utf8(Mailer::off().message("anne@example.ch", "Hello", "Body", None).unwrap().formatted()).unwrap();
+        assert!(plain.contains("Content-Type: text/plain") && !plain.contains("multipart"));
+    }
+
     #[tokio::test]
     async fn off_keeps_them() {
         let m = Mailer::off();
-        m.send("anne@example.ch", "Hello", "Body").await.unwrap();
-        assert_eq!(m.kept(), vec![Mail { to: "anne@example.ch".into(), subject: "Hello".into(), body: "Body".into() }]);
+        m.send("anne@example.ch", "Hello", "Body", Some("<p>Body</p>")).await.unwrap();
+        assert_eq!(m.kept(), vec![Mail { to: "anne@example.ch".into(), subject: "Hello".into(), body: "Body".into(), html: Some("<p>Body</p>".into()) }]);
     }
 }

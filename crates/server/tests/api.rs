@@ -1495,6 +1495,9 @@ async fn staff_help_and_administer_accounts() {
     assert_eq!(shows, 0);
     let told = mailer.kept().into_iter().rev().find(|m| m.to == "carl@example.ch").unwrap();
     assert!(told.subject.contains("supprimé") && told.body.contains("Le compte de Olga Owner"), "{told:?}");
+    // As HTML too, in the site's look, saying whom it went to.
+    let html = told.html.as_deref().unwrap();
+    assert!(html.contains("Le compte de Olga Owner") && html.contains("carl@example.ch") && html.contains("cid:mark@equievents.ch"));
     assert!(!dir.path().join(format!("offices/{olga_id}")).exists());
     assert_eq!(online(r, &sam, "GET", "/app/admin/me", None).await.1["acting_as"], Value::Null);
     assert_eq!(online(r, &olga, "POST", "/app/api/account", Some(json!({}))).await.0, StatusCode::UNAUTHORIZED);

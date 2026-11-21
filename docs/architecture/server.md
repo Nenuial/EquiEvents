@@ -265,8 +265,20 @@ As Gestion Concours sends its own (`crates/server/src/mail.rs`), with the same s
 `.env`: `MAIL_MODE` `off` (nothing sent, the recipient and subject logged), `redirect` (all to
 `MAIL_REDIRECT_TO`, a test server) or `send`; `SMTP_HOST`, `SMTP_PORT` (465: TLS, else
 STARTTLS), `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`, `MAIL_FROM_NAME`, `MAIL_REPLY_TO`. Links point
-to `APP_URL`. Sent: reset links; requests to a show's owner, their answers, access given
-(`crates/server/src/notices.rs`). Until the mailbox (info@equievents.ch) and the domain's SPF / DKIM / DMARC exist,
+to `APP_URL`. Sent, in the account's language (French, German, Italian): reset links; requests to
+a show's owner, their answers, access given, a show handed over, released or deleted with its
+owner's account, another owner set by an administrator (`crates/server/src/notices.rs`).
+
+Each goes out as **plain text and HTML together** (the user, 2026-11-21; `letter.rs`): the HTML in
+the site's look (the navy band with the mark, attached inline, the card, a coral button where
+there is something to do: « Ouvrir EquiEvents », the reset link), tables and inline styles as
+mail apps want them, one column for phones; light or dark as the reader's mail app is (Apple Mail
+and Outlook for Mac follow the reader's setting, Outlook on the web too; Gmail and Outlook on
+Windows darken it their own way, the colours chosen to stay readable). To look at every one, in
+the three languages, light and dark, before any is sent: `equievents-server mail-preview
+mails.html` (no database, nothing sent).
+
+Until the mailbox (info@equievents.ch) and the domain's SPF / DKIM / DMARC exist,
 `off`: a forgotten password then needs an administrator (« Comptes »: a new password) or
 `set-password`.
 
