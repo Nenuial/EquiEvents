@@ -75,12 +75,12 @@
   "it": "Una gara di dressage non ha livelli."
  },
  "a guest horse needs a name": {
-  "fr": "Un cheval invité doit avoir un nom.",
+  "fr": "Un cheval d’hôte doit avoir un nom.",
   "de": "Ein Gastpferd braucht einen Namen.",
   "it": "Un cavallo ospite deve avere un nome."
  },
  "a horse of the show or of Swiss Equestrian's registry, or a guest horse": {
-  "fr": "Choisissez un cheval du concours ou du registre de Swiss Equestrian, ou un cheval invité.",
+  "fr": "Choisissez un cheval du concours ou du registre de Swiss Equestrian, ou un cheval d’hôte.",
   "de": "Ein Pferd des Turniers oder aus dem Register von Swiss Equestrian wählen, oder ein Gastpferd.",
   "it": "Scegliere un cavallo del concorso o del registro di Swiss Equestrian, oppure un cavallo ospite."
  },
@@ -1385,7 +1385,7 @@
   "it": "Impossibile dividere in {1} serie."
  },
  "{} {} has no guest licence: a guest horse is only for riders with one": {
-  "fr": "{1} {2} n’a pas de licence d’invité : un cheval invité est réservé aux cavaliers qui en ont une.",
+  "fr": "{1} {2} n’a pas de licence d’hôte : un cheval d’hôte est réservé aux cavaliers qui en ont une.",
   "de": "{1} {2} hat keine Gastlizenz: Ein Gastpferd ist nur für Reiter mit Gastlizenz.",
   "it": "{1} {2} non ha una licenza ospite: un cavallo ospite è riservato ai cavalieri che ne hanno una."
  },
@@ -1483,5 +1483,10 @@
   "fr": "Pas dans la version en ligne : c’est le site d’equievents.ch qui vous connecte et vous déconnecte.",
   "de": "Nicht in der Online-Version: Die Website von equievents.ch meldet Sie an und ab.",
   "it": "Non nella versione online: è il sito di equievents.ch che vi connette e disconnette."
+ },
+ "no way to delete a show called {}": {
+  "fr": "Pas de façon de supprimer un concours appelée {1}.",
+  "de": "Keine Art, ein Turnier zu löschen, namens {1}.",
+  "it": "Nessun modo di eliminare un concorso chiamato {1}."
  }
 }

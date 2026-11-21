@@ -223,10 +223,9 @@ impl Office {
                 Ok(Value::Null)
             }
             "rosson_file_name" => self.with(arg(args, "show")?, |_, store| Ok(json!(rosson_import::to_rosson::file_name(store.state(), &rfc3339(now_millis())[..10])))),
-            "delete_show" => {
-                self.delete_show(arg(args, "show")?)?;
-                Ok(Value::Null)
-            }
+            // Deleting a show: this copy, and for a show of equievents.ch what becomes of it there
+            // (`choice`: keep, give, release, leave; `sync::Office::delete_with`).
+            "delete_show" => self.delete_with(arg(args, "show")?, args["choice"].as_str().unwrap_or("keep"), args["to"].as_i64()),
             "show" => self.with(arg(args, "show")?, |id, store| Ok(json_of(&views::show(id, store.state())))),
             "participants" => self.with(arg(args, "show")?, |_, store| Ok(json_of(&views::participants(store.state())))),
             "start_list" => {

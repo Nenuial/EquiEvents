@@ -6,9 +6,9 @@
 //! collaborator or leaves). The owner also gives access without a request, and takes it away; a
 //! collaborator can leave. A show has one owner. A show without an event (a rehearsal) belongs
 //! to the account that made it. The server asks Swiss Equestrian which event a key opens
-//! (`getVeranstaltung`, `crate::se`) before anyone becomes an owner, and takes a new key Swiss
-//! Equestrian accepts for the event; a show can also start from Swiss Equestrian's delivery
-//! (the key alone: the event downloaded). Without Swiss Equestrian (`SE_SERVER=none`:
+//! (`getVeranstaltung`, `crate::se`) before anyone becomes an owner; an event never changes its
+//! key (the user, 2026-11-21), so a show's key is the one it was made with. A show can also
+//! start from Swiss Equestrian's delivery (the key alone: the event downloaded). Without Swiss Equestrian (`SE_SERVER=none`:
 //! development) the app says which event (`Claim::event_id`), unchecked.
 //!
 //! Archives (decided 2026-11-15): the owner archives a show, or their account does it on its
@@ -97,8 +97,7 @@ pub struct Claim {
     pub name: String,
     /// The event's number (e.g. 2026.8352), for the show's id.
     pub number: Option<String>,
-    /// Swiss Equestrian accepted the key for this event (else the app's word, `SE_SERVER=none`):
-    /// it replaces another key kept for the event.
+    /// Swiss Equestrian accepted the key for this event (else the app's word, `SE_SERVER=none`).
     pub checked: bool,
     /// A show made now starts with these (Swiss Equestrian's delivery), by the one who claims it.
     pub ops: Vec<Operation>,
@@ -284,12 +283,9 @@ pub async fn claim(pool: &Pool, user: &User, claim: &Claim) -> Result<Claimed, E
         let mut client = pool.get().await?;
         if let Some(row) = client.query_opt("SELECT id, name, access_key FROM shows WHERE event_id = $1", &[&claim.event_id]).await? {
             let (id, show_name, stored): (String, String, Option<String>) = (row.get(0), row.get(1), row.get(2));
+            // An event never changes its key: another one is not this show's.
             if stored.as_deref().map(str::trim) != Some(key) {
-                if !claim.checked {
-                    return Ok(Claimed::WrongKey);
-                }
-                // A new key of the event (Swiss Equestrian accepted it): the one kept from now on.
-                client.execute("UPDATE shows SET access_key = $2 WHERE id = $1", &[&id, &key]).await?;
+                return Ok(Claimed::WrongKey);
             }
             if let Some(role) = role_of(&client, &id, user.id).await? {
                 return Ok(Claimed::Member { id, role });
@@ -584,6 +580,49 @@ pub async fn remove_member(pool: &Pool, actor: &User, show: &str, member: i64) -
     }
     client.execute("DELETE FROM show_members WHERE show_id = $1 AND user_id = $2", &[&show, &member]).await?;
     Ok(Ok(()))
+}
+
+/// The owner gives the show to someone who works on it, and leaves it (the user, 2026-11-21:
+/// deleting their copy, they hand the event over). Who gets it, to tell them.
+pub async fn hand_over(pool: &Pool, owner: &User, show: &str, to: i64) -> Outcome<Contact> {
+    let mut client = pool.get().await?;
+    let tx = client.transaction().await?;
+    if tx.query_opt("SELECT 1 FROM show_members WHERE show_id = $1 AND user_id = $2 AND role = 'owner' FOR UPDATE", &[&show, &owner.id]).await?.is_none() {
+        return Ok(Err(Refused::NotFound));
+    }
+    if to == owner.id {
+        return Ok(Err(Refused::Owner));
+    }
+    if tx.query_opt("SELECT 1 FROM show_members WHERE show_id = $1 AND user_id = $2 AND role = 'collaborator'", &[&show, &to]).await?.is_none() {
+        return Ok(Err(Refused::NotFound));
+    }
+    // One owner at every moment: the old one leaves first.
+    tx.execute("DELETE FROM show_members WHERE show_id = $1 AND user_id = $2", &[&show, &owner.id]).await?;
+    tx.execute("UPDATE show_members SET role = 'owner' WHERE show_id = $1 AND user_id = $2", &[&show, &to]).await?;
+    tx.commit().await?;
+    Ok(contact(pool, to).await?.ok_or(Refused::NotFound))
+}
+
+/// The owner releases the event (the user, 2026-11-21): the show is deleted from equievents.ch
+/// for everyone (its log, who worked on it, the requests), and the event's key is free again:
+/// the next to enter it downloads the event fresh and owns it. The show's name and who worked on
+/// it with the owner, to tell them.
+pub async fn release(pool: &Pool, owner: &User, show: &str) -> Outcome<(String, Vec<Contact>)> {
+    let mut client = pool.get().await?;
+    let tx = client.transaction().await?;
+    if tx.query_opt("SELECT 1 FROM show_members WHERE show_id = $1 AND user_id = $2 AND role = 'owner' FOR UPDATE", &[&show, &owner.id]).await?.is_none() {
+        return Ok(Err(Refused::NotFound));
+    }
+    let name: String = tx.query_one("SELECT name FROM shows WHERE id = $1", &[&show]).await?.get(0);
+    let others = tx
+        .query("SELECT u.name, u.email, u.language FROM show_members m JOIN users u ON u.id = m.user_id WHERE m.show_id = $1 AND m.user_id <> $2", &[&show, &owner.id])
+        .await?
+        .iter()
+        .map(|r| Contact { name: r.get(0), email: r.get(1), lang: Lang::of(r.get(2)) })
+        .collect();
+    tx.execute("DELETE FROM shows WHERE id = $1", &[&show]).await?;
+    tx.commit().await?;
+    Ok(Ok((name, others)))
 }
 
 /// Store an app's operations: the new ones added, the known ones skipped.

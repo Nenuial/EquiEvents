@@ -830,7 +830,8 @@ async fn two_laptops_offline_on_the_same_class() {
 }
 
 /// A stand-in for Swiss Equestrian, answering with the practice event (every person invented)
-/// to the key `PRACTICE-KEY` (and `NEW-KEY`, a new key of the same event, and the demo keys),
+/// to the key `PRACTICE-KEY` (and `NEW-KEY`, another key it accepts for the same event, which
+/// equievents.ch must refuse: an event never changes its key; and the demo keys),
 /// its riders and horses as the registry, 404 to other keys, a 500 to `BROKEN`; it answers 202
 /// (preparing) to the first `preparing` loads of the event. Every request it got, for the test
 /// to look at; and a switch: the event is over (its keys refused, as Swiss Equestrian does).
@@ -933,15 +934,15 @@ async fn events_come_from_swiss_equestrian() {
     assert_eq!((again["id"].as_str(), again["created"].clone()), (Some(show.as_str()), json!(false)));
     assert_eq!(seen.lock().unwrap().len(), 1);
 
-    // Bruno, with the key: Anne's; with another key Swiss Equestrian gives for the event, the same,
-    // and that key is the one kept from now on.
+    // Bruno, with the key: Anne's; he asks to join. An event never changes its key: another key
+    // Swiss Equestrian were to accept for it opens nothing here.
     let (status, owned) = s.job(&bruno, s.call("POST", "/api/shows", Some(&bruno), Some(claim("PRACTICE-KEY"))).await).await;
     assert_eq!((status, owned["code"].as_str(), owned["owner"].as_str(), owned["id"].as_str()), (StatusCode::CONFLICT, Some("claimed"), Some("Anne Office"), Some(show.as_str())));
-    let (status, _) = s.job(&bruno, s.call("POST", "/api/shows", Some(&bruno), Some(claim("NEW-KEY"))).await).await;
-    assert_eq!(status, StatusCode::CONFLICT);
+    let (status, other) = s.job(&bruno, s.call("POST", "/api/shows", Some(&bruno), Some(claim("NEW-KEY"))).await).await;
+    assert_eq!((status, other["code"].as_str()), (StatusCode::FORBIDDEN, Some("key")));
     let ask = |key: &str| json!({ "kind": "access", "access_key": key });
-    assert_eq!(s.call("POST", &format!("/api/shows/{show}/requests"), Some(&bruno), Some(ask("PRACTICE-KEY"))).await.0, StatusCode::FORBIDDEN);
-    assert_eq!(s.call("POST", &format!("/api/shows/{show}/requests"), Some(&bruno), Some(ask("NEW-KEY"))).await.0, StatusCode::OK);
+    assert_eq!(s.call("POST", &format!("/api/shows/{show}/requests"), Some(&bruno), Some(ask("NEW-KEY"))).await.0, StatusCode::FORBIDDEN);
+    assert_eq!(s.call("POST", &format!("/api/shows/{show}/requests"), Some(&bruno), Some(ask("PRACTICE-KEY"))).await.0, StatusCode::OK);
 
     // Refused: a key Swiss Equestrian does not know, another event's key for a show here, a demo
     // key; Swiss Equestrian failing says so.
@@ -1250,5 +1251,69 @@ async fn the_online_version_works_on_the_master() {
     let (status, headers, _) = browser(&router, "POST", "/inscription", &urlencoded, Some("name=Carla+Third&email=carla%40example.ch&password=a-good-password".into())).await;
     assert_eq!(status, StatusCode::OK);
     assert!(headers["set-cookie"].to_str().unwrap().starts_with("equievents_session="));
+    test_db.drop().await;
+}
+
+/// Deleting an event (the user, 2026-11-21): a collaborator leaves it; the owner keeps the
+/// rights (only the copy goes), gives it to a collaborator (and leaves it), or releases it
+/// (deleted from equievents.ch for everyone: the next to enter the key downloads it fresh and
+/// owns it). An event never changes its key.
+#[tokio::test(flavor = "multi_thread")]
+async fn an_owner_deletes_an_event() {
+    let Some(test_db) = TestDb::new("deletes").await else { return };
+    let pool = db::pool(&test_db.url).unwrap();
+    db::migrate(&pool).await.unwrap();
+    let (se, _, _) = stand_in_se(0);
+    let app = api::App { se, ..api::App::new(pool.clone(), mail::Mailer::off(), "https://www.equievents.ch/") };
+    let (url, _, stop) = serve(api::router(app), None).await;
+    let dir = tempfile::tempdir().unwrap();
+    let mut laptops = Vec::new();
+    for name in ["Anne", "Bruno", "Carla"] {
+        let o = std::sync::Arc::new(office::Office::new(&dir.path().join(name), name).unwrap());
+        office(&o, "set_server", json!({ "url": url })).await;
+        office(&o, "sign_up", json!({ "name": name, "email": format!("{}@example.ch", name.to_lowercase()), "password": "a-good-password", "language": "fr" })).await;
+        laptops.push(o);
+    }
+    let (anne, bruno, carla) = (laptops[0].clone(), laptops[1].clone(), laptops[2].clone());
+    let open = |o: std::sync::Arc<office::Office>| async move { office(&o, "open_with_key", json!({ "access_key": "PRACTICE-KEY" })).await };
+
+    let a_show = open(anne.clone()).await["show"].as_str().unwrap().to_string();
+    office(&anne, "add_person", json!({ "show": a_show, "email": "bruno@example.ch" })).await;
+    let b_show = open(bruno.clone()).await["show"].as_str().unwrap().to_string();
+    let people = |o: std::sync::Arc<office::Office>, show: String| async move { office(&o, "show_people", json!({ "show": show })).await["people"].as_array().unwrap().iter().map(|p| (p["name"].as_str().unwrap().to_string(), p["role"].as_str().unwrap().to_string())).collect::<Vec<_>>() };
+    assert_eq!(people(anne.clone(), a_show.clone()).await, [("Anne".into(), "owner".into()), ("Bruno".into(), "collaborator".into())]);
+
+    // Bruno leaves: his copy goes, he no longer works on it.
+    assert_eq!(office(&bruno, "delete_show", json!({ "show": b_show, "choice": "leave" })).await["ok"], true);
+    assert!(!office(&bruno, "library", json!({})).await.as_array().unwrap().iter().any(|s| s["id"] == json!(b_show)));
+    assert_eq!(people(anne.clone(), a_show.clone()).await, [("Anne".into(), "owner".into())]);
+
+    // Anne keeps her rights: only her copy goes; the key brings it back, hers.
+    assert_eq!(office(&anne, "delete_show", json!({ "show": a_show, "choice": "keep" })).await["ok"], true);
+    let again = open(anne.clone()).await;
+    assert_eq!(again["outcome"], "member", "{again}");
+    let a_show = again["show"].as_str().unwrap().to_string();
+
+    // Anne gives it to Bruno and leaves it.
+    office(&anne, "add_person", json!({ "show": a_show, "email": "bruno@example.ch" })).await;
+    let b_show = open(bruno.clone()).await["show"].as_str().unwrap().to_string();
+    let bruno_id = office(&anne, "show_people", json!({ "show": a_show })).await["people"].as_array().unwrap().iter().find(|p| p["name"] == "Bruno").unwrap()["id"].clone();
+    assert_eq!(office(&anne, "delete_show", json!({ "show": a_show, "choice": "give", "to": bruno_id })).await["ok"], true);
+    assert_eq!(people(bruno.clone(), b_show.clone()).await, [("Bruno".into(), "owner".into())]);
+    assert_eq!(office(&anne, "online_shows", json!({})).await["shows"].as_array().unwrap().len(), 0);
+    // Only the owner gives the event away or releases it.
+    let c_owned = open(carla.clone()).await;
+    assert_eq!((c_owned["outcome"].as_str(), c_owned["owner"].as_str()), (Some("owned"), Some("Bruno")));
+
+    // Bruno releases it: deleted from equievents.ch; Carla, with the key, gets it fresh and owns it.
+    assert_eq!(office(&bruno, "delete_show", json!({ "show": b_show, "choice": "release" })).await["ok"], true);
+    assert_eq!(server::shows::of_event(&pool, 1).await.unwrap(), None);
+    let made = open(carla.clone()).await;
+    assert_eq!(made["outcome"], "made", "{made}");
+    assert_eq!(office(&carla, "show", json!({ "show": made["show"] })).await["event"]["number"], "EXERCICE");
+    // An event never changes its key.
+    assert_eq!(office(&anne, "open_with_key", json!({ "access_key": "NEW-KEY" })).await["outcome"], "key");
+
+    stop.send(()).ok();
     test_db.drop().await;
 }

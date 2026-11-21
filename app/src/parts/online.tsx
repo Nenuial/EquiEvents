@@ -9,7 +9,7 @@ import { refusal } from '../refusals';
 import { formatMillis, useLanguage, useT, type Key } from '../i18n';
 import { useChanges } from './changes';
 import { useLoad } from './common';
-import { Cloud, CloudDownload, CloudOff, HardDrive, RefreshCw, TriangleAlert, UserRound } from 'lucide-react';
+import { Cloud, CloudDownload, CloudOff, HardDrive, RefreshCw, Trash2, TriangleAlert, UserRound } from 'lucide-react';
 import { Button, Callout, Field, Modal, Switch, Tooltip, buttonClass } from '../ui';
 import type { SyncLook } from '../shell/ShowShell';
 import { ConflictsNotice } from './conflicts';
@@ -909,6 +909,132 @@ export function OpenWithKey({ close, open, signedIn }: { close: () => void; open
                 </button>
               </div>
             )}
+          </>
+        )}
+        {error && <p className="font-semibold text-danger">{error}</p>}
+      </div>
+    </Modal>
+  );
+}
+
+/** Deleting a show (the user, 2026-11-21): this copy, and for a show of equievents.ch what
+ * becomes of it there. Its owner keeps the rights, gives the event to a collaborator (and leaves
+ * it) or releases it (deleted for everyone: the next to enter the key downloads it fresh and owns
+ * it); a collaborator keeps their access or leaves. Offline, only this copy goes. */
+export function DeleteShow({
+  show,
+  title,
+  online,
+  owner,
+  hosted,
+  me,
+  close,
+  done,
+}: {
+  show: string;
+  title: string;
+  online: boolean;
+  owner: boolean;
+  hosted: boolean;
+  me?: number;
+  close: () => void;
+  done: () => void;
+}) {
+  const t = useT();
+  const refusal = useRefusal();
+  const people = useLoad(() => (online ? call<{ ok: true; people: Person[] } | Refusal>('show_people', { show }) : Promise.resolve(null)), [show, online]);
+  const others = people.data?.ok ? people.data.people.filter(p => p.id !== me) : [];
+  const reachable = online && !!people.data?.ok;
+  const [choice, setChoice] = useState<'keep' | 'give' | 'release' | 'leave'>('keep');
+  const [to, setTo] = useState<number | null>(null);
+  const [sure, setSure] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const given = to ?? others[0]?.id ?? null;
+
+  const remove = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const answer = await call<{ ok: boolean; code?: string }>('delete_show', { show, choice: reachable ? choice : 'keep', to: choice === 'give' ? given : undefined });
+      if (!answer.ok) return setError(refusal(answer.code ?? 'error'));
+      done();
+    } catch (e) {
+      setError(String((e as Error)?.message ?? e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const option = (value: typeof choice, label: string, hint: string, extra?: ReactNode, disabled = false) => (
+    <label className={`grid gap-1 rounded-xl border p-3 ${choice === value ? 'border-accent bg-accent-soft/40' : 'border-line'} ${disabled ? 'opacity-50' : 'cursor-pointer'}`}>
+      <span className="flex items-center gap-2 font-semibold">
+        <input type="radio" name="delete-choice" checked={choice === value} disabled={disabled} onChange={() => setChoice(value)} />
+        {label}
+      </span>
+      <span className="pl-6 text-xs text-ink-3">{hint}</span>
+      {extra && choice === value && <span className="pl-6">{extra}</span>}
+    </label>
+  );
+
+  const ready = !people.data && online ? false : choice === 'release' ? sure : choice === 'give' ? given !== null : true;
+  return (
+    <Modal
+      open
+      onClose={close}
+      title={`${t('delete')} · ${title}`}
+      icon={Trash2}
+      tone="danger"
+      size="md"
+      footer={
+        <>
+          <Button variant="ghost" onClick={close}>
+            {t('cancel')}
+          </Button>
+          <Button variant="danger-solid" icon={Trash2} loading={busy} disabled={!ready} onClick={remove}>
+            {t('delete')}
+          </Button>
+        </>
+      }
+    >
+      <div className="grid gap-3 text-sm">
+        {!online && <p className="text-ink-2">{hosted ? t('delete_local_online') : t('delete_local')}</p>}
+        {online && people.data && !people.data.ok && <Callout tone="warn">{t('delete_offline')}</Callout>}
+        {reachable && owner && (
+          <>
+            {option('keep', t('delete_keep_owner'), t('delete_keep_owner_hint'))}
+            {option(
+              'give',
+              t('delete_give'),
+              t('delete_give_hint'),
+              <select className="field field-sm" value={given ?? ''} onChange={e => setTo(Number(e.target.value))}>
+                {others.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>,
+              others.length === 0,
+            )}
+            {option(
+              'release',
+              t('delete_release'),
+              t('delete_release_hint'),
+              <span className="grid gap-2 text-xs">
+                {others.length > 0 && (
+                  <span className="text-danger">
+                    {t('delete_release_loses')} {others.map(p => p.name).join(', ')}
+                  </span>
+                )}
+                <Switch checked={sure} onChange={setSure} label={t('delete_release_sure')} />
+              </span>,
+            )}
+          </>
+        )}
+        {reachable && !owner && (
+          <>
+            {option('keep', t('delete_keep_collab'), t('delete_keep_collab_hint'))}
+            {option('leave', t('delete_leave'), t('delete_leave_hint'))}
           </>
         )}
         {error && <p className="font-semibold text-danger">{error}</p>}

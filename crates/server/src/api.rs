@@ -19,6 +19,8 @@
 //! | `POST /api/shows/{id}/update` | what Swiss Equestrian changed since the event was loaded (202 `{job}` → `{added}`) |
 //! | `GET /api/shows/{id}/received` | what the simulation received for the show, the latest first |
 //! | `GET /api/shows/{id}/members` | who works on it |
+//! | `POST /api/shows/{id}/handover` | `{to}`: the owner gives the show to a collaborator and leaves it |
+//! | `DELETE /api/shows/{id}` | the owner releases the event: the show deleted for everyone, its key free again |
 //! | `POST /api/shows/{id}/members` | `{email}`: the owner lets someone work on it |
 //! | `DELETE /api/shows/{id}/members/{user}` | the owner takes someone off; a collaborator leaves |
 //! | `GET /api/shows/{id}/requests` | the requests waiting for the owner |
@@ -176,6 +178,8 @@ pub fn router(app: App) -> Router {
         .route("/api/shows/{id}/members/{user}", axum::routing::delete(remove_member))
         .route("/api/shows/{id}/requests", get(show_requests).post(make_request))
         .route("/api/shows/{id}/archive", post(archive))
+        .route("/api/shows/{id}/handover", post(hand_over))
+        .route("/api/shows/{id}", axum::routing::delete(release))
         .route("/api/requests", get(my_requests))
         .route("/api/requests/{id}", post(decide).delete(withdraw))
         .route("/api/jobs/{id}", get(job))
@@ -660,6 +664,33 @@ async fn demo(State(app): State<App>, headers: HeaderMap, Json(body): Json<Demo>
 async fn received(State(app): State<App>, headers: HeaderMap, Path(id): Path<String>) -> Answer {
     member(&app, &headers, &id, false).await?;
     Ok(Json(json!(app.se.simulation.received(&id))))
+}
+
+#[derive(Deserialize)]
+struct HandOver {
+    to: i64,
+}
+
+/// The owner gives the show to a collaborator and leaves it; the new owner gets an e-mail.
+async fn hand_over(State(app): State<App>, headers: HeaderMap, Path(id): Path<String>, Json(body): Json<HandOver>) -> Answer {
+    let owner = member(&app, &headers, &id, true).await?;
+    let name = shows::owner_of(&app.pool, &id).await?.map(|(name, _)| name).unwrap_or_default();
+    let to = shows::hand_over(&app.pool, &owner, &id, body.to).await??;
+    println!("show {id} handed over by {} to {}", owner.email, to.email);
+    notify(&app, &to.email, notices::handed_over(to.lang, &to.name, &owner.name, &name)).await;
+    Ok(Json(json!({ "ok": true })))
+}
+
+/// The owner releases the event: the show deleted for everyone, its key free again; who worked
+/// on it gets an e-mail.
+async fn release(State(app): State<App>, headers: HeaderMap, Path(id): Path<String>) -> Answer {
+    let owner = member(&app, &headers, &id, true).await?;
+    let (name, others) = shows::release(&app.pool, &owner, &id).await??;
+    println!("show {id} released (deleted) by {}", owner.email);
+    for to in &others {
+        notify(&app, &to.email, notices::released(to.lang, &to.name, &owner.name, &name)).await;
+    }
+    Ok(Json(json!({ "ok": true, "removed": others.len() })))
 }
 
 async fn list_members(State(app): State<App>, headers: HeaderMap, Path(id): Path<String>) -> Answer {

@@ -28,6 +28,12 @@
 //!   down after the show's cursor. The show file keeps its link: the server, the show's id
 //!   there, the cursor (`show::Store::meta`).
 //!
+//! - **Deleting a show of the server** (`delete_with`, the user, 2026-11-21): its owner keeps the
+//!   rights (only this copy goes), gives the event to a collaborator (and leaves it), or
+//!   releases it (deleted from equievents.ch for everyone: the next to enter the key downloads
+//!   it fresh and owns it); a collaborator keeps their access or leaves. This copy's last
+//!   changes go up first. Offline, only this copy goes.
+//!
 //! - **Archives** (`archive_show`): a show's responsable archives it on the server, and every
 //!   member's library lists it there after its next sync (the show file keeps it, with one's
 //!   role, for the library offline); a show not on the server is archived here only. The
@@ -425,7 +431,8 @@ impl Office {
         }
         let answer = self.run(command, args);
         if let (Ok(_), Some(show)) = (&answer, &show) {
-            if self.with(show, |_, store| store.unsynced_count().map_err(|e| e.0))? > 0 {
+            // (Not a show just deleted.)
+            if self.path(show).is_file() && self.with(show, |_, store| store.unsynced_count().map_err(|e| e.0))? > 0 {
                 self.sync(show)?;
             }
         }
@@ -796,6 +803,32 @@ impl Office {
         self.api_job("POST", "/api/demo", Some(&json!({ "driving": driving }))).map_err(|f| Self::not_downloaded(&f))
     }
 
+    /// Delete a show here and, for a show of the server, `choice` there: `keep` (the rights:
+    /// only this copy goes), `give` (the owner gives it to `to`, a collaborator, and leaves it),
+    /// `release` (the owner deletes it from equievents.ch for everyone), `leave` (a collaborator
+    /// leaves it). This copy's last changes go up first.
+    pub(crate) fn delete_with(&self, show: &str, choice: &str, to: Option<i64>) -> Result<Value, String> {
+        if let Some(remote) = self.remote_of(show)? {
+            let _ = self.sync(show);
+            let done = match choice {
+                "keep" => Ok(Value::Null),
+                "give" => self.api("POST", &format!("/api/shows/{remote}/handover"), Some(&json!({ "to": to.ok_or("missing argument to")? }))),
+                "release" => self.api("DELETE", &format!("/api/shows/{remote}"), None),
+                "leave" => {
+                    let me = self.signed_in()?.map(|(account, _)| account.id).ok_or("sign in to equievents.ch first")?;
+                    self.api("DELETE", &format!("/api/shows/{remote}/members/{me}"), None)
+                }
+                other => return Err(format!("no way to delete a show called {other}")),
+            };
+            if let Err(f) = done {
+                return Ok(f.answer());
+            }
+        }
+        self.delete_show(show)?;
+        self.sync.notes.lock().map_err(|_| "busy")?.remove(show);
+        Ok(json!({ "ok": true }))
+    }
+
     /// The show file now follows a show of the server: everything in it goes up.
     fn link(&self, show: &str, remote: &str) -> Result<(), String> {
         let server = self.server_url();
@@ -902,6 +935,14 @@ impl Office {
                 ..previous
             },
         };
+        // The online version keeps no copy of a show the account no longer works on (released by
+        // its owner, or taken off it).
+        if self.sync.hosted() && note.status == "no_access" {
+            drop(_busy);
+            self.delete_show(show)?;
+            self.sync.notes.lock().map_err(|_| "busy")?.remove(show);
+            return Ok(note);
+        }
         self.sync.notes.lock().map_err(|_| "busy")?.insert(show.to_string(), note.clone());
         Ok(note)
     }

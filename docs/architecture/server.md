@@ -101,6 +101,8 @@ JSON over HTTPS; `Authorization: Bearer <token>` after signing in (`crates/serve
 | `POST /api/shows/{id}/update` | what Swiss Equestrian changed since the event was loaded (202 `{job}` → `{added}`) |
 | `GET /api/shows/{id}/received` | what the simulation received for the show, the latest first |
 | `GET /api/shows/{id}/members` | who works on it |
+| `POST /api/shows/{id}/handover` | `{to}`: the owner gives the show to a collaborator and leaves it |
+| `DELETE /api/shows/{id}` | the owner releases the event: the show deleted from equievents.ch for everyone, its key free again |
 | `POST /api/shows/{id}/members` | `{email}`: the owner lets someone with an account work on it |
 | `DELETE /api/shows/{id}/members/{user}` | the owner takes a collaborator off; a collaborator leaves |
 | `GET /api/shows/{id}/requests` | the requests waiting for the owner |
@@ -148,8 +150,8 @@ Decided 2026-11-14 (`crates/server/src/shows.rs`):
 - **Swiss Equestrian checks the key** (decided 2026-11-21: real events may be downloaded now):
   before anyone owns a show, the server asks Swiss Equestrian which event the key opens
   (`getVeranstaltung`). A key it does not know opens nothing (403, `key`); a show put online
-  from the app (its `event_id`) must be that event's. A new key Swiss Equestrian accepts for the
-  event is the one kept from then on. Swiss Equestrian's demo keys are no one's (400,
+  from the app (its `event_id`) must be that event's. An event never changes its key (the user,
+  2026-11-21): a show keeps the key it was made with, and no other opens it. Swiss Equestrian's demo keys are no one's (400,
   `training`: the app's settings load them).
 - **The key alone downloads the event**: the server asks Swiss Equestrian for the officials,
   the master data and the event, as Rosson does, and a show made now starts with them
@@ -193,12 +195,22 @@ Only the server talks to it (`crates/server/src/se.rs`; the contract: [se-api.md
   (`rosson_version`, `app_version`) is read from Rosson's update feed once a day, as Rosson
   does; today's `rosson_key` is the server's date (`TZ=Europe/Zurich`).
 - Shows without an event (rehearsals) belong to the account that made them; no key.
+- **Deleting a show** (the user, 2026-11-21; in the desktop app when equievents.ch answers, and
+  in the online version), its owner chooses: **keep the rights** (only that copy goes; the key
+  brings the show back), **give the event to a collaborator** (they become its owner, he leaves
+  it; they get an e-mail), or **release it**: the show is deleted from equievents.ch for everyone
+  (its log, who worked on it, the requests; they get an e-mail), and the next to enter the key
+  downloads the event fresh from Swiss Equestrian and owns it. A collaborator keeps their access
+  or leaves. Offline, only that copy goes. The copy's last changes go up first. The online
+  version keeps no copy of a show its account no longer works on.
 - E-mails go in the recipient's language (the page they signed up on, or the app's).
 
 ## The site
 
 Plain HTML forms (no script, nothing loaded from elsewhere), French and German, for phones
-too (`crates/server/src/site.rs`):
+too, in the app's look (the navy band with the logo and the title, the card below, Inter, light
+or dark as the system is; signing in and making an account as the app's welcome screen):
+`crates/server/src/site.rs`.
 
 | French | German | |
 |---|---|---|

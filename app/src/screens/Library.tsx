@@ -8,11 +8,11 @@ import { Archive, ArchiveRestore, ArrowLeft, CalendarDays, CloudDownload, Ellips
 import { call, chooseFile, saveFile, type EventInFile, type ShowSummary } from '../api';
 import { formatDate, usePlural, useT, type Language } from '../i18n';
 import { ErrorNote, useLoad } from '../parts/common';
-import { AccountButton, OnlineShows, OpenWithKey, useLibrarySync, useRefusal, type AccountView } from '../parts/online';
+import { AccountButton, DeleteShow, OnlineShows, OpenWithKey, useLibrarySync, useRefusal, type AccountView } from '../parts/online';
 import { SettingsButton } from '../parts/settings';
 import { UpdateButton } from '../parts/update';
 import { LanguagePicker, ThemeButton } from '../shell/ShowShell';
-import { Button, Card, CheckRow, ConfirmModal, EmptyState, IconButton, Logo, Menu, MenuItem, MenuSeparator, Modal, Pill } from '../ui';
+import { Button, Card, CheckRow, EmptyState, IconButton, Logo, Menu, MenuItem, MenuSeparator, Modal, Pill } from '../ui';
 
 export default function Library({
   open,
@@ -333,23 +333,22 @@ export default function Library({
         </div>
       </Modal>
       {withKey && <OpenWithKey close={() => setWithKey(false)} open={open} signedIn={() => setOnline(v => v + 1)} />}
-      <ConfirmModal
-        open={deleting !== null}
-        onClose={() => setDeleting(null)}
-        title={`${t('delete')} · ${deleting?.event?.number ?? deleting?.id ?? ''}`}
-        message={t('delete_show_ask')}
-        confirm={t('delete')}
-        danger
-        icon={Trash2}
-        onConfirm={() =>
-          run(async () => {
-            if (!deleting) return;
-            await call('delete_show', { show: deleting.id });
+      {deleting && (
+        <DeleteShow
+          show={deleting.id}
+          title={deleting.event?.number ?? deleting.id}
+          online={deleting.online}
+          owner={deleting.role === 'owner'}
+          hosted={!!account.data?.hosted}
+          me={account.data?.account?.id}
+          close={() => setDeleting(null)}
+          done={() => {
             setDeleting(null);
             shows.reload();
-          })
-        }
-      />
+            setOnline(v => v + 1);
+          }}
+        />
+      )}
     </div>
   );
 }

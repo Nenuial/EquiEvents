@@ -58,6 +58,30 @@ pub fn access_given(lang: Lang, name: &str, owner: &str, show: &str) -> Mail {
     (subject, signed(lang, name, &text))
 }
 
+/// For whom the owner gave the show while leaving it.
+pub fn handed_over(lang: Lang, name: &str, owner: &str, show: &str) -> Mail {
+    let (subject, text) = match lang {
+        Lang::Fr => (format!("EquiEvents : vous êtes responsable de {show}"), format!("{owner} vous a remis le concours {show} et l’a quitté : vous en êtes maintenant responsable.")),
+        Lang::De => (format!("EquiEvents: Sie sind Verantwortliche:r von {show}"), format!("{owner} hat Ihnen das Turnier {show} übergeben und es verlassen: Sie sind jetzt Verantwortliche:r.")),
+    };
+    (subject, signed(lang, name, &text))
+}
+
+/// For who worked on a show its owner released: deleted from equievents.ch.
+pub fn released(lang: Lang, name: &str, owner: &str, show: &str) -> Mail {
+    let (subject, text) = match lang {
+        Lang::Fr => (
+            format!("EquiEvents : {show} supprimé"),
+            format!("{owner} a supprimé le concours {show} d’equievents.ch : vous n’y avez plus accès. Une copie sur vos ordinateurs y reste, sans être partagée."),
+        ),
+        Lang::De => (
+            format!("EquiEvents: {show} gelöscht"),
+            format!("{owner} hat das Turnier {show} auf equievents.ch gelöscht: Sie haben keinen Zugriff mehr. Eine Kopie auf Ihren Computern bleibt dort, ohne geteilt zu werden."),
+        ),
+    };
+    (subject, signed(lang, name, &text))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
