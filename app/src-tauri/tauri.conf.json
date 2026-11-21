@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "EquiEvents",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "identifier": "ch.equievents.office",
   "build": {
     "devUrl": "http://localhost:5173",
