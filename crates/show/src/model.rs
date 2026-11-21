@@ -607,6 +607,42 @@ pub struct Entry {
     pub record: serde_json::Value,
 }
 
+/// Rosson's (and Swiss Equestrian's) placeholder horse, shared by every guest horse: the name
+/// belongs to the entry.
+pub const GUEST_HORSE: u64 = 5;
+
+/// A guest horse's name as shown everywhere (the app's lists, start lists, prints, the timing,
+/// the history): in capitals, as Swiss Equestrian writes every horse's. The office or the rider
+/// (entering on Swiss Equestrian) types it as they like, the user said (2026-11-21); the name
+/// entered stays as it was, and goes back to Rosson and Swiss Equestrian so.
+pub fn guest_horse_name(name: &str) -> String {
+    name.to_uppercase()
+}
+
+/// A horse as Rosson writes it on an entry (`Entry::horses_on_entry`), its name as shown: a guest
+/// horse's (the placeholder horse, or `gastpferd`) in capitals.
+pub fn horse_on_entry_name(horse: &serde_json::Value) -> String {
+    let name = horse["pferdename"].as_str().unwrap_or_default();
+    let id = horse["pferd_id"].as_u64().or_else(|| horse["pferd_id"].as_str().and_then(|s| s.trim().parse().ok()));
+    if id == Some(GUEST_HORSE) || horse["gastpferd"].as_bool() == Some(true) {
+        guest_horse_name(name)
+    } else {
+        name.to_string()
+    }
+}
+
+impl Entry {
+    /// Its guest horse's name as shown ([`guest_horse_name`]), if it has one.
+    pub fn guest_horse_shown(&self) -> Option<String> {
+        self.guest_horse.as_deref().map(guest_horse_name)
+    }
+
+    /// Its first horse's name as written on the entry, as shown ([`horse_on_entry_name`]).
+    pub fn first_horse_on_entry(&self) -> Option<String> {
+        self.horses_on_entry.first().filter(|h| h["pferdename"].is_string()).map(horse_on_entry_name)
+    }
+}
+
 /// Winning points (Gewinnpunkte, `gwp_reiter`, `gwp_pferd`, `gwp_paar`).
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WinningPoints {
@@ -1012,6 +1048,23 @@ impl PenaltiesTie {
             PenaltiesTie::Faults { class } | PenaltiesTie::Result { class } => Some(class),
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod guest_horse_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn a_guest_horse_in_capitals_others_as_written() {
+        assert_eq!(guest_horse_name("Petit Nuage d’été"), "PETIT NUAGE D’ÉTÉ");
+        // Rosson's placeholder horse (a number or a text), or Swiss Equestrian's `gastpferd`.
+        for guest in [json!({ "pferd_id": 5, "pferdename": "fleur" }), json!({ "pferd_id": "5", "pferdename": "fleur" }), json!({ "pferd_id": 812345, "gastpferd": true, "pferdename": "fleur" })] {
+            assert_eq!(horse_on_entry_name(&guest), "FLEUR", "{guest}");
+        }
+        // A horse of the registry: as Swiss Equestrian writes it.
+        assert_eq!(horse_on_entry_name(&json!({ "pferd_id": 812345, "pferdename": "Quick van de Hoeve" })), "Quick van de Hoeve");
     }
 }
 

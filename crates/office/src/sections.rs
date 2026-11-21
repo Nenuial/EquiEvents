@@ -127,7 +127,7 @@ pub fn plan(state: &State, published: &PublishedClassId) -> Result<Plan, String>
             let Some(e) = state.entries.get(&s.entry) else { continue };
             let horse = Horse {
                 entry: e.id.0,
-                horse: e.guest_horse.clone().or_else(|| e.horse.as_ref().and_then(|h| state.horses.get(h)).map(|h| h.name.clone())).unwrap_or_default(),
+                horse: e.guest_horse_shown().or_else(|| e.horse.as_ref().and_then(|h| state.horses.get(h)).map(|h| h.name.clone())).unwrap_or_default(),
                 pony: crate::prepare::pony_size(e),
                 level: e.stage,
                 comment: crate::views::said(&e.comment),

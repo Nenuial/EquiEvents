@@ -372,11 +372,16 @@ pub fn start_lists_as(state: &State, classes: &[ClassId], lang: Language, kind: 
                     if let Some(kind) = driving {
                         let horses = show::model::horses_in_phase(e, kind);
                         let text = |h: &Value, k: &str| h[k].as_str().map(str::trim).filter(|s| !s.is_empty()).unwrap_or("–").to_string();
-                        line["horse"] = json!(horses.iter().map(|h| text(h, "pferdename")).collect::<Vec<_>>().join(" · "));
+                        // The name as shown (a guest horse's in capitals), else a dash.
+                        let shown = |h: &Value| match show::model::horse_on_entry_name(h).trim() {
+                            "" => "–".to_string(),
+                            name => name.to_string(),
+                        };
+                        line["horse"] = json!(horses.iter().map(|h| shown(h)).collect::<Vec<_>>().join(" · "));
                         line["horse_sub"] = json!(horses
                             .iter()
                             .map(|h| {
-                                let mut s = format!("{} ({})", text(h, "pferdename"), text(h, "pferd_signalement"));
+                                let mut s = format!("{} ({})", shown(h), text(h, "pferd_signalement"));
                                 if pedigree {
                                     s += &format!(" {} {} × {} · {} {}", lang.pick("par", "v."), text(h, "vater_name"), text(h, "vater_der_mutter_name"), lang.pick("éleveur", "Züchter"), text(h, "pferd_zuechter"));
                                 }
@@ -682,7 +687,7 @@ fn driving_ranking(state: &State, c: &Class, kind: PhaseKind, ranking: &views::R
                 Some(e) => {
                     let (_, town, club) = rider_parts(state, e);
                     let horses = show::model::horses_in_phase(e, kind);
-                    let names: Vec<String> = horses.iter().filter_map(|h| h["pferdename"].as_str().map(str::to_string)).collect();
+                    let names: Vec<String> = horses.iter().filter(|h| h["pferdename"].is_string()).map(|h| show::model::horse_on_entry_name(h)).collect();
                     (rider_details(state, e, &town, &club), if names.len() > 1 { names.join(" · ") } else { horse_details(e, e.horse.as_ref().and_then(|h| state.horses.get(h)), false, lang) })
                 }
                 None => (String::new(), String::new()),
@@ -974,7 +979,7 @@ fn judge_test(p: &ProgrammeDef, lang: Language) -> Value {
 }
 
 fn views_horse(state: &State, e: &Entry) -> String {
-    e.guest_horse.clone().or_else(|| e.horses_on_entry.first().and_then(|h| h["pferdename"].as_str()).map(str::to_string)).or_else(|| e.horse.as_ref().and_then(|h| state.horses.get(h)).map(|h| h.name.clone())).unwrap_or_default()
+    e.guest_horse_shown().or_else(|| e.first_horse_on_entry()).or_else(|| e.horse.as_ref().and_then(|h| state.horses.get(h)).map(|h| h.name.clone())).unwrap_or_default()
 }
 
 /// A ranking over several classes.
@@ -1081,7 +1086,7 @@ pub fn entries_detail(state: &State, published: Option<&PublishedClassId>, lang:
         let mut horses: Vec<(String, Vec<Value>)> = Vec::new();
         while i < entries.len() && entries[i].rider == rider {
             let e = entries[i];
-            let horse = e.guest_horse.clone().or_else(|| e.horse.as_ref().and_then(|h| state.horses.get(h)).map(|h| h.name.clone())).unwrap_or_default();
+            let horse = e.guest_horse_shown().or_else(|| e.horse.as_ref().and_then(|h| state.horses.get(h)).map(|h| h.name.clone())).unwrap_or_default();
             let p = state.published_classes.get(&e.published);
             let fee = p.and_then(|p| p.fee);
             let fee2 = p.and_then(|p| crate::results::decimal_of(&p.record["nenngeld2"]));

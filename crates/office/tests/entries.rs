@@ -312,3 +312,34 @@ fn the_registry_from_the_simulation() {
         assert!(changed.unwrap_err().contains("not registered"));
     }
 }
+
+/// A guest horse's name in capitals wherever it is shown (the participants, the start lists),
+/// whoever typed it: a rider entering on Swiss Equestrian often does not (the user, 2026-11-21).
+/// The name entered stays as it was: in the show and in the Rosson export.
+#[test]
+fn a_guest_horse_is_shown_in_capitals() {
+    let dir = tempfile::tempdir().unwrap();
+    let office = Office::new(&dir.path().join("library"), "test").unwrap();
+    let mut guest = 0;
+    let file = common::rosson_file_edited(dir.path(), "2026.8352", |data| {
+        let n = data["nennungen"].as_array_mut().unwrap().iter_mut().find(|n| n["pferde"].as_array().is_some_and(|p| !p.is_empty()) && n["kein_start"] != true).unwrap();
+        guest = n["id"].as_u64().or_else(|| n["id"].as_str().and_then(|s| s.parse().ok())).unwrap();
+        n["pferde"][0]["pferd_id"] = json!(5);
+        n["pferde"][0]["pferdename"] = json!("Petit Nuage d’été");
+        n["pferde"][0]["gastpferd"] = json!(true);
+    });
+    let event = office.call("rosson_events", &json!({ "path": file })).unwrap()[0]["id"].as_str().unwrap().to_string();
+    let id = office.call("import_rosson", &json!({ "path": file, "event": event, "mode": "delivered" })).unwrap()["show"].as_str().unwrap().to_string();
+    let show = Show { office, id, _dir: dir };
+
+    let entry = show.entry(guest).unwrap();
+    assert_eq!((entry["horse"].clone(), entry["guest_horse"].clone()), (json!("PETIT NUAGE D’ÉTÉ"), json!(true)), "{entry}");
+    let class = show.set_up(entry["class_number"].as_str().unwrap());
+    let line = show.starters(&class).into_iter().find(|l| l["entry"] == guest).unwrap();
+    assert_eq!(line["horse"], "PETIT NUAGE D’ÉTÉ", "{line}");
+
+    let path = show._dir.path().join("rosson.txt");
+    show.call("export_rosson", json!({ "path": path, "private": true })).unwrap();
+    let text = std::fs::read_to_string(&path).unwrap();
+    assert!(text.contains("Petit%20Nuage%20d") && !text.contains("PETIT%20NUAGE"));
+}

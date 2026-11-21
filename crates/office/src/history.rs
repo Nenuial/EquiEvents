@@ -85,7 +85,7 @@ fn class_number(state: &State, class: &ClassId) -> String {
 fn entry_name(state: &State, entry: &EntryId) -> String {
     let Some(e) = state.entries.get(entry) else { return format!("#{entry}") };
     let rider = state.persons.get(&e.rider).map(|p| format!("{} {}", p.first_name, p.last_name)).unwrap_or_default();
-    let horse = e.guest_horse.clone().or_else(|| e.horse.as_ref().and_then(|h| state.horses.get(h)).map(|h| h.name.clone())).unwrap_or_default();
+    let horse = e.guest_horse_shown().or_else(|| e.horse.as_ref().and_then(|h| state.horses.get(h)).map(|h| h.name.clone())).unwrap_or_default();
     format!("{rider} / {horse}")
 }
 
@@ -136,7 +136,7 @@ fn describe_fr_spaced(change: &Change, state: &State, lang: Language) -> String 
         Change::EntryAdded { entry } => {
             // Said from the entry itself: it may have been taken back since.
             let rider = entry.rider_on_entry.as_ref().map(|r| format!("{} {}", r.first_name, r.last_name)).unwrap_or_default();
-            let horse = entry.guest_horse.clone().or_else(|| entry.horses_on_entry.first().and_then(|h| h["pferdename"].as_str()).map(str::to_string)).unwrap_or_default();
+            let horse = entry.guest_horse_shown().or_else(|| entry.first_horse_on_entry()).unwrap_or_default();
             let class = state.published_classes.get(&entry.published).map(|p| p.number.clone()).unwrap_or_default();
             format!("{} : {rider} / {horse} ({} {class})", t("Inscription tardive", "Nachnennung"), t("épreuve", "Prüfung"))
         }

@@ -108,7 +108,7 @@ impl State {
     /// The rider and horse of an entry.
     pub fn pair(&self, entry: &Entry) -> Pair {
         let horse = match (&entry.guest_horse, &entry.horse) {
-            (Some(name), _) => HorseKey::Guest(name.clone()),
+            (Some(name), _) => HorseKey::Guest(crate::model::guest_horse_name(name)),
             (None, Some(h)) => HorseKey::Horse(h.clone()),
             (None, None) => HorseKey::None,
         };

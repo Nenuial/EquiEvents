@@ -45,8 +45,8 @@ fn files_match_rosson() {
             let at = |what: &str| format!("{label} P{} {what}", class.number);
             let rows = start_list(&state, &class.id).unwrap();
 
-            // 1. Text start list, byte for byte.
-            let theirs = fs::read(&tsv).unwrap();
+            // 1. Text start list, byte for byte (Rosson's guest horses in capitals, as ours: E44).
+            let theirs = guest_horses_in_capitals(&fs::read(&tsv).unwrap());
             let ours = to_text(&rows);
             if ours != theirs {
                 let (a, b) = (String::from_utf8_lossy(&theirs).to_string(), String::from_utf8_lossy(&ours).to_string());
@@ -54,8 +54,13 @@ fn files_match_rosson() {
                 problems.push(format!("{}: line {}\n      Rosson: {:?}\n      ours:   {:?}", at("start list (text)"), line + 1, a.lines().nth(line), b.lines().nth(line)));
             }
 
-            // 2. Excel start list, cell by cell.
-            let theirs = read_results(&fs::read(tsv.with_extension("xlsx")).unwrap()).unwrap();
+            // 2. Excel start list, cell by cell (the same).
+            let mut theirs = read_results(&fs::read(tsv.with_extension("xlsx")).unwrap()).unwrap();
+            for row in theirs.iter_mut().filter(|r| r.cells.get("Pass Nr Pferd").is_some_and(|p| p == "5")) {
+                if let Some(name) = row.cells.get_mut("Name Pferd") {
+                    *name = show::model::guest_horse_name(name);
+                }
+            }
             let ours = read_results(&to_xlsx(&rows, &class.number).unwrap()).unwrap();
             if ours != theirs {
                 let i = theirs.iter().zip(&ours).position(|(x, y)| x != y).unwrap_or(0);
@@ -124,4 +129,21 @@ fn files_match_rosson() {
     }
     assert!(classes > 50, "expected the corpus fixtures (golden/src/timing-fixtures.mjs)");
     assert!(problems.is_empty(), "{} differences with Rosson's timekeeping files", problems.len());
+}
+
+/// Rosson's start list as text, its guest horses' names (passport 5, Rosson's placeholder) in
+/// capitals as ours are (docs/deviations.md E44); the rest byte for byte as it was.
+fn guest_horses_in_capitals(bytes: &[u8]) -> Vec<u8> {
+    let (text, _, _) = encoding_rs::WINDOWS_1252.decode(bytes);
+    let lines: Vec<String> = text
+        .split('\n')
+        .map(|line| {
+            let mut cells: Vec<String> = line.split('\t').map(str::to_string).collect();
+            if cells.get(7).is_some_and(|p| p == "5") {
+                cells[1] = show::model::guest_horse_name(&cells[1]);
+            }
+            cells.join("\t")
+        })
+        .collect();
+    encoding_rs::WINDOWS_1252.encode(&lines.join("\n")).0.into_owned()
 }

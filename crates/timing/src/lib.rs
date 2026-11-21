@@ -444,7 +444,7 @@ pub(crate) fn status(text: &str, reasons: &[&ReasonDef]) -> Result<Status, Error
 }
 
 /// The started entry a row is about: by licence and horse passport (Rosson's placeholder horse 5
-/// also by horse name); when that pair starts more than once in the class, by start number.
+/// also by horse name, whatever its case); when that pair starts more than once in the class, by start number.
 /// `Err`: the note for the office.
 pub(crate) fn find_entry<'a>(state: &State, class: &Class, started: &[&'a Entry], licence: &str, passport: &str, horse_name: &str, start_no: &str) -> Result<&'a Entry, String> {
     let licence_id = licence.trim().parse::<u64>().ok();
@@ -455,9 +455,9 @@ pub(crate) fn find_entry<'a>(state: &State, class: &Class, started: &[&'a Entry]
         .filter(|e| {
             Some(e.rider.0) == licence_id
                 && match passport_id {
-                    Some(PLACEHOLDER_HORSE) => e.horse == Some(HorseId(PLACEHOLDER_HORSE)) && entry_horse_name(state, e) == horse_name,
+                    Some(PLACEHOLDER_HORSE) => e.horse == Some(HorseId(PLACEHOLDER_HORSE)) && entry_horse_name(state, e).to_uppercase() == horse_name.to_uppercase(),
                     Some(p) => e.horse == Some(HorseId(p)),
-                    None => e.horse.is_none() && e.guest_horse.as_deref() == Some(horse_name),
+                    None => e.horse.is_none() && e.guest_horse.as_deref().is_some_and(|g| guest_horse_name(g) == guest_horse_name(horse_name)),
                 }
         })
         .collect();
@@ -483,9 +483,10 @@ fn start_number(state: &State, class: &ClassId, e: &Entry) -> Option<u32> {
     state.starts.get(class).and_then(|s| s.iter().find(|s| s.entry == e.id)).and_then(|s| s.start_number)
 }
 
-/// A guest horse's own name wins: Rosson's placeholder horse 5 is shared by all of them.
+/// A guest horse's own name wins (in capitals, as shown everywhere): Rosson's placeholder horse 5
+/// is shared by all of them.
 fn entry_horse_name(state: &State, e: &Entry) -> String {
-    e.guest_horse.clone().or_else(|| e.horse.as_ref().and_then(|h| state.horses.get(h)).map(|h| h.name.clone())).unwrap_or_default()
+    e.guest_horse_shown().or_else(|| e.horse.as_ref().and_then(|h| state.horses.get(h)).map(|h| h.name.clone())).unwrap_or_default()
 }
 
 /// hc and Nichtstarter are reported, not applied.

@@ -78,7 +78,7 @@ pub fn workbook(sheet: &str, headers: &[&str], rows: Vec<Vec<Cell>>) -> Result<V
 }
 
 fn horse_name(state: &State, e: &Entry) -> String {
-    e.guest_horse.clone().or_else(|| e.horses_on_entry.first().and_then(|h| h["pferdename"].as_str()).map(str::to_string)).or_else(|| e.horse.as_ref().and_then(|h| state.horses.get(h)).map(|h| h.name.clone())).unwrap_or_default()
+    e.guest_horse_shown().or_else(|| e.first_horse_on_entry()).or_else(|| e.horse.as_ref().and_then(|h| state.horses.get(h)).map(|h| h.name.clone())).unwrap_or_default()
 }
 
 /// The riders with their contact details (private data), by name.

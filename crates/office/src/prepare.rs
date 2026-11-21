@@ -1296,7 +1296,7 @@ pub fn number_show(state: &State, order: NumberOrder, descending: bool, seed: u6
     }
     let mut entries: Vec<EntryId> = first.keys().cloned().collect();
     let name = |e: &EntryId| state.entries.get(e).and_then(|e| state.persons.get(&e.rider)).map(|p| format!("{} {}", p.last_name, p.first_name)).unwrap_or_default();
-    let horse = |e: &EntryId| state.entries.get(e).map(|e| e.guest_horse.clone().or_else(|| e.horse.as_ref().and_then(|h| state.horses.get(h)).map(|h| h.name.clone())).unwrap_or_default()).unwrap_or_default();
+    let horse = |e: &EntryId| state.entries.get(e).map(|e| e.guest_horse_shown().or_else(|| e.horse.as_ref().and_then(|h| state.horses.get(h)).map(|h| h.name.clone())).unwrap_or_default()).unwrap_or_default();
     match order {
         NumberOrder::Name => entries.sort_by(|a, b| compare_names(&name(a), &name(b)).then_with(|| compare_names(&horse(a), &horse(b)))),
         NumberOrder::Horse => entries.sort_by(|a, b| compare_names(&horse(a), &horse(b)).then_with(|| compare_names(&name(a), &name(b)))),
@@ -1455,7 +1455,7 @@ pub fn reorder(state: &State, id: &ClassId, how: &Reorder, descending: bool) -> 
     let mut starts = starts(state, id);
     let entry = |s: &Start| state.entries.get(&s.entry);
     let rider = |s: &Start| entry(s).and_then(|e| state.persons.get(&e.rider)).map(|p| format!("{} {}", p.last_name, p.first_name)).unwrap_or_default();
-    let horse = |s: &Start| entry(s).map(|e| e.guest_horse.clone().or_else(|| e.horse.as_ref().and_then(|h| state.horses.get(h)).map(|h| h.name.clone())).unwrap_or_default()).unwrap_or_default();
+    let horse = |s: &Start| entry(s).map(|e| e.guest_horse_shown().or_else(|| e.horse.as_ref().and_then(|h| state.horses.get(h)).map(|h| h.name.clone())).unwrap_or_default()).unwrap_or_default();
     let pair = |e: &Entry| (e.rider.clone(), e.horse.clone(), e.guest_horse.clone());
     match how {
         Reorder::Name => starts.sort_by(|a, b| compare_names(&rider(a), &rider(b)).then_with(|| compare_names(&horse(a), &horse(b)))),

@@ -79,8 +79,13 @@ fn tablet_files_match_rosson() {
             classes += 1;
             let at = |what: &str| format!("{label} P{} {what}", class.number);
 
-            // 1. Export, cell by cell.
-            let theirs = grid(&fs::read(&file).unwrap());
+            // 1. Export, cell by cell (Rosson's guest horses, horse 5, in capitals as ours: E44).
+            let mut theirs = grid(&fs::read(&file).unwrap());
+            for row in theirs.iter_mut().flat_map(|(_, rows)| rows.iter_mut()).filter(|r| r.get(6) == Some(&Data::Float(5.0))) {
+                if let Some(Data::String(name)) = row.get_mut(7) {
+                    *name = show::model::guest_horse_name(name);
+                }
+            }
             let sheet = tablet_sheet(&state, &class.id).unwrap();
             let ours_grid = grid(&tablet_xlsx(&sheet, &class.number).unwrap());
             if theirs.iter().map(|(n, _)| n).ne(ours_grid.iter().map(|(n, _)| n)) {

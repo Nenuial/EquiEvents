@@ -276,7 +276,7 @@ fn unplaced(state: &State, published: &PublishedClassId) -> Vec<Unplaced> {
         .map(|e| Unplaced {
             entry: e.id.0,
             rider: state.persons.get(&e.rider).map(|p| format!("{} {}", p.first_name, p.last_name)).unwrap_or_default(),
-            horse: e.guest_horse.clone().or_else(|| e.horse.as_ref().and_then(|h| state.horses.get(h)).map(|h| h.name.clone())).unwrap_or_default(),
+            horse: e.guest_horse_shown().or_else(|| e.horse.as_ref().and_then(|h| state.horses.get(h)).map(|h| h.name.clone())).unwrap_or_default(),
         })
         .collect();
     list.sort_by(|a, b| scoring::ranking::compare_names(&a.rider, &b.rider));
@@ -363,10 +363,10 @@ pub(crate) fn rider(state: &State, entry: &Entry) -> (String, String, String) {
 }
 
 pub(crate) fn horse(state: &State, entry: &Entry) -> String {
-    if let Some(name) = &entry.guest_horse {
-        return name.clone();
+    if let Some(name) = entry.guest_horse_shown() {
+        return name;
     }
-    entry.horses_on_entry.first().and_then(|h| h["pferdename"].as_str()).map(str::to_string).or_else(|| entry.horse.as_ref().and_then(|h| state.horses.get(h)).map(|h| h.name.clone())).unwrap_or_default()
+    entry.first_horse_on_entry().or_else(|| entry.horse.as_ref().and_then(|h| state.horses.get(h)).map(|h| h.name.clone())).unwrap_or_default()
 }
 
 fn status(s: ClassStatus) -> &'static str {
@@ -558,7 +558,7 @@ pub fn participants(state: &State) -> Vec<EntryRow> {
                 driving_horses: if published.is_some_and(|p| p.discipline == "CA") {
                     e.horses_on_entry
                         .iter()
-                        .map(|h| DrivingHorse { name: h["pferdename"].as_str().unwrap_or_default().to_string(), phases: h["einsaetze"].as_array().into_iter().flatten().filter_map(|p| p.as_str().map(str::to_string)).collect() })
+                        .map(|h| DrivingHorse { name: horse_on_entry_name(h), phases: h["einsaetze"].as_array().into_iter().flatten().filter_map(|p| p.as_str().map(str::to_string)).collect() })
                         .collect()
                 } else {
                     Vec::new()

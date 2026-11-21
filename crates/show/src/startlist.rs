@@ -97,7 +97,7 @@ impl State {
                     (None, Some(p)) => (p.last_name.clone(), p.first_name.clone()),
                     _ => Default::default(),
                 };
-                let horse = e.guest_horse.clone().or_else(|| e.horses_on_entry.first().and_then(|h| h["pferdename"].as_str()).map(str::to_string)).or_else(|| e.horse.as_ref().and_then(|h| self.horses.get(h)).map(|h| h.name.clone())).unwrap_or_default();
+                let horse = e.guest_horse_shown().or_else(|| e.first_horse_on_entry()).or_else(|| e.horse.as_ref().and_then(|h| self.horses.get(h)).map(|h| h.name.clone())).unwrap_or_default();
                 (e.stage.unwrap_or(0), last, first, horse)
             };
             let names = scoring::ranking::compare_names;
