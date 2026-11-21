@@ -232,7 +232,7 @@ pub async fn reset_finish(pool: &Pool, token: &str, password: &str) -> Result<Re
 }
 
 /// A token for a device signed in as `user`.
-async fn new_session(pool: &Pool, user: i64, device: &str) -> Result<String, Error> {
+pub(crate) async fn new_session(pool: &Pool, user: i64, device: &str) -> Result<String, Error> {
     let token = random_hex(32);
     pool.get()
         .await?

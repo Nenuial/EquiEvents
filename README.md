@@ -18,6 +18,8 @@ equievents.ch, shared by the office's computers.
 - **The desktop app** (macOS, Windows): a show from its classes and entries to its rankings and
   prints. It works offline and syncs with equievents.ch when it can; it needs an equievents.ch
   account.
+- **The online version**, for an office that always has a connection: the same interface in the
+  browser or on a phone, at `equievents.ch/app/`, working straight on the master copy.
 - **Scoring you can read and check:** one module per discipline and scoring table, each rule
   traced to the regulations, tested on hand-written cases and on real shows.
 - **The outside world, as it is:** Swiss Equestrian's organiser API

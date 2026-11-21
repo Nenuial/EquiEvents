@@ -3,7 +3,7 @@
 //!
 //! | | |
 //! |---|---|
-//! | `/telecharger`, `/herunterladen` | the page: Mac and Windows, this computer's system first |
+//! | `/telecharger`, `/herunterladen` | the page, signed in on the site only: Mac and Windows, this computer's system first |
 //! | `/downloads/{file}` | an installer or an update, as the manifest names it |
 //! | `/api/updates/{target}/{arch}/{version}` | Tauri's updater: the newer release (its format), else 204 |
 //!
@@ -269,7 +269,17 @@ pub fn page_body(lang: Lang, manifest: &Manifest, platform: Option<Platform>) ->
     )
 }
 
+/// The page, for signed-in people only (the user, 2026-11-21); the files themselves stay
+/// reachable for installed apps' updates.
 async fn download_page(lang: Lang, State(app): State<App>, headers: HeaderMap) -> Response {
+    let signed_in = match crate::session::token(&headers) {
+        Some(token) => crate::auth::user_of(&app.pool, &token).await.ok().flatten().is_some(),
+        None => false,
+    };
+    if !signed_in {
+        let to = crate::session::sign_in_path(lang, path(lang));
+        return (StatusCode::SEE_OTHER, [(header::LOCATION, to)]).into_response();
+    }
     let agent = headers.get(header::USER_AGENT).and_then(|v| v.to_str().ok()).unwrap_or("");
     let manifest = Manifest::read(app.downloads.as_deref()).await;
     let body = page_body(lang, &manifest, Platform::of_agent(agent));

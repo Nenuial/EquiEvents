@@ -1133,3 +1133,122 @@ fn the_server_never_sends_to_swiss_equestrian() {
     let se = server::se::Se::from_env(env("simulation")).unwrap();
     assert_eq!((se.name(), se.sends_to()), ("production", "simulation"));
 }
+
+/// One request with its own headers (a browser's cookie and origin): status, headers, body.
+async fn browser(router: &axum::Router, method: &str, path: &str, headers: &[(&str, &str)], body: Option<String>) -> (StatusCode, axum::http::HeaderMap, String) {
+    let mut req = Request::builder().method(method).uri(path).header("x-real-ip", "10.0.0.9").header("host", "www.equievents.ch");
+    for (k, v) in headers {
+        req = req.header(*k, *v);
+    }
+    let req = req.body(body.map(Body::from).unwrap_or_else(Body::empty)).unwrap();
+    let res = router.clone().oneshot(req).await.unwrap();
+    let (status, headers) = (res.status(), res.headers().clone());
+    let bytes = res.into_body().collect().await.unwrap().to_bytes();
+    (status, headers, String::from_utf8_lossy(&bytes).into_owned())
+}
+
+/// The online version: signed in on the site (a cookie), the interface at /app/, its commands
+/// run by the account's office straight on the master (a change there at once, no sync asked),
+/// its files the account's own, nothing it must not do; the download page only signed in.
+#[tokio::test(flavor = "multi_thread")]
+async fn the_online_version_works_on_the_master() {
+    let Some(test_db) = TestDb::new("online").await else { return };
+    let pool = db::pool(&test_db.url).unwrap();
+    db::migrate(&pool).await.unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let interface = dir.path().join("web");
+    std::fs::create_dir_all(interface.join("assets")).unwrap();
+    std::fs::write(interface.join("index.html"), "<!doctype html><title>EquiEvents</title>").unwrap();
+    std::fs::write(interface.join("assets/app.js"), "console.log(1)").unwrap();
+    // The server on a port, its offices reaching it there.
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}", listener.local_addr().unwrap());
+    let (se, _, _) = stand_in_se(0);
+    let web = server::web::Web::new(dir.path().join("offices"), &url, Some(interface));
+    let app = api::App { se, web: Some(std::sync::Arc::new(web)), ..api::App::new(pool.clone(), mail::Mailer::off(), "https://www.equievents.ch") };
+    let router = api::router(app);
+    let served = router.clone();
+    tokio::spawn(async move { axum::serve(listener, served.into_make_service_with_connect_info::<std::net::SocketAddr>()).await.unwrap() });
+    for (name, email) in [("Anne Office", "anne@example.ch"), ("Bruno Second", "bruno@example.ch")] {
+        auth::create_user(&pool, name, email, "a-good-password", false, Lang::Fr).await.unwrap().unwrap();
+    }
+
+    // Signed out: the interface and the downloads send to the sign-in, and come back after.
+    let (status, headers, _) = browser(&router, "GET", "/app/", &[], None).await;
+    assert_eq!((status, headers["location"].to_str().unwrap()), (StatusCode::SEE_OTHER, "/connexion?next=/app/"));
+    let (status, headers, _) = browser(&router, "GET", "/herunterladen", &[], None).await;
+    assert_eq!((status, headers["location"].to_str().unwrap()), (StatusCode::SEE_OTHER, "/anmelden?next=/herunterladen"));
+    assert_eq!(browser(&router, "POST", "/app/api/library", &[], Some("{}".into())).await.0, StatusCode::UNAUTHORIZED);
+
+    // Signing in on the site: a wrong password, then the right one (the cookie, back to /app/).
+    let form = |password: &str| Some(format!("email=anne%40example.ch&password={password}&next=%2Fapp%2F"));
+    let urlencoded = [("content-type", "application/x-www-form-urlencoded")];
+    assert_eq!(browser(&router, "POST", "/connexion", &urlencoded, form("wrong")).await.0, StatusCode::UNAUTHORIZED);
+    let (status, headers, _) = browser(&router, "POST", "/connexion", &urlencoded, form("a-good-password")).await;
+    assert_eq!((status, headers["location"].to_str().unwrap()), (StatusCode::SEE_OTHER, "/app/"));
+    let set = headers["set-cookie"].to_str().unwrap().to_string();
+    assert!(set.contains("HttpOnly") && set.contains("SameSite=Lax") && set.contains("Secure"), "{set}");
+    let cookie = set.split(';').next().unwrap().to_string();
+    let anne = [("cookie", cookie.as_str()), ("sec-fetch-site", "same-origin"), ("content-type", "application/json")];
+    let (status, _, page) = browser(&router, "GET", "/app/", &anne, None).await;
+    assert_eq!((status, page.contains("<title>EquiEvents</title>")), (StatusCode::OK, true));
+    assert_eq!(browser(&router, "GET", "/app/assets/app.js", &[], None).await.0, StatusCode::OK);
+    assert_eq!(browser(&router, "GET", "/app/../Cargo.toml", &anne, None).await.0, StatusCode::NOT_FOUND);
+    assert_eq!(browser(&router, "GET", "/telecharger", &anne, None).await.0, StatusCode::OK);
+
+    // The account's office: signed in as Anne, on this server; what it must not do, refused.
+    let api = |command: &str, args: Value| {
+        let router = router.clone();
+        let command = command.to_string();
+        async move {
+            let (status, _, body) = browser(&router, "POST", &format!("/app/api/{command}"), &anne, Some(args.to_string())).await;
+            (status, serde_json::from_str::<Value>(&body).unwrap_or(Value::Null))
+        }
+    };
+    let (status, account) = api("account", json!({})).await;
+    assert_eq!((status, account["hosted"].clone(), account["account"]["name"].as_str()), (StatusCode::OK, json!(true), Some("Anne Office")), "{account}");
+    let (status, refused) = api("set_server", json!({ "url": "https://evil.example" })).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(refused["error"].as_str().unwrap().contains("not in the online version"), "{refused}");
+    assert_eq!(api("sign_out", json!({})).await.0, StatusCode::BAD_REQUEST);
+    let (status, refused) = api("import_show", json!({ "path": "/etc/passwd" })).await;
+    assert_eq!((status, refused["code"].as_str()), (StatusCode::BAD_REQUEST, Some("path")));
+    let elsewhere = [("cookie", cookie.as_str()), ("origin", "https://evil.example")];
+    assert_eq!(browser(&router, "POST", "/app/api/library", &elsewhere, Some("{}".into())).await.0, StatusCode::FORBIDDEN);
+
+    // An event from Swiss Equestrian, then a change: on the master at once.
+    let (_, opened) = api("open_with_key", json!({ "access_key": "PRACTICE-KEY" })).await;
+    assert_eq!(opened["outcome"], "made", "{opened}");
+    let (show, remote) = (opened["show"].as_str().unwrap().to_string(), opened["remote"].as_str().unwrap().to_string());
+    let before = server::shows::log(&pool, &remote).await.unwrap().len();
+    let (_, view) = api("show", json!({ "show": show })).await;
+    let published = view["not_set_up"][0]["id"].clone();
+    let (status, set_up) = api("set_up_class", json!({ "show": show, "published": published })).await;
+    assert_eq!(status, StatusCode::OK, "{set_up}");
+    let after = server::shows::log(&pool, &remote).await.unwrap();
+    assert!(after.len() > before && after.iter().any(|o| o.author == "Anne Office" && o.id.starts_with(&format!("web-{}:", 1))), "{} → {}", before, after.len());
+
+    // Files: the account's own, nobody else's.
+    let (status, _, kept) = browser(&router, "POST", "/app/files/note.txt", &anne, Some("hello".into())).await;
+    assert_eq!(status, StatusCode::OK, "{kept}");
+    let kept: Value = serde_json::from_str(&kept).unwrap();
+    let link = kept["url"].as_str().unwrap().to_string();
+    assert!(link.starts_with("/app/files/") && kept["path"].as_str().unwrap().starts_with(dir.path().join("offices/1/files").to_str().unwrap()));
+    assert_eq!(browser(&router, "GET", &link, &anne, None).await.2, "hello");
+    assert_eq!(browser(&router, "GET", &link, &[], None).await.0, StatusCode::UNAUTHORIZED);
+    let (_, headers, _) = browser(&router, "POST", "/connexion", &urlencoded, Some("email=bruno%40example.ch&password=a-good-password".into())).await;
+    let bruno = headers["set-cookie"].to_str().unwrap().split(';').next().unwrap().to_string();
+    assert_eq!(browser(&router, "GET", &link, &[("cookie", bruno.as_str())], None).await.0, StatusCode::NOT_FOUND);
+
+    // Signed out on the site: the cookie gone, the token too.
+    let (status, headers, _) = browser(&router, "GET", "/deconnexion", &anne, None).await;
+    assert_eq!((status, headers["location"].to_str().unwrap()), (StatusCode::SEE_OTHER, "/"));
+    assert!(headers["set-cookie"].to_str().unwrap().contains("Max-Age=0"));
+    assert_eq!(api("account", json!({})).await.0, StatusCode::UNAUTHORIZED);
+
+    // An account made on the site is signed in at once.
+    let (status, headers, _) = browser(&router, "POST", "/inscription", &urlencoded, Some("name=Carla+Third&email=carla%40example.ch&password=a-good-password".into())).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(headers["set-cookie"].to_str().unwrap().starts_with("equievents_session="));
+    test_db.drop().await;
+}

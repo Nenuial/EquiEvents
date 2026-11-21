@@ -3,7 +3,9 @@
 //! - `web`: the API and site on `PORT` (3000), behind Nginx Proxy Manager; e-mail (reset links)
 //!   as `mail::Mailer::from_env` says, links to `APP_URL`; the desktop apps' releases from
 //!   `DOWNLOADS_DIR` (`/data/downloads`; docs/architecture/releases.md); Swiss Equestrian as
-//!   `SE_SERVER` says (`se::Se::from_env`: production, stage, none);
+//!   `SE_SERVER` says (`se::Se::from_env`: production, stage, none); the online version
+//!   (`web`): the accounts' offices in `OFFICES_DIR` (`/data/offices`), the interface from
+//!   `WEB_DIR` (`/srv/app`);
 //! - `worker`: the nightly backup (`BACKUP_AT`, `BACKUP_DIR`, `BACKUP_KEEP`);
 //! - `migrate`: bring the database up to date (`web` and `worker` do it when they start);
 //! - `create-admin "Prénom Nom" e-mail [fr|de]`: an administrator's account, its password printed once
@@ -62,7 +64,13 @@ async fn run(args: &[String]) -> Result<(), db::Error> {
             let downloads = server::downloads::dir_from_env(Some(env("DOWNLOADS_DIR", "/data/downloads")));
             let se = server::se::Se::from_env(|name| std::env::var(name).ok())?;
             println!("Swiss Equestrian: {} (downloads)", se.name());
-            let app = api::router(api::App { downloads, se, ..api::App::new(pool, mailer, &site) });
+            // The online version: each account's office under OFFICES_DIR, reaching this server
+            // on its own port; the interface from WEB_DIR (the image's /srv/app).
+            let offices = std::path::PathBuf::from(env("OFFICES_DIR", "/data/offices"));
+            let interface = Some(std::path::PathBuf::from(env("WEB_DIR", "/srv/app"))).filter(|d| d.join("index.html").is_file());
+            println!("online version: offices in {}, interface {}", offices.display(), interface.as_ref().map_or("not served".into(), |d| d.display().to_string()));
+            let web = server::web::Web::new(offices, &format!("http://127.0.0.1:{port}"), interface);
+            let app = api::router(api::App { downloads, se, web: Some(std::sync::Arc::new(web)), ..api::App::new(pool, mailer, &site) });
             axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()).with_graceful_shutdown(stopped()).await?;
         }
         "worker" => {

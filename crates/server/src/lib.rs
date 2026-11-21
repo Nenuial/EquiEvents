@@ -14,5 +14,7 @@ pub mod mail;
 pub mod notices;
 pub mod registry;
 pub mod se;
+pub mod session;
 pub mod shows;
 pub mod site;
+pub mod web;

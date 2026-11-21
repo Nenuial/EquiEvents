@@ -19,6 +19,8 @@ The server is set up in
   events. From Swiss Equestrian's production (`SE_SERVER=production`) from the first day.
 - **Nothing is sent to Swiss Equestrian**: the server has no code that uploads. « Envoyer »
   goes to the server's simulation.
+- **The online version** at `/app/` for signed-in people (the same interface, its office on the
+  server, straight on the master); the download page also only signed in.
 - **GitHub Actions**: `ci.yml` (every push: clippy, unit tests, the server's API against
   Postgres, the interface's build, the server's image) and `release.yml` (a tag `vX.Y.Z`: the
   Mac app signed and notarized, the Windows setup, published as a GitHub release; run by hand:
@@ -106,10 +108,12 @@ Until the mailbox `info@equievents.ch` exists with the domain's SPF, DKIM and DM
 
 ## 7. Checking it works
 
-1. `https://www.equievents.ch/api/health` → `{"ok": true}`.
+1. `https://www.equievents.ch/api/health` → `{"ok": true}`; the server's log says where the
+   online version's offices are and that its interface is served (`/srv/app`).
 2. `https://www.equievents.ch/api/swiss-equestrian` → `{"downloads": "production", "sends": "simulation"}`.
 3. `/telecharger` and `/herunterladen`: the installers, this computer's first.
-4. An account made on the site; the app installed from the page, signed in with it.
+4. An account made on the site (signed in at once): *Ouvrir EquiEvents en ligne* opens
+   `/app/`; then the app installed from the download page, signed in with the same account.
 5. In the app: *Importer › Charger de Swiss Equestrian…* with the key of a **current** event
    (Swiss Equestrian refuses a past event's key): the show comes, its responsable is that
    account. A second account with the same key: asked to request access; the first answers.

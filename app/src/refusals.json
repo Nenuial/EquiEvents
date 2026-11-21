@@ -1478,5 +1478,10 @@
   "fr": "Mettez d’abord le concours sur equievents.ch : c’est là que les cavaliers et chevaux sont téléchargés, avec sa clé.",
   "de": "Stellen Sie das Turnier zuerst auf equievents.ch: Dort werden die Reiter und Pferde heruntergeladen, mit seinem Schlüssel.",
   "it": "Mettete prima il concorso su equievents.ch: è lì che cavalieri e cavalli vengono scaricati, con la sua chiave."
+ },
+ "not in the online version: equievents.ch's site signs you in and out": {
+  "fr": "Pas dans la version en ligne : c’est le site d’equievents.ch qui vous connecte et vous déconnecte.",
+  "de": "Nicht in der Online-Version: Die Website von equievents.ch meldet Sie an und ab.",
+  "it": "Non nella versione online: è il sito di equievents.ch che vi connette e disconnette."
  }
 }

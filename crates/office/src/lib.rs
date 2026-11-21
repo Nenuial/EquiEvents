@@ -150,7 +150,8 @@ impl Office {
     /// Run a command. Errors are messages for the office; each is kept in the error log (the
     /// last 200 here, every one in `<library>/errors.log`, for support).
     pub fn call(&self, command: &str, args: &Value) -> Result<Value, String> {
-        let answer = self.run(command, args);
+        // The online version: on equievents.ch, straight on the master (`sync::Office::host`).
+        let answer = if self.sync.hosted() { self.call_hosted(command, args) } else { self.run(command, args) };
         if let Err(e) = &answer {
             self.log_error(command, args, e);
         }

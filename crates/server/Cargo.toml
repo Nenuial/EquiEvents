@@ -13,6 +13,8 @@ path = "src/main.rs"
 [dependencies]
 show = { path = "../show" }
 se-api = { path = "../se-api" }
+# The online version (`web`): the office core, one per account, as the desktop app runs it.
+office = { path = "../office" }
 serde.workspace = true
 serde_json.workspace = true
 axum = "0.8"
@@ -34,5 +36,4 @@ ureq = "2.12"
 [dev-dependencies]
 rosson-import = { path = "../rosson-import" }
 http-body-util = "0.1"
-office = { path = "../office" }
 tempfile = "3"

@@ -10,7 +10,10 @@
 //! ```
 //!
 //! Then the app's server is `http://localhost:3999` (`PORT`): the library's settings, or
-//! `EQUIEVENTS_SERVER`. Accounts are made from the app as on equievents.ch.
+//! `EQUIEVENTS_SERVER`. Accounts are made from the app as on equievents.ch. The online version
+//! too, at `http://localhost:3999/app/`, when `WEB_DIR` names the interface built for it
+//! (`cd app && npx vite build --base /app/ --outDir <folder>`); its offices in `OFFICES_DIR`
+//! (else a folder in the system's temporary one).
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -56,7 +59,12 @@ async fn main() -> Result<(), db::Error> {
     let port: u16 = std::env::var("PORT").ok().and_then(|p| p.parse().ok()).unwrap_or(3999);
     let listener = tokio::net::TcpListener::bind(("127.0.0.1", port)).await?;
     println!("equievents with a stand-in Swiss Equestrian on http://localhost:{port} (key {KEY})");
-    let app = api::router(api::App { se, ..api::App::new(pool, mail::Mailer::off(), &format!("http://localhost:{port}")) });
+    let site = format!("http://localhost:{port}");
+    let offices = std::env::var("OFFICES_DIR").map(std::path::PathBuf::from).unwrap_or_else(|_| std::env::temp_dir().join("equievents-offices"));
+    let interface = std::env::var("WEB_DIR").ok().map(std::path::PathBuf::from).filter(|d| d.join("index.html").is_file());
+    println!("online version: {}", if interface.is_some() { format!("{site}/app/ (offices in {})", offices.display()) } else { "not served (WEB_DIR)".into() });
+    let web = server::web::Web::new(offices, &format!("http://127.0.0.1:{port}"), interface);
+    let app = api::router(api::App { se, web: Some(std::sync::Arc::new(web)), ..api::App::new(pool, mail::Mailer::off(), &site) });
     axum::serve(listener, app.into_make_service_with_connect_info::<std::net::SocketAddr>()).await?;
     Ok(())
 }

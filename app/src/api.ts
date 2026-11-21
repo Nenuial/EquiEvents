@@ -1,6 +1,8 @@
 // The office core: one call, a command name and its arguments (crates/office, `Office::call`).
-// Desktop: through Tauri. Browser (development): through office-dev-server. Its refusals come in
-// English and leave here in the office's language (refusals.ts).
+// Desktop: through Tauri. Browser: the online version on equievents.ch (`/app/api/<command>`,
+// the account's office there), or office-dev-server in development; the addresses are relative
+// to the page, so both work. Its refusals come in English and leave here in the office's
+// language (refusals.ts).
 
 import { refusal } from './refusals';
 
@@ -18,10 +20,12 @@ export async function call<T>(command: string, args: Record<string, unknown> = {
   }
   let response: Response;
   try {
-    response = await fetch(`/api/${command}`, { method: 'POST', body: JSON.stringify(args) });
+    response = await fetch(`api/${command}`, { method: 'POST', body: JSON.stringify(args), headers: { 'Content-Type': 'application/json' } });
   } catch {
     throw new Error(refusal('EquiEvents does not answer'));
   }
+  // The online version, signed out on the site (or the session expired): its sign-in, back here after.
+  if (response.status === 401) signInAgain();
   // `null` is an answer (a command that answers nothing); no JSON at all is not.
   const none = Symbol();
   const answer = await response.json().catch(() => none);
@@ -98,9 +102,23 @@ function pickInBrowser(extensions: string[]): Promise<File | null> {
   });
 }
 
-/** A file kept by office-dev-server (empty: one the office is to write). */
+/** The online version's sign-in on the site, in the office's language, back to the app after. */
+function signInAgain(): never {
+  const german = (() => {
+    try {
+      return localStorage.getItem('language') === 'de';
+    } catch {
+      return false;
+    }
+  })();
+  window.location.href = `${german ? '/anmelden' : '/connexion'}?next=${encodeURIComponent(window.location.pathname)}`;
+  throw new Error(refusal('EquiEvents does not answer'));
+}
+
+/** A file kept by the online version or office-dev-server (empty: one the office is to write). */
 async function keep(name: string, body?: Blob): Promise<{ path: string; url: string }> {
-  const r = await fetch(`/files/${encodeURIComponent(name)}`, { method: 'POST', body: body ?? '' });
+  const r = await fetch(`files/${encodeURIComponent(name)}`, { method: 'POST', body: body ?? '' });
+  if (r.status === 401) signInAgain();
   const answer = await r.json().catch(() => null);
   if (!r.ok || !answer?.path) throw new Error(refusal(answer?.error ?? `EquiEvents does not answer (${r.status})`));
   return answer;

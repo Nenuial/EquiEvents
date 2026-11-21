@@ -69,11 +69,13 @@ pub struct App {
     pub downloads: Option<std::path::PathBuf>,
     /// Swiss Equestrian (`SE_SERVER`; none: development, keys not checked).
     pub se: Se,
+    /// The online version (`web`): none, not served.
+    pub web: Option<Arc<crate::web::Web>>,
 }
 
 impl App {
     pub fn new(pool: Pool, mailer: Mailer, site_url: &str) -> App {
-        App { pool, mailer, limits: Arc::default(), site_url: site_url.trim_end_matches('/').to_string(), mail_in_background: true, downloads: None, se: Se::none() }
+        App { pool, mailer, limits: Arc::default(), site_url: site_url.trim_end_matches('/').to_string(), mail_in_background: true, downloads: None, se: Se::none(), web: None }
     }
 }
 
@@ -162,6 +164,7 @@ pub fn router(app: App) -> Router {
     Router::new()
         .merge(site::routes())
         .merge(crate::downloads::routes())
+        .merge(crate::web::routes())
         .route("/api/health", get(health))
         .route("/api/register", post(register))
         .route("/api/login", post(login))

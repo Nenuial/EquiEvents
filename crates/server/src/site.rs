@@ -1,17 +1,20 @@
 //! The site at www.equievents.ch: anyone makes their own account there (an account alone opens
-//! nothing: a show needs its Swiss Equestrian keys), and resets a forgotten password with a
-//! link sent by e-mail. French and German pages, plain HTML forms (no script), for phones too:
+//! nothing: a show needs its Swiss Equestrian keys), signs in (`session`: for the online version
+//! and the desktop app's downloads), and resets a forgotten password with a link sent by
+//! e-mail. French and German pages, plain HTML forms (no script), for phones too:
 //!
 //! | French | German | |
 //! |---|---|---|
-//! | `/` | | home, both languages |
-//! | `/inscription` | `/registrieren` | make an account |
+//! | `/` | | home, both languages: signed in, the online version and the downloads |
+//! | `/connexion` | `/anmelden` | sign in (`?next=`: a page of the site to go to after) |
+//! | `/deconnexion` | `/abmelden` | sign out |
+//! | `/inscription` | `/registrieren` | make an account (signed in at once) |
 //! | `/mot-de-passe` | `/passwort` | a forgotten password: the link by e-mail |
 //! | `/nouveau-mot-de-passe?t=…` | `/neues-passwort?t=…` | the link: a new password |
 //! | `/telecharger` | `/herunterladen` | the desktop app (`downloads`) |
 
 use axum::extract::{Query, State};
-use axum::http::{header, HeaderValue, StatusCode};
+use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Form, Router};
@@ -20,6 +23,7 @@ use serde::Deserialize;
 use crate::api::{App, Client};
 use crate::auth::{self, Invalid};
 use crate::limit;
+use crate::session;
 
 pub use crate::lang::Lang;
 
@@ -44,6 +48,10 @@ impl Path {
 pub fn routes() -> Router<App> {
     Router::new()
         .route("/", get(home))
+        .route("/connexion", get(|s, h, q| sign_in_form(Lang::Fr, s, h, q)).post(|s, c, f| sign_in(Lang::Fr, s, c, f)))
+        .route("/anmelden", get(|s, h, q| sign_in_form(Lang::De, s, h, q)).post(|s, c, f| sign_in(Lang::De, s, c, f)))
+        .route("/deconnexion", get(|s, h| sign_out(Lang::Fr, s, h)))
+        .route("/abmelden", get(|s, h| sign_out(Lang::De, s, h)))
         .route("/inscription", get(|| register_form(Lang::Fr)).post(|s, c, f| register(Lang::Fr, s, c, f)))
         .route("/registrieren", get(|| register_form(Lang::De)).post(|s, c, f| register(Lang::De, s, c, f)))
         .route("/mot-de-passe", get(|| forgot_form(Lang::Fr)).post(|s, c, f| forgot(Lang::Fr, s, c, f)))
@@ -151,34 +159,145 @@ fn too_many(lang: Lang) -> Response {
     with_status(StatusCode::TOO_MANY_REQUESTS, page(lang, lang.pick("Trop d’essais", "Zu viele Versuche"), None, &body))
 }
 
-fn server_error(lang: Lang, e: crate::db::Error) -> Response {
+pub(crate) fn server_error(lang: Lang, e: crate::db::Error) -> Response {
     eprintln!("error: {e}");
     let body = format!(r#"<h1>{}</h1><p>{}</p>"#, lang.pick("Un problème est survenu", "Ein Problem ist aufgetreten"), lang.pick("Le serveur n’a pas pu traiter la demande. Réessayez plus tard.", "Der Server konnte es nicht ausführen. Bitte später wieder versuchen."));
     with_status(StatusCode::INTERNAL_SERVER_ERROR, page(lang, lang.pick("Un problème est survenu", "Ein Problem ist aufgetreten"), None, &body))
 }
 
-async fn home() -> Response {
-    let group = |lang: Lang| {
-        format!(
-            r#"<div class="group" lang="{code}"><a class="button" href="{download}">{download_label}</a><a class="button second" href="{register}">{register_label}</a></div>"#,
+async fn home(State(app): State<App>, headers: HeaderMap) -> Response {
+    let signed_in = match session::token(&headers) {
+        Some(token) => auth::user_of(&app.pool, &token).await.ok().flatten(),
+        None => None,
+    };
+    let group = |lang: Lang| match &signed_in {
+        // Signed in: the online version, the desktop app, signing out.
+        Some(_) => format!(
+            r#"<div class="group" lang="{code}"><a class="button" href="/app/">{open}</a><a class="button second" href="{download}">{download_label}</a></div>"#,
             code = lang.code(),
+            open = lang.pick("Ouvrir EquiEvents en ligne", "EquiEvents online öffnen"),
             download = crate::downloads::path(lang),
             download_label = lang.pick("Télécharger l’application", "App herunterladen"),
+        ),
+        None => format!(
+            r#"<div class="group" lang="{code}"><a class="button" href="{sign_in}">{sign_in_label}</a><a class="button second" href="{register}">{register_label}</a></div>"#,
+            code = lang.code(),
+            sign_in = session::sign_in(lang),
+            sign_in_label = lang.pick("Se connecter", "Anmelden"),
             register = Path::Register.of(lang),
             register_label = lang.pick("Créer un compte", "Konto erstellen"),
-        )
+        ),
+    };
+    let footer = match &signed_in {
+        Some(user) => format!(
+            r#"<footer class="muted">{} · <a href="{}" lang="fr">Se déconnecter</a> · <a href="{}" lang="de">Abmelden</a></footer>"#,
+            esc(&user.name),
+            session::sign_out(Lang::Fr),
+            session::sign_out(Lang::De),
+        ),
+        None => format!(
+            r#"<footer class="muted"><a href="{}" lang="fr">Mot de passe oublié ?</a> · <a href="{}" lang="de">Passwort vergessen?</a></footer>"#,
+            Path::Forgot.of(Lang::Fr),
+            Path::Forgot.of(Lang::De),
+        ),
     };
     let body = format!(
         r#"<h1>Le secrétariat de concours · Das Turniersekretariat</h1>
 <p class="muted">Concours hippiques de Swiss Equestrian · Pferdesportturniere von Swiss Equestrian</p>
 {}{}
-<footer class="muted"><a href="{}" lang="fr">Mot de passe oublié ?</a> · <a href="{}" lang="de">Passwort vergessen?</a></footer>"#,
+{footer}"#,
         group(Lang::Fr),
         group(Lang::De),
-        Path::Forgot.of(Lang::Fr),
-        Path::Forgot.of(Lang::De),
     );
     page(Lang::Fr, "EquiEvents", None, &body)
+}
+
+// --- Signing in and out --------------------------------------------------------------------------
+
+#[derive(Debug, Default, Deserialize)]
+pub struct SignInForm {
+    #[serde(default)]
+    email: String,
+    #[serde(default)]
+    password: String,
+    #[serde(default)]
+    next: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct NextQuery {
+    next: Option<String>,
+}
+
+fn sign_in_page(lang: Lang, email: &str, next: &str, error: Option<&str>) -> Response {
+    let error = error.map(|e| format!(r#"<p class="error" role="alert">{e}</p>"#)).unwrap_or_default();
+    let body = format!(
+        r#"<h1>{title}</h1>
+{error}
+<form method="post" action="{action}">
+<input type="hidden" name="next" value="{next}">
+<label for="email">{email_label}</label><input id="email" name="email" type="email" autocomplete="email" required maxlength="254" value="{email}">
+<label for="password">{password}</label><input id="password" name="password" type="password" autocomplete="current-password" required maxlength="200">
+<button>{submit}</button>
+</form>
+<p class="muted"><a href="{forgot}">{forgot_label}</a> · <a href="{register}">{register_label}</a></p>"#,
+        title = lang.pick("Se connecter", "Anmelden"),
+        action = session::sign_in(lang),
+        next = esc(next),
+        email_label = lang.pick("Adresse e-mail", "E-Mail-Adresse"),
+        email = esc(email),
+        password = lang.pick("Mot de passe", "Passwort"),
+        submit = lang.pick("Se connecter", "Anmelden"),
+        forgot = Path::Forgot.of(lang),
+        forgot_label = lang.pick("Mot de passe oublié ?", "Passwort vergessen?"),
+        register = Path::Register.of(lang),
+        register_label = lang.pick("Créer un compte", "Konto erstellen"),
+    );
+    page(lang, lang.pick("Se connecter", "Anmelden"), Some(&session::sign_in_path(lang.other(), next)), &body)
+}
+
+/// The sign-in; already signed in: straight on.
+async fn sign_in_form(lang: Lang, State(app): State<App>, headers: HeaderMap, Query(q): Query<NextQuery>) -> Response {
+    let next = session::next_or_app(q.next.as_deref());
+    if let Some(token) = session::token(&headers) {
+        if auth::user_of(&app.pool, &token).await.ok().flatten().is_some() {
+            return redirect(&next, None);
+        }
+    }
+    sign_in_page(lang, "", &next, None)
+}
+
+/// See `next`, with the session's cookie when there is one to set.
+fn redirect(to: &str, cookie: Option<HeaderValue>) -> Response {
+    let mut res = (StatusCode::SEE_OTHER, [(header::LOCATION, to.to_string())]).into_response();
+    if let Some(cookie) = cookie {
+        res.headers_mut().append(header::SET_COOKIE, cookie);
+    }
+    res.headers_mut().insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    res
+}
+
+async fn sign_in(lang: Lang, State(app): State<App>, Client(client): Client, Form(form): Form<SignInForm>) -> Response {
+    let email = form.email.trim().to_lowercase();
+    let next = session::next_or_app(form.next.as_deref());
+    if !app.limits.allow(&format!("login:{client}"), limit::LOGIN_CLIENT) || !app.limits.allow(&format!("login-email:{email}"), limit::LOGIN_EMAIL) {
+        return too_many(lang);
+    }
+    match auth::sign_in(&app.pool, &email, &form.password, "equievents.ch (site)").await {
+        Ok(Some((token, _))) => redirect(&next, Some(session::set(&token, app.site_url.starts_with("https://")))),
+        Ok(None) => with_status(
+            StatusCode::UNAUTHORIZED,
+            sign_in_page(lang, &form.email, &next, Some(lang.pick("Adresse e-mail ou mot de passe incorrect.", "E-Mail-Adresse oder Passwort falsch."))),
+        ),
+        Err(e) => server_error(lang, e),
+    }
+}
+
+async fn sign_out(_lang: Lang, State(app): State<App>, headers: HeaderMap) -> Response {
+    if let Some(token) = session::token(&headers) {
+        let _ = auth::sign_out(&app.pool, &token).await;
+    }
+    redirect("/", Some(session::clear(app.site_url.starts_with("https://"))))
 }
 
 // --- Making an account -------------------------------------------------------------------------
@@ -238,13 +357,14 @@ async fn register_form(lang: Lang) -> Response {
 
 fn registered(lang: Lang, email: &str) -> Response {
     let body = format!(
-        r#"<h1>{}</h1><p class="done">{}</p><p>{}</p><a class="button" href="{}">{}</a>"#,
+        r#"<h1>{}</h1><p class="done">{}</p><p>{}</p><a class="button" href="/app/">{}</a><a class="button second" href="{}">{}</a>"#,
         lang.pick("Votre compte est prêt", "Ihr Konto ist bereit"),
         esc(email),
         lang.pick(
-            "Connectez-vous avec cette adresse et votre mot de passe dans EquiEvents. Pour travailler sur un concours, il vous faut sa clé d’accès, fournie par Swiss Equestrian.",
-            "Melden Sie sich mit dieser Adresse und Ihrem Passwort in EquiEvents an. Um an einem Turnier zu arbeiten, brauchen Sie seinen Zugangsschlüssel von Swiss Equestrian."
+            "Travaillez en ligne, ici, ou installez l’application sur vos ordinateurs et connectez-vous-y avec cette adresse. Pour travailler sur un concours, il vous faut sa clé d’accès, fournie par Swiss Equestrian.",
+            "Arbeiten Sie online, hier, oder installieren Sie die App auf Ihren Computern und melden Sie sich dort mit dieser Adresse an. Um an einem Turnier zu arbeiten, brauchen Sie seinen Zugangsschlüssel von Swiss Equestrian."
         ),
+        lang.pick("Ouvrir EquiEvents en ligne", "EquiEvents online öffnen"),
         crate::downloads::path(lang),
         lang.pick("Télécharger l’application", "App herunterladen"),
     );
@@ -262,7 +382,12 @@ async fn register(lang: Lang, State(app): State<App>, Client(client): Client, Fo
     match auth::create_user(&app.pool, &form.name, &form.email, &form.password, false, lang).await {
         Ok(Ok(user)) => {
             println!("account made: {}", user.email);
-            registered(lang, &user.email)
+            // Signed in on the site at once.
+            let mut res = registered(lang, &user.email);
+            if let Ok(token) = auth::new_session(&app.pool, user.id, "equievents.ch (site)").await {
+                res.headers_mut().append(header::SET_COOKIE, session::set(&token, app.site_url.starts_with("https://")));
+            }
+            res
         }
         Ok(Err(e)) => with_status(StatusCode::BAD_REQUEST, register_page(lang, &form, Some(invalid_text(lang, e)))),
         Err(e) => server_error(lang, e),

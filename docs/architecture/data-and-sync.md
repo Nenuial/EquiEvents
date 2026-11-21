@@ -126,8 +126,9 @@ Proposed:
   [server.md](server.md)).
 - Desktop: SQLite file per show, through the Rust core; it also knows which operations
   equievents.ch has and its link to the show there (the apps' sync: [server.md](server.md)).
-- Browser: the same schema in SQLite compiled to WebAssembly, stored in the browser's private
-  file system (OPFS); the Rust core runs compiled to WebAssembly in a worker.
+- Browser: the online version (decided 2026-11-21, online only: never an offline browser app):
+  the core runs on equievents.ch, one office per account, straight on the master
+  ([server.md](server.md)).
 - One schema, one set of migrations, both written once in the Rust core.
 
 ## Show exports

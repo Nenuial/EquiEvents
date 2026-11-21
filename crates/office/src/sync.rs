@@ -34,6 +34,13 @@
 //!   account archives its shows on its own some weeks after their last day
 //!   (`account_settings`, `set_account_settings`). Archived is only how shows are listed.
 //!
+//! - **The online version** (the user, 2026-11-21: a show office that never works offline works
+//!   in the browser or on a phone): equievents.ch runs an office for each account on its own
+//!   server (`host`), its account the site's session. It works straight on the master: each
+//!   change goes up at once, what others did comes down before a command (every 2 seconds at
+//!   most), every show of the account is kept, and it never signs in or out by itself or talks
+//!   to another server.
+//!
 //! Expected refusals come back as codes the app translates (`{ok: false, code}`, `outcome`), not
 //! as errors: `offline`, `signed_out`, `too_many`, the server's codes (`taken`, `key`, …).
 
@@ -133,6 +140,10 @@ pub struct Syncing {
     notes: Mutex<HashMap<String, Note>>,
     /// Shows being synced now (a second sync of one waits for the next round).
     busy: Mutex<HashSet<String>>,
+    /// The online version's office, on equievents.ch (`Office::host`).
+    hosted: std::sync::atomic::AtomicBool,
+    /// When each show last came down from the server (the online version).
+    pulled: Mutex<HashMap<String, std::time::Instant>>,
 }
 
 impl Default for Syncing {
@@ -141,9 +152,23 @@ impl Default for Syncing {
             agent: ureq::AgentBuilder::new().timeout_connect(Duration::from_secs(5)).timeout(Duration::from_secs(120)).build(),
             notes: Mutex::default(),
             busy: Mutex::default(),
+            hosted: std::sync::atomic::AtomicBool::new(false),
+            pulled: Mutex::default(),
         }
     }
 }
+
+impl Syncing {
+    pub(crate) fn hosted(&self) -> bool {
+        self.hosted.load(std::sync::atomic::Ordering::Relaxed)
+    }
+}
+
+/// What the online version does not do: its account is the site's session, its server
+/// equievents.ch itself.
+const NOT_ONLINE: [&str; 6] = ["set_server", "sign_up", "sign_in", "sign_out", "forgot_password", "unlink_show"];
+/// The online version reads what others did at most this often, before a command.
+const PULL_EVERY: Duration = Duration::from_secs(2);
 
 /// A show being synced; free again when dropped.
 struct Busy<'a> {
@@ -315,6 +340,10 @@ impl Office {
             }
             "sync_all" => {
                 let mut out = serde_json::Map::new();
+                // The online version keeps every show of the account.
+                if self.sync.hosted() {
+                    self.download_all()?;
+                }
                 for show in self.linked()?.into_values() {
                     out.insert(show.clone(), json!(self.sync(&show)?));
                 }
@@ -351,10 +380,68 @@ impl Office {
 
     fn account_view(&self) -> Value {
         let server = self.server_url();
+        let hosted = self.sync.hosted();
         match self.signed_in() {
-            Ok(Some((account, _))) => json!({ "server": server, "signed_in": true, "account": account }),
-            _ => json!({ "server": server, "signed_in": false }),
+            Ok(Some((account, _))) => json!({ "server": server, "signed_in": true, "account": account, "hosted": hosted }),
+            _ => json!({ "server": server, "signed_in": false, "hosted": hosted }),
         }
+    }
+
+    /// The online version: this office works for `account` on equievents.ch (`server`: how it
+    /// reaches it from there), signed in with `token`, straight on the master.
+    pub fn host(&self, server: &str, account: Account, token: &str) -> Result<(), String> {
+        let server = server.trim_end_matches('/').to_string();
+        let mut settings = self.settings();
+        settings.server_url = Some(server.clone());
+        settings.account = Some(Account { server: server.clone(), ..account });
+        self.save_settings(&settings)?;
+        self.secrets.set(&token_name(&server), Some(token))?;
+        self.sync.hosted.store(true, std::sync::atomic::Ordering::Relaxed);
+        Ok(())
+    }
+
+    /// The token this office keeps for `server`, if any (the online version reuses it while valid).
+    pub fn token_for(&self, server: &str) -> Option<String> {
+        self.secrets.get(&token_name(server.trim_end_matches('/'))).ok().flatten()
+    }
+
+    /// A command of the online version: none that signs in or out or changes server; a show of
+    /// the server comes down first (when last done more than 2 seconds ago) and what changed goes
+    /// up at once.
+    pub(crate) fn call_hosted(&self, command: &str, args: &Value) -> Result<Value, String> {
+        if NOT_ONLINE.contains(&command) {
+            return Err("not in the online version: equievents.ch's site signs you in and out".into());
+        }
+        let show = match args["show"].as_str() {
+            Some(show) if self.remote_of(show).is_ok_and(|r| r.is_some()) => Some(show.to_string()),
+            _ => None,
+        };
+        if let Some(show) = &show {
+            let due = self.sync.pulled.lock().map_err(|_| "busy")?.get(show).is_none_or(|t| t.elapsed() >= PULL_EVERY);
+            if due {
+                self.sync(show)?;
+                self.sync.pulled.lock().map_err(|_| "busy")?.insert(show.clone(), std::time::Instant::now());
+            }
+        }
+        let answer = self.run(command, args);
+        if let (Ok(_), Some(show)) = (&answer, &show) {
+            if self.with(show, |_, store| store.unsynced_count().map_err(|e| e.0))? > 0 {
+                self.sync(show)?;
+            }
+        }
+        answer
+    }
+
+    /// Every show of the account on the server, here (the online version).
+    fn download_all(&self) -> Result<(), String> {
+        let Ok(shows) = self.api("GET", "/api/shows", None) else { return Ok(()) };
+        let linked = self.linked()?;
+        for remote in shows.as_array().into_iter().flatten().filter_map(|s| s["id"].as_str()) {
+            if !linked.contains_key(remote) {
+                self.download_show(remote)?;
+            }
+        }
+        Ok(())
     }
 
     /// Sign up or in: the token kept, the account remembered.
@@ -777,6 +864,8 @@ impl Office {
         Ok(json!({
             // A training show: never synced.
             "training": self.is_training(show)?,
+            // The online version (on equievents.ch).
+            "hosted": self.sync.hosted(),
             "server": self.server_url(),
             "signed_in": self.signed_in()?.is_some(),
             "remote": remote,

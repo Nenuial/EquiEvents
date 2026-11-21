@@ -18,6 +18,30 @@ Equestrian from the server, downloads only. Why it works this way:
   the account's shows; kept per account, shared by all its shows and computers).
 - **Nothing is ever sent to Swiss Equestrian**: no start lists, results or anything else. The
   apps' « Envoyer » goes to the server's simulation, which shows what would have been sent.
+- **The online version** (decided the same day): a show office that never works offline works in
+  the browser or on a phone, at `/app/`, signed in on the site; the downloads page too only
+  signed in (below).
+
+## The online version
+
+The same interface as the desktop app, at `www.equievents.ch/app/` (`crates/server/src/web.rs`):
+
+- **Signed in on the site** (`/connexion`, `/anmelden`; a cookie: `session.rs`). Without it,
+  `/app/` sends to the sign-in and back. Signing out on the site signs the online version out.
+- **One office per account, on the server** (the office core as the desktop app runs it,
+  `crates/office`), its shows' copies under `OFFICES_DIR/<account>` (the `offices` volume). It
+  works **straight on the master**: each change goes into the show's log in Postgres at once,
+  what others (laptops, other browsers) did comes down before a command, two seconds apart at
+  most; every show of the account is there. One copy per account, not per show: undo, the
+  author of each change and the conflicts already seen stay each person's.
+- The interface's commands: `POST /app/api/<command>`; its files (a Rosson export imported, a
+  show exported, a print): `POST /app/files/<name>`, `GET /app/files/<n>/<name>`, the
+  account's own only, and a command's `path` only among them. The office never signs in or
+  out by itself nor reaches another server (`set_server`, `sign_in`… refused). Requests from
+  other sites are refused (the cookie is `SameSite=Lax`, and the origin is checked).
+- **Online only**, never offline in the browser (the user, 2026-11-21): that is the desktop
+  apps' job. A show imported in the online version stays in its account's copy until put on
+  equievents.ch with its key (and is then in the nightly backup like every show).
 
 ## What runs
 
@@ -26,7 +50,7 @@ One program, `equievents-server` (`crates/server`), in one image, as Gestion Con
 | Container | Command | Does |
 |---|---|---|
 | `eq-db` | Postgres 18.4 | accounts, shows, their operation logs |
-| `eq-web` | `web` | the API the apps sync with (`/api/…`), the site (accounts, the desktop app's downloads); port 3000, on the `npm` network for Nginx Proxy Manager |
+| `eq-web` | `web` | the API the apps sync with (`/api/…`), the site (accounts, signing in, the desktop app's downloads), the online version (`/app/`, the accounts' offices in the `offices` volume); port 3000, on the `npm` network for Nginx Proxy Manager |
 | `eq-worker` | `worker` | the nightly backup (`pg_dump`, 02:30, 14 kept); Swiss Equestrian's jobs next |
 
 Both apply the migrations when they start (`crates/server/migrations`, each once).
@@ -178,11 +202,14 @@ too (`crates/server/src/site.rs`):
 
 | French | German | |
 |---|---|---|
-| `/` | | both languages: download the app, make an account, a forgotten password |
-| `/inscription` | `/registrieren` | name, e-mail, password: the account is made at once |
+| `/` | | both languages: signed out, signing in and making an account; signed in, the online version and the downloads |
+| `/connexion` | `/anmelden` | signing in (`?next=`: a page of the site to go back to); a year's cookie |
+| `/deconnexion` | `/abmelden` | signing out (the session ends everywhere it was used: the online version) |
+| `/inscription` | `/registrieren` | name, e-mail, password: the account is made at once, signed in |
 | `/mot-de-passe` | `/passwort` | a forgotten password: the link by e-mail |
 | `/nouveau-mot-de-passe?t=…` | `/neues-passwort?t=…` | the link: a new password; signed out everywhere |
-| `/telecharger` | `/herunterladen` | the desktop app, Mac and Windows (this computer's first): [releases.md](releases.md) |
+| `/telecharger` | `/herunterladen` | the desktop app, Mac and Windows (this computer's first), signed in only: [releases.md](releases.md); the files themselves stay reachable for the apps' updates |
+| `/app/` | | the online version (above), signed in only |
 
 What it says is the same for an address with or without an account (no list of who has one to
 be had by asking), except when making an account with an address that has one ("forgot your
@@ -218,7 +245,9 @@ The worker runs `pg_dump --format=custom` every night (`BACKUP_AT`, local time) 
 `backups` volume, `equievents-YYYY-MM-DD-HHMM.dump`, the newest `BACKUP_KEEP` (14) kept; a
 failure is logged and tried again the next night. `equievents-server backup` makes one now.
 Copy them off the server as the other apps' dumps. Restore: `pg_restore --clean --no-owner -d
-equievents <file>` into the database container.
+equievents <file>` into the database container. The `offices` volume holds the online
+version's copies of shows that are in the database anyway (made again from it when lost), apart
+from shows imported there and not put on equievents.ch.
 
 ## Deployment
 
@@ -272,5 +301,4 @@ account in the library):
 
 ## Next
 
-1. The web app at www.equievents.ch (signing in on the site, one's shows).
-2. Sending to Swiss Equestrian, in a later version, when the user decides.
+1. Sending to Swiss Equestrian, in a later version, when the user decides.

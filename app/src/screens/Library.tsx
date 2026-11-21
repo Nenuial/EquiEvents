@@ -240,7 +240,11 @@ export default function Library({
             )}
             <h1 className="mt-1 text-[28px] leading-tight font-bold tracking-tight sm:text-[34px]">{archives ? t('archives') : t('library')}</h1>
             <p className="mt-1 text-sm text-white/60">
-              {!shows.data ? t('loading') : archives ? `${archived.length} ${plural(archived.length, 'archived_count')}` : `${current.length} ${plural(current.length, 'shows_here')}`}
+              {!shows.data
+                ? t('loading')
+                : archives
+                  ? `${archived.length} ${plural(archived.length, 'archived_count')}`
+                  : `${current.length} ${plural(current.length, account.data?.hosted ? 'shows_online' : 'shows_here')}`}
             </p>
           </div>
           {!archives && (
@@ -283,8 +287,8 @@ export default function Library({
           ))
         ) : shows.data && current.length === 0 ? (
           <Card>
-            <EmptyState icon={Trophy} title={archived.length ? t('library_all_archived') : t('library_empty_title')} action={importMenu}>
-              {t('library_empty')}
+            <EmptyState icon={Trophy} title={archived.length ? t('library_all_archived') : account.data?.hosted ? t('library_empty_title_online') : t('library_empty_title')} action={importMenu}>
+              {account.data?.hosted ? t('library_empty_online') : t('library_empty')}
             </EmptyState>
           </Card>
         ) : (

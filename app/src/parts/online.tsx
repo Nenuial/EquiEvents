@@ -25,6 +25,8 @@ export interface AccountView {
   server: string;
   signed_in: boolean;
   account?: Account;
+  /** The online version: signed in and out on equievents.ch's site. */
+  hosted?: boolean;
 }
 interface Note {
   status: 'local' | 'synced' | 'offline' | 'signed_out' | 'no_access' | 'clock' | 'error';
@@ -40,6 +42,8 @@ interface Note {
 export interface SyncStatus {
   /** A training show: it stays on this computer. */
   training: boolean;
+  /** The online version (on equievents.ch). */
+  hosted?: boolean;
   server: string;
   signed_in: boolean;
   remote: string | null;
@@ -209,6 +213,7 @@ export function AccountForms({ done }: { done: () => void }) {
 /** The account, in the library's bar: who is signed in, or signing in. */
 export function AccountButton({ onChange }: { onChange: () => void }) {
   const t = useT();
+  const language = useLanguage();
   const [open, setOpen] = useState(false);
   const account = useLoad(() => call<AccountView>('account'), [open]);
   const signedIn = account.data?.signed_in && account.data.account;
@@ -232,16 +237,23 @@ export function AccountButton({ onChange }: { onChange: () => void }) {
               <div>
                 <div className="font-semibold">{account.data!.account!.name}</div>
                 <div className="text-ink-2">{account.data!.account!.email}</div>
-                <div className="text-xs text-ink-3">
-                  {t('online_server')}
-                  {t('colon')}
-                  {account.data!.server}
-                </div>
+                {!account.data!.hosted && (
+                  <div className="text-xs text-ink-3">
+                    {t('online_server')}
+                    {t('colon')}
+                    {account.data!.server}
+                  </div>
+                )}
               </div>
               <ArchiveSetting />
               <button
                 className={`${secondary} justify-self-start`}
                 onClick={async () => {
+                  // The online version: signed out on the site.
+                  if (account.data!.hosted) {
+                    window.location.href = language === 'de' ? '/abmelden' : '/deconnexion';
+                    return;
+                  }
                   await call('sign_out');
                   account.reload();
                   onChange();
@@ -369,7 +381,7 @@ export function SyncBadge({ show, openShow, look = 'side' }: { show: string; ope
   const note = status?.note;
   const state = !status ? null : !linked ? 'local' : (note?.status ?? 'synced');
   const label: Record<string, string> = {
-    local: t('online_local'),
+    local: status?.hosted ? t('online_local_hosted') : t('online_local'),
     synced: status?.pending ? `${status.pending} ${t('online_pending')}` : t('online_synced'),
     offline: `${t('online_offline')}${status?.pending ? ` · ${status.pending}` : ''}`,
     signed_out: t('online_signed_out'),
