@@ -3,7 +3,8 @@
 //! the small print) and goes out as plain text and HTML together (`multipart/alternative`, the
 //! mark as an inline image: `mail`), so a mail app that shows no HTML shows the text.
 //!
-//! The HTML is the site's look: the navy band with the mark, the card, the coral button; tables
+//! The HTML is the site's look: the navy band with the mark (the same in light and dark: the
+//! user, 2026-11-21), the card, the coral button; tables
 //! and inline styles, as mail apps want them; one column, 600 px at most (phones: the whole
 //! width). Light or dark: Apple Mail and Outlook for Mac follow the reader's setting
 //! (`prefers-color-scheme`), Outlook on the web too (`[data-ogsc]`, `[data-ogsb]`); Gmail and
@@ -161,12 +162,11 @@ body{{margin:0;padding:0;width:100%;-webkit-text-size-adjust:100%;-ms-text-size-
 table{{border-collapse:collapse}}
 img{{border:0;outline:none;text-decoration:none}}
 .frame{{border-collapse:separate!important;border-radius:16px;box-shadow:0 1px 2px rgba(16,32,48,.06),0 14px 34px -16px rgba(16,32,48,.28)}}
-.band{{background-image:radial-gradient(80% 120% at 100% 0%,rgba(242,90,93,.24),rgba(242,90,93,0) 55%),radial-gradient(60% 90% at 0% 100%,rgba(31,111,196,.2),rgba(31,111,196,0) 60%)}}
+.band{{background-image:radial-gradient(80% 140% at 100% 0%,rgba(242,90,93,.34),rgba(242,90,93,0) 58%),radial-gradient(70% 110% at 0% 100%,rgba(60,140,230,.3),rgba(60,140,230,0) 62%)}}
 @media (max-width:620px){{.card{{padding:26px 20px 18px!important}}.band{{padding:18px 20px!important}}.outer{{padding:12px 8px 24px!important}}}}
 @media (prefers-color-scheme:dark){{
 .page{{background:#03080d!important}}
 .frame{{box-shadow:0 0 0 1px rgba(120,160,200,.07),0 24px 48px -20px rgba(0,0,0,.8)}}
-.band{{background-color:#0e3048!important;background-image:radial-gradient(80% 140% at 100% 0%,rgba(242,90,93,.34),rgba(242,90,93,0) 58%),radial-gradient(70% 110% at 0% 100%,rgba(60,140,230,.3),rgba(60,140,230,0) 62%)!important;border:1px solid #24506f!important;border-bottom:0!important}}
 .card{{background:#0f2132!important;border-color:#24506f!important}}
 .ink{{color:#e9eff6!important}}
 .ink2{{color:#b8c6d4!important}}
@@ -180,7 +180,6 @@ img{{border:0;outline:none;text-decoration:none}}
 [data-ogsc] .ink3{{color:#8195a9!important}}
 [data-ogsc] .link{{color:#ff7477!important}}
 [data-ogsb] .page{{background:#03080d!important}}
-[data-ogsb] .band{{background-color:#0e3048!important}}
 [data-ogsb] .card{{background:#0f2132!important}}
 </style>
 </head>
@@ -189,7 +188,7 @@ img{{border:0;outline:none;text-decoration:none}}
 <table role="presentation" class="page" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f3f5f8" style="background:#f3f5f8">
 <tr><td class="outer" align="center" style="padding:28px 12px 36px">
 <table role="presentation" class="frame" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%">
-<tr><td class="band" bgcolor="#00283c" style="background-color:#00283c;border-radius:16px 16px 0 0;padding:20px 32px">
+<tr><td class="band" bgcolor="#0e3048" style="background-color:#0e3048;border:1px solid #24506f;border-bottom:0;border-radius:16px 16px 0 0;padding:20px 32px">
 <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
 <td style="padding:0 10px 0 0;vertical-align:middle"><img src="cid:{MARK_ID}" width="32" height="32" alt="" style="display:block;width:32px;height:32px;border-radius:9px"></td>
 <td style="vertical-align:middle;letter-spacing:-0.01em;{wordmark}">Equi<span style="color:#ef5559">Events</span></td>
