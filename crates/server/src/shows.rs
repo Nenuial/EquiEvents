@@ -97,7 +97,8 @@ pub struct Claim {
     pub name: String,
     /// The event's number (e.g. 2026.8352), for the show's id.
     pub number: Option<String>,
-    /// Swiss Equestrian accepted the key for this event (else the app's word, `SE_SERVER=none`).
+    /// Swiss Equestrian accepted the key for this event (else the app's word: `SE_SERVER=none`,
+    /// or a past event's key from its Rosson export, which Swiss Equestrian no longer accepts).
     pub checked: bool,
     /// A show made now starts with these (Swiss Equestrian's delivery), by the one who claims it.
     pub ops: Vec<Operation>,
@@ -267,13 +268,23 @@ pub async fn create(pool: &Pool, user: &User, name: &str, number: Option<&str>) 
     Ok(id)
 }
 
+/// A show that was the event's on a key Swiss Equestrian never checked, unlinked from it when
+/// someone came with a key it accepts: its name and its owner, to tell them.
+#[derive(Debug, Clone)]
+pub struct Unlinked {
+    pub show: String,
+    pub name: String,
+    pub owner: Option<Contact>,
+}
+
 /// An event's show, with its key: made and owned by the first to enter it; for the others,
-/// who owns it (to ask them).
-pub async fn claim(pool: &Pool, user: &User, claim: &Claim) -> Result<Claimed, Error> {
+/// who owns it (to ask them). A show unlinked on the way (`Unlinked`), to tell its owner.
+pub async fn claim(pool: &Pool, user: &User, claim: &Claim) -> Result<(Claimed, Option<Unlinked>), Error> {
     let key = claim.access_key.trim();
     if key.is_empty() {
-        return Ok(Claimed::WrongKey);
+        return Ok((Claimed::WrongKey, None));
     }
+    let mut unlinked = None;
     let name = match claim.name.trim() {
         "" => format!("{}", claim.event_id),
         n => n.to_string(),
@@ -281,14 +292,31 @@ pub async fn claim(pool: &Pool, user: &User, claim: &Claim) -> Result<Claimed, E
     // Twice at most: someone else may make it at the same moment.
     for _ in 0..2 {
         let mut client = pool.get().await?;
-        if let Some(row) = client.query_opt("SELECT id, name, access_key FROM shows WHERE event_id = $1", &[&claim.event_id]).await? {
-            let (id, show_name, stored): (String, String, Option<String>) = (row.get(0), row.get(1), row.get(2));
-            // An event never changes its key: another one is not this show's.
+        if let Some(row) = client.query_opt("SELECT id, name, access_key, key_checked FROM shows WHERE event_id = $1", &[&claim.event_id]).await? {
+            let (id, show_name, stored, stored_checked): (String, String, Option<String>, bool) = (row.get(0), row.get(1), row.get(2), row.get(3));
+            // An event never changes its key: another one is not this show's. Unless the show's
+            // was only taken on trust (a past event's, from a Rosson export) and Swiss Equestrian
+            // accepts this one: that show is no longer the event's (it stays, unlinked), and the
+            // event's show is made again for this key.
             if stored.as_deref().map(str::trim) != Some(key) {
-                return Ok(Claimed::WrongKey);
+                if claim.checked && !stored_checked && unlinked.is_none() {
+                    let owner = client.query_opt("SELECT user_id FROM show_members WHERE show_id = $1 AND role = 'owner'", &[&id]).await?.map(|r| r.get::<_, i64>(0));
+                    client.execute("UPDATE shows SET event_id = NULL, access_key = NULL, key_checked = true WHERE id = $1", &[&id]).await?;
+                    let owner = match owner {
+                        Some(o) => contact(pool, o).await?,
+                        None => None,
+                    };
+                    unlinked = Some(Unlinked { show: id, name: show_name, owner });
+                    continue;
+                }
+                return Ok((Claimed::WrongKey, unlinked));
+            }
+            // The same key, now accepted by Swiss Equestrian: checked from now on.
+            if claim.checked && !stored_checked {
+                client.execute("UPDATE shows SET key_checked = true WHERE id = $1", &[&id]).await?;
             }
             if let Some(role) = role_of(&client, &id, user.id).await? {
-                return Ok(Claimed::Member { id, role });
+                return Ok((Claimed::Member { id, role }, unlinked));
             }
             let owner: String = client
                 .query_opt("SELECT u.name FROM show_members m JOIN users u ON u.id = m.user_id WHERE m.show_id = $1 AND m.role = 'owner'", &[&id])
@@ -296,22 +324,22 @@ pub async fn claim(pool: &Pool, user: &User, claim: &Claim) -> Result<Claimed, E
                 .map(|r| r.get(0))
                 .unwrap_or_default();
             let request = client.query_opt(&format!("{REQUEST_SELECT} WHERE r.show_id = $1 AND r.user_id = $2 AND r.status = 'pending'"), &[&id, &user.id]).await?.as_ref().map(|r| Box::new(request_of(r)));
-            return Ok(Claimed::Owned { id, name: show_name, owner, request });
+            return Ok((Claimed::Owned { id, name: show_name, owner, request }, unlinked));
         }
         let id = new_id(claim.number.as_deref());
         let tx = client.transaction().await?;
         let made = tx
             .query_opt(
-                "INSERT INTO shows (id, name, event_id, access_key, created_by) VALUES ($1, $2, $3, $4, $5)
+                "INSERT INTO shows (id, name, event_id, access_key, created_by, key_checked) VALUES ($1, $2, $3, $4, $5, $6)
                  ON CONFLICT (event_id) WHERE event_id IS NOT NULL DO NOTHING RETURNING id",
-                &[&id, &name, &claim.event_id, &key, &user.id],
+                &[&id, &name, &claim.event_id, &key, &user.id, &claim.checked],
             )
             .await?;
         if made.is_some() {
             tx.execute("INSERT INTO show_members (show_id, user_id, role) VALUES ($1, $2, 'owner')", &[&id, &user.id]).await?;
             insert(&tx, &id, &claim.ops.iter().collect::<Vec<_>>(), user).await?;
             tx.commit().await?;
-            return Ok(Claimed::Made { id });
+            return Ok((Claimed::Made { id }, unlinked));
         }
     }
     Err("the show was being made by someone else; try again".into())

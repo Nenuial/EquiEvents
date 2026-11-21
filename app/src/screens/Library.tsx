@@ -8,11 +8,11 @@ import { Archive, ArchiveRestore, ArrowLeft, CalendarDays, CloudDownload, Ellips
 import { call, chooseFile, saveFile, type EventInFile, type ShowSummary } from '../api';
 import { formatDate, usePlural, useT, type Language } from '../i18n';
 import { ErrorNote, useLoad } from '../parts/common';
-import { AccountButton, DeleteShow, OnlineShows, OpenWithKey, useLibrarySync, useRefusal, type AccountView } from '../parts/online';
+import { AccountButton, AfterImport, DeleteShow, OnlineShows, OpenWithKey, useLibrarySync, useRefusal, type AccountView, type PutAnswer } from '../parts/online';
 import { SettingsButton } from '../parts/settings';
 import { UpdateButton } from '../parts/update';
 import { LanguagePicker, ThemeButton } from '../shell/ShowShell';
-import { Button, Card, CheckRow, EmptyState, IconButton, Logo, Menu, MenuItem, MenuSeparator, Modal, Pill } from '../ui';
+import { Button, Card, CheckRow, EmptyState, IconButton, Logo, Menu, MenuItem, MenuSeparator, Modal, Pill, useToast } from '../ui';
 
 export default function Library({
   open,
@@ -34,6 +34,7 @@ export default function Library({
   const t = useT();
   const plural = usePlural();
   const refusal = useRefusal();
+  const toast = useToast();
   const shows = useLoad(() => call<ShowSummary[]>('library'), []);
   // equievents.ch: the account (the bar), shows waiting there, the sync while the library is open.
   const [online, setOnline] = useState(0);
@@ -61,7 +62,35 @@ export default function Library({
   const here = (e: EventInFile) => !!shows.data?.some(s => s.event?.number === e.number);
 
   // A Rosson export: the real show, as it ended, with all its data (its results, contacts, the
-  // event's key). One event: at once; several: those ticked.
+  // event's key). One event: at once; several: those ticked. Signed in, each goes on
+  // equievents.ch at once (the user, 2026-11-21): the first to put an event up owns it, past
+  // events too (their key comes with the export); what did not simply go up is said.
+  const [afterImport, setAfterImport] = useState<{ show: string; answer: PutAnswer } | null>(null);
+  const goOnline = async (show: string): Promise<PutAnswer | null> => {
+    if (!account.data?.signed_in) return null;
+    try {
+      return await call<PutAnswer>('put_online', { show, access_key: null });
+    } catch (e) {
+      return { outcome: String((e as Error)?.message ?? e) };
+    }
+  };
+  const wentUp = (a: PutAnswer | null) => !a || ['made', 'linked', 'training', 'signed_out'].includes(a.outcome);
+  const imported = async (made: string[]) => {
+    if (account.data?.signed_in) toast.show({ text: t('import_online_busy'), tone: 'busy' });
+    const answers = [];
+    for (const show of made) answers.push(await goOnline(show));
+    toast.clear();
+    setOnline(v => v + 1);
+    if (made.length === 1) {
+      if (!wentUp(answers[0])) return setAfterImport({ show: made[0], answer: answers[0]! });
+      if (answers[0]?.outcome === 'made') toast.show({ text: t('import_online_made') });
+      return open(made[0]);
+    }
+    const up = answers.filter(a => a?.outcome === 'made').length;
+    if (account.data?.signed_in) toast.show({ text: t('import_online_some').replace('{n}', String(up)), tone: up === made.length ? 'done' : 'info' });
+    shows.reload();
+  };
+
   const importRosson = () =>
     run(async () => {
       const path = await chooseFile(['txt'], t('rosson_file'));
@@ -69,7 +98,7 @@ export default function Library({
       const events = await call<EventInFile[]>('rosson_events', { path });
       if (events.length === 1) {
         const { show } = await call<{ show: string }>('import_rosson', { path, event: events[0].id, mode: 'ended' });
-        open(show);
+        await imported([show]);
       } else setPicking({ path, events, chosen: events.filter(e => !here(e)).map(e => e.id) });
     });
 
@@ -79,8 +108,7 @@ export default function Library({
       const made: string[] = [];
       for (const event of picking.chosen) made.push((await call<{ show: string }>('import_rosson', { path: picking.path, event, mode: 'ended' })).show);
       setPicking(null);
-      if (made.length === 1) open(made[0]);
-      else shows.reload();
+      await imported(made);
     });
 
   const importShow = () =>
@@ -358,6 +386,19 @@ export default function Library({
             setDeleting(null);
             shows.reload();
             setOnline(v => v + 1);
+          }}
+        />
+      )}
+      {afterImport && (
+        <AfterImport
+          show={afterImport.show}
+          answer={afterImport.answer}
+          openShow={open}
+          close={() => {
+            const show = afterImport.show;
+            setAfterImport(null);
+            setOnline(v => v + 1);
+            open(show);
           }}
         />
       )}

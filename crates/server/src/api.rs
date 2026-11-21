@@ -346,6 +346,11 @@ struct NewShow {
     number: Option<String>,
     /// The event's key (Swiss Equestrian's): an event's show.
     access_key: Option<String>,
+    /// The show and its key come from the event's Rosson export: a key Swiss Equestrian no
+    /// longer accepts (a past event's) is taken on trust (the user, 2026-11-21: "if they have the
+    /// export, they have the key").
+    #[serde(default)]
+    from_export: bool,
 }
 
 /// An event's show with its key: made, and theirs, for the first to enter it; for the others,
@@ -376,15 +381,27 @@ async fn create_show(State(app): State<App>, headers: HeaderMap, Json(body): Jso
         return Err(too_many());
     }
     if app.se.base.is_some() {
-        let job = app.se.jobs.start(user.id, checked_claim(app.clone(), user, access_key, body.event_id));
+        let export = body.from_export.then(|| (body.name.clone(), body.number.clone()));
+        let job = app.se.jobs.start(user.id, checked_claim(app.clone(), user, access_key, body.event_id, export));
         return Ok((StatusCode::ACCEPTED, Json(json!({ "job": job }))).into_response());
     }
     let Some(event_id) = body.event_id else {
         return Err(ApiError(StatusCode::BAD_REQUEST, "this server does not download from Swiss Equestrian (SE_SERVER=none): give the event's id with its key".into(), Some("no_swiss_equestrian")));
     };
     let claim = shows::Claim { access_key, event_id, name: body.name, number: body.number, checked: false, ops: Vec::new() };
-    let (status, answer) = claimed(shows::claim(&app.pool, &user, &claim).await?, event_id, &user);
+    let (outcome, unlinked) = shows::claim(&app.pool, &user, &claim).await?;
+    tell_unlinked(&app, unlinked).await;
+    let (status, answer) = claimed(outcome, event_id, &user);
     Ok((status, Json(answer)).into_response())
+}
+
+/// The owner of a show no longer the event's (`shows::Unlinked`), told.
+async fn tell_unlinked(app: &App, unlinked: Option<shows::Unlinked>) {
+    let Some(unlinked) = unlinked else { return };
+    println!("show {} unlinked from its event: Swiss Equestrian accepted another key", unlinked.show);
+    if let Some(owner) = unlinked.owner {
+        notify(app, &owner.email, notices::unlinked(owner.lang, &owner.name, &unlinked.name)).await;
+    }
 }
 
 /// The answer to an event's key: made (theirs), a member already, someone else's (409), or not
@@ -407,16 +424,36 @@ fn claimed(outcome: Claimed, event_id: i64, user: &User) -> (StatusCode, Value) 
 /// An event's key checked with Swiss Equestrian (the job of `create_show`): which event it opens
 /// (`getVeranstaltung`); `event_id` given (the app's copy of the show): it must be that one,
 /// and the app's copy goes up; else the event downloaded, and a show made now starts with it.
-async fn checked_claim(app: App, user: User, access_key: String, event_id: Option<i64>) -> (u16, Value) {
+/// `export`: the show and its key come from the event's Rosson export (its name and number): a
+/// key Swiss Equestrian refuses (a past event's) is then taken on trust, unchecked.
+async fn checked_claim(app: App, user: User, access_key: String, event_id: Option<i64>, export: Option<(String, Option<String>)>) -> (u16, Value) {
     let refused = |why: &str| (StatusCode::FORBIDDEN.as_u16(), json!({ "error": why, "code": Refused::Key.code() }));
     let failed = |e: se_api::http::ApiError| {
         eprintln!("Swiss Equestrian, for {}: {e}", user.email);
         (StatusCode::BAD_GATEWAY.as_u16(), json!({ "error": e.to_string(), "code": "swiss_equestrian" }))
     };
+    let db = |e: crate::db::Error| {
+        eprintln!("error: {e}");
+        (StatusCode::INTERNAL_SERVER_ERROR.as_u16(), json!({ "error": "the server could not do it" }))
+    };
     let keys = app.se.keys(&access_key).await;
     let event = match app.se.get(&se_api::load::get_veranstaltung(&keys, None)).await {
         Ok(event) => event,
-        Err(e) if se::key_refused(&e) => return refused("Swiss Equestrian does not know this key"),
+        // A past event's key, from its Rosson export: whoever has the export has the key.
+        Err(e) if se::key_refused(&e) => match (export, event_id) {
+            (Some((name, number)), Some(event_id)) => {
+                let claim = shows::Claim { access_key: access_key.clone(), event_id, name, number, checked: false, ops: Vec::new() };
+                return match shows::claim(&app.pool, &user, &claim).await {
+                    Ok((outcome, unlinked)) => {
+                        tell_unlinked(&app, unlinked).await;
+                        let (status, answer) = claimed(outcome, event_id, &user);
+                        (status.as_u16(), answer)
+                    }
+                    Err(e) => db(e),
+                };
+            }
+            _ => return refused("Swiss Equestrian does not know this key"),
+        },
         Err(e) => return failed(e),
     };
     let delivered = &event["data"]["veranstaltung"];
@@ -435,10 +472,6 @@ async fn checked_claim(app: App, user: User, access_key: String, event_id: Optio
         checked: true,
         ops: Vec::new(),
     };
-    let db = |e: crate::db::Error| {
-        eprintln!("error: {e}");
-        (StatusCode::INTERNAL_SERVER_ERROR.as_u16(), json!({ "error": "the server could not do it" }))
-    };
     // Downloaded: a new show starts with Swiss Equestrian's delivery (someone may make it at the
     // same moment: then theirs).
     if event_id.is_none() {
@@ -453,7 +486,8 @@ async fn checked_claim(app: App, user: User, access_key: String, event_id: Optio
         }
     }
     match shows::claim(&app.pool, &user, &claim).await {
-        Ok(outcome) => {
+        Ok((outcome, unlinked)) => {
+            tell_unlinked(&app, unlinked).await;
             let (status, answer) = claimed(outcome, se_event, &user);
             (status.as_u16(), answer)
         }

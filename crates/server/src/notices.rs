@@ -132,6 +132,25 @@ pub fn released(lang: Lang, name: &str, owner: &str, show: &str) -> Letter {
     Letter::new(lang, topic, name, vec![text]).after(copy_stays(lang))
 }
 
+/// For the owner of a show put on equievents.ch with a key Swiss Equestrian could not check (a
+/// past event's, from its Rosson export), when someone came with a key it accepts for the event:
+/// the show stays, no longer the event's.
+pub fn unlinked(lang: Lang, name: &str, show: &str) -> Letter {
+    let topic = say(lang, format!("{show} n’est plus lié à son événement"), format!("{show} ist nicht mehr mit seiner Veranstaltung verbunden"), format!("{show} non è più legato al suo evento"));
+    let text = say(
+        lang,
+        format!("Swiss Equestrian a accepté une autre clé pour l’événement de votre concours {show}. Votre concours a été mis sur equievents.ch avec une clé qu’il ne pouvait pas vérifier : il n’est donc plus celui de l’événement."),
+        format!("Swiss Equestrian hat für die Veranstaltung Ihres Turniers {show} einen anderen Schlüssel akzeptiert. Ihr Turnier wurde mit einem Schlüssel auf equievents.ch gestellt, den es nicht prüfen konnte: Es ist darum nicht mehr das Turnier der Veranstaltung."),
+        format!("Swiss Equestrian ha accettato un’altra chiave per l’evento del vostro concorso {show}. Il vostro concorso era stato messo su equievents.ch con una chiave che non poteva verificare: non è quindi più quello dell’evento."),
+    );
+    let after = lang.pick(
+        "Il reste sur equievents.ch et sur vos ordinateurs, tel quel, sans lien avec Swiss Equestrian. Si c’est une erreur, écrivez au support d’equievents.ch.",
+        "Es bleibt unverändert auf equievents.ch und auf Ihren Computern, ohne Verbindung zu Swiss Equestrian. Falls das ein Irrtum ist, schreiben Sie dem Support von equievents.ch.",
+        "Resta così com’è su equievents.ch e sui vostri computer, senza legame con Swiss Equestrian. Se si tratta di un errore, scrivete al supporto di equievents.ch.",
+    );
+    Letter::new(lang, topic, name, vec![text]).after(after)
+}
+
 /// For who worked on a show whose owner's account an administrator deleted: deleted too.
 pub fn account_deleted(lang: Lang, name: &str, owner: &str, show: &str) -> Letter {
     let topic = say(lang, format!("{show} supprimé"), format!("{show} gelöscht"), format!("{show} eliminato"));
@@ -197,6 +216,7 @@ pub fn examples(lang: Lang, site: &str) -> Vec<(&'static str, Letter)> {
         ("handed-over", handed_over(lang, "Bruno Keller", "Anne Rochat", show)),
         ("released", released(lang, "Bruno Keller", "Anne Rochat", show)),
         ("account-deleted", account_deleted(lang, "Bruno Keller", "Anne Rochat", show)),
+        ("unlinked", unlinked(lang, "Bruno Keller", show)),
         ("owner-set", owner_set(lang, "Carla Bianchi", show)),
         ("owner-replaced-stays", owner_replaced(lang, "Anne Rochat", "Carla Bianchi", show, true)),
         ("owner-replaced-leaves", owner_replaced(lang, "Anne Rochat", "Carla Bianchi", show, false)),

@@ -592,15 +592,17 @@ impl Office {
         if let Some(remote) = self.remote_of(show)? {
             return Ok(json!({ "outcome": "linked", "remote": remote }));
         }
-        let (event, rehearsal) = self.with(show, |_, store| {
-            let rehearsal = store.log().map_err(|e| e.0)?.first().is_some_and(|op| op.author == REHEARSAL);
-            Ok((store.state().event.clone(), rehearsal))
+        let (event, rehearsal, from_export) = self.with(show, |_, store| {
+            let first = store.log().map_err(|e| e.0)?.first().map(|op| op.author.clone());
+            Ok((store.state().event.clone(), first.as_deref() == Some(REHEARSAL), first.as_deref() == Some(rosson_import::ops::AUTHOR)))
         })?;
         let body = match &event {
             // A rehearsal's event is real: it stays free for its show office.
             Some(e) if !rehearsal => {
                 let Some(key) = self.event_key(show, key)? else { return Ok(json!({ "outcome": "need_key" })) };
-                json!({ "access_key": key, "event_id": e.id.0, "name": e.title.first().cloned().unwrap_or_default(), "number": e.number })
+                // Imported from the event's Rosson export: a past event's key, which Swiss
+                // Equestrian no longer accepts, is taken on trust (whoever has the export has it).
+                json!({ "access_key": key, "event_id": e.id.0, "name": e.title.first().cloned().unwrap_or_default(), "number": e.number, "from_export": from_export })
             }
             Some(e) => json!({ "name": format!("{} ({})", e.title.first().cloned().unwrap_or_default(), e.number), "number": e.number }),
             None => json!({ "name": show, "number": show }),

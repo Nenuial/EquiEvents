@@ -458,14 +458,44 @@ function OnlinePanel({ show, status, reload, sync, openShow }: { show: string; s
   return <Linked show={show} status={status} reload={reload} sync={sync} />;
 }
 
-function PutOnline({ show, status, done, openShow }: { show: string; status: SyncStatus; done: () => void; openShow: (id: string) => void }) {
+/** A Rosson import goes on equievents.ch at once when signed in (the user, 2026-11-21: the
+ *  first to put an event up owns it); when it did not simply go up (someone else's, ours
+ *  already, a key to type, no connection), what came of it and what to do. */
+export function AfterImport({ show, answer, close, openShow }: { show: string; answer: PutAnswer; close: () => void; openShow: (id: string) => void }) {
+  const t = useT();
+  const status = useLoad(() => call<SyncStatus>('sync_status', { show }), [show]);
+  return (
+    <Modal
+      open
+      onClose={close}
+      title={t('import_online_title')}
+      description={t('import_online_intro')}
+      icon={Cloud}
+      size="md"
+      footer={
+        <Button variant="ghost" onClick={close}>
+          {t('import_online_later')}
+        </Button>
+      }
+    >
+      {status.data && <PutOnline show={show} status={status.data} initial={answer} done={close} openShow={openShow} />}
+    </Modal>
+  );
+}
+
+/** What putting a show on equievents.ch gave (`put_online`). */
+export type PutAnswer = { outcome: string; remote?: string; owner?: string; request?: Request | null };
+
+/** Putting a show on equievents.ch (`initial`: what an attempt already gave, after an import). */
+function PutOnline({ show, status, done, openShow, initial }: { show: string; status: SyncStatus; done: () => void; openShow: (id: string) => void; initial?: PutAnswer }) {
   const t = useT();
   const refusal = useRefusal();
+  const chosen = initial && (initial.outcome === 'member' || initial.outcome === 'owned') ? initial : null;
   const [key, setKey] = useState('');
-  const [askKey, setAskKey] = useState(false);
+  const [askKey, setAskKey] = useState(initial?.outcome === 'need_key' || initial?.outcome === 'key');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [outcome, setOutcome] = useState<{ outcome: string; remote?: string; owner?: string; request?: Request | null } | null>(null);
+  const [error, setError] = useState<string | null>(initial && !chosen && initial.outcome !== 'need_key' ? refusal(initial.outcome) : null);
+  const [outcome, setOutcome] = useState<PutAnswer | null>(chosen);
 
   const run = async (f: () => Promise<void>) => {
     setBusy(true);
@@ -480,7 +510,7 @@ function PutOnline({ show, status, done, openShow }: { show: string; status: Syn
   };
   const put = () =>
     run(async () => {
-      const answer = await call<{ outcome: string; remote?: string; owner?: string; request?: Request | null }>('put_online', { show, access_key: key || null });
+      const answer = await call<PutAnswer>('put_online', { show, access_key: key || null });
       if (answer.outcome === 'made' || answer.outcome === 'linked') return done();
       if (answer.outcome === 'need_key') return setAskKey(true);
       if (answer.outcome === 'key' || answer.outcome === 'offline' || answer.outcome === 'too_many' || answer.outcome === 'signed_out' || answer.outcome === 'error') {

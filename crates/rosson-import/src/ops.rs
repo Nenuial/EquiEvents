@@ -18,6 +18,10 @@ const DEVICE: &str = "rosson-import";
 /// Rosson's placeholder horse for horses without Swiss Equestrian passport.
 const PLACEHOLDER_HORSE: u64 = 5;
 
+/// Who made a show imported from a Rosson export (its operations' author): the office knows the
+/// event's key came with the export.
+pub const AUTHOR: &str = "Rosson import";
+
 pub fn to_operations(snapshot: &Value) -> Result<Vec<Operation>, ImportError> {
     let store = |name: &str| snapshot.get(name).and_then(Value::as_array).map(Vec::as_slice).unwrap_or(&[]);
     let event_record = store("veranstaltungen").first().ok_or_else(|| ImportError("no event".into()))?;
@@ -43,7 +47,7 @@ pub fn to_operations(snapshot: &Value) -> Result<Vec<Operation>, ImportError> {
         if let Some(class) = class {
             class_ops.borrow_mut().entry(class).or_default().push(op_id.clone());
         }
-        ops.push(Operation { id: op_id, stamp, author: "Rosson import".into(), change });
+        ops.push(Operation { id: op_id, stamp, author: AUTHOR.into(), change });
     };
 
     // What Swiss Equestrian delivered. People: riders as copied onto their entries, then the

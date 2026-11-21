@@ -170,6 +170,17 @@ Decided 2026-11-14 (`crates/server/src/shows.rs`):
   from the app (its `event_id`) must be that event's. An event never changes its key (the user,
   2026-11-21): a show keeps the key it was made with, and no other opens it. Swiss Equestrian's demo keys are no one's (400,
   `training`: the app's settings load them).
+- **From a Rosson export** (the user, 2026-11-21: "if they have the export, they have the key";
+  people start an event in Rosson and switch to EquiEvents, and back: *Exporter pour Rosson*).
+  An imported show goes on equievents.ch by itself when its office is signed in (the library,
+  desktop and online), with the key the export carries (else the office types it): the first
+  owns it, the others ask, as above. A current event's key is checked with Swiss Equestrian as
+  any; a past event's, which Swiss Equestrian no longer accepts, is **taken on trust** for a show
+  imported from the export (`from_export`, the office says so: its first operations are the
+  import's), and stored as unchecked (`shows.key_checked`). A key Swiss Equestrian accepts wins
+  over one taken on trust: that show is no longer the event's (it stays, unlinked, its owner told
+  by e-mail) and the event's show is made for the checked key; a key taken on trust never wins
+  over a checked one. The same key, accepted later, marks the show checked.
 - **The key alone downloads the event**: the server asks Swiss Equestrian for the officials,
   the master data and the event, as Rosson does, and a show made now starts with them
   (operations of the server, device `equievents.ch`, by the person who entered the key); the

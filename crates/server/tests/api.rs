@@ -1049,6 +1049,11 @@ async fn an_office_opens_an_event_with_its_key() {
     let event = office(&bruno, "rosson_events", json!({ "path": file })).await[0]["id"].as_str().unwrap().to_string();
     let imported = office(&bruno, "import_rosson", json!({ "path": file, "event": event, "mode": "ended" })).await["show"].as_str().unwrap().to_string();
     assert_eq!(office(&bruno, "put_online", json!({ "show": imported, "access_key": "PRACTICE-KEY" })).await["outcome"], "key");
+    // A past event from its Rosson export (the user, 2026-11-21): Swiss Equestrian no longer
+    // knows its key, taken on trust: Bruno's, the first to put it up, and the whole import with it.
+    let past = office(&bruno, "put_online", json!({ "show": imported, "access_key": "KEY-8352" })).await;
+    assert_eq!((past["outcome"].as_str(), past["sync"]["role"].as_str()), (Some("made"), Some("owner")), "{past}");
+    assert!(past["sync"]["pushed"].as_u64().unwrap() > 100, "{past}");
 
     stop.send(()).ok();
     test_db.drop().await;
@@ -1507,5 +1512,69 @@ async fn staff_help_and_administer_accounts() {
     // Sam no longer support.
     assert_eq!(online(r, &ada, "POST", &format!("/app/admin/accounts/{sam_id}/role"), Some(json!({ "role": "none" }))).await.0, StatusCode::OK);
     assert_eq!(online(r, &sam, "GET", "/app/admin/accounts", None).await.0, StatusCode::FORBIDDEN);
+    test_db.drop().await;
+}
+
+/// From a Rosson export (the user, 2026-11-21): the first to put an event up owns it, a past one
+/// too, whose key Swiss Equestrian no longer accepts: taken on trust ("if they have the export,
+/// they have the key"), and only with the export. A key Swiss Equestrian accepts wins over one
+/// taken on trust: that show stays, no longer the event's, its owner told.
+#[tokio::test]
+async fn rosson_exports_go_up_with_their_key() {
+    let Some(test_db) = TestDb::new("export").await else { return };
+    let pool = db::pool(&test_db.url).unwrap();
+    db::migrate(&pool).await.unwrap();
+    let (se, _, _) = stand_in_se(0);
+    let mailer = mail::Mailer::off();
+    let app = api::App { mail_in_background: false, se, ..api::App::new(pool.clone(), mailer.clone(), "https://www.equievents.ch/") };
+    let s = Server { router: api::router(app), pool, mailer: mailer.clone() };
+    for (name, email) in [("Anne Office", "anne@example.ch"), ("Bruno Second", "bruno@example.ch"), ("Carla Third", "carla@example.ch")] {
+        auth::create_user(&s.pool, name, email, "a-good-password", false, Lang::Fr).await.unwrap().unwrap();
+    }
+    let anne = s.sign_in("anne@example.ch", "a-good-password").await;
+    let bruno = s.sign_in("bruno@example.ch", "a-good-password").await;
+    let carla = s.sign_in("carla@example.ch", "a-good-password").await;
+    let past = |key: &str, from_export: bool| json!({ "access_key": key, "event_id": 8352, "name": "CSN d’antan", "number": "2025.8352", "from_export": from_export });
+    let put = |token: &String, body: Value| {
+        let token = token.clone();
+        let s = &s;
+        async move { s.job(&token, s.call("POST", "/api/shows", Some(&token), Some(body)).await).await }
+    };
+
+    // A past event's key: refused without the export; with it, Anne's, the first.
+    let (status, refused) = put(&anne, past("OLD-KEY", false)).await;
+    assert_eq!((status, refused["code"].as_str()), (StatusCode::FORBIDDEN, Some("key")), "{refused}");
+    let (status, made) = put(&anne, past("OLD-KEY", true)).await;
+    assert_eq!((status, made["created"].clone(), made["role"].as_str(), made["event_id"].as_i64()), (StatusCode::OK, json!(true), Some("owner"), Some(8352)), "{made}");
+    let show = made["id"].as_str().unwrap().to_string();
+    assert!(show.starts_with("2025.8352-"), "{show}");
+    // Again: hers. Bruno, with the same export: Anne's, he asks her; with another key: not this
+    // event's.
+    assert_eq!(put(&anne, past("OLD-KEY", true)).await.1["created"], json!(false));
+    let (status, owned) = put(&bruno, past("OLD-KEY", true)).await;
+    assert_eq!((status, owned["code"].as_str(), owned["owner"].as_str(), owned["id"].as_str()), (StatusCode::CONFLICT, Some("claimed"), Some("Anne Office"), Some(show.as_str())));
+    let (status, other) = put(&bruno, past("ANOTHER-KEY", true)).await;
+    assert_eq!((status, other["code"].as_str()), (StatusCode::FORBIDDEN, Some("key")));
+
+    // Carla puts the practice event (1) up with a key taken on trust; Bruno comes with the key
+    // Swiss Equestrian accepts: the event's show is made for him, Carla's stays, unlinked, and
+    // she is told.
+    let (_, squatted) = put(&carla, json!({ "access_key": "MADE-UP", "event_id": 1, "name": "Exercice", "number": "EXERCICE", "from_export": true })).await;
+    assert_eq!(squatted["created"], json!(true), "{squatted}");
+    let carlas = squatted["id"].as_str().unwrap().to_string();
+    let (status, real) = put(&bruno, json!({ "access_key": "PRACTICE-KEY" })).await;
+    assert_eq!((status, real["created"].clone(), real["role"].as_str()), (StatusCode::OK, json!(true), Some("owner")), "{real}");
+    assert_ne!(real["id"].as_str(), Some(carlas.as_str()));
+    let client = s.pool.get().await.unwrap();
+    let row = client.query_one("SELECT event_id, access_key FROM shows WHERE id = $1", &[&carlas]).await.unwrap();
+    assert_eq!((row.get::<_, Option<i64>>(0), row.get::<_, Option<String>>(1)), (None, None));
+    let told = mailer.kept().into_iter().find(|m| m.to == "carla@example.ch").unwrap();
+    assert!(told.subject.contains("n’est plus lié à son événement") && told.body.contains("Swiss Equestrian a accepté une autre clé"), "{told:?}");
+    // A key taken on trust never wins over one Swiss Equestrian accepted.
+    let (status, again) = put(&carla, json!({ "access_key": "MADE-UP", "event_id": 1, "name": "Exercice", "number": "EXERCICE", "from_export": true })).await;
+    assert_eq!((status, again["code"].as_str()), (StatusCode::FORBIDDEN, Some("key")), "{again}");
+
+    drop(client);
+    drop(s);
     test_db.drop().await;
 }
