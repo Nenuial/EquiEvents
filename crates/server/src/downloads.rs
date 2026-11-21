@@ -3,7 +3,7 @@
 //!
 //! | | |
 //! |---|---|
-//! | `/telecharger`, `/herunterladen` | the page, signed in on the site only: Mac and Windows, this computer's system first |
+//! | `/telecharger`, `/herunterladen`, `/scarica` | the page, signed in on the site only: Mac and Windows, this computer's system first |
 //! | `/downloads/{file}` | an installer or an update, as the manifest names it |
 //! | `/api/updates/{target}/{arch}/{version}` | Tauri's updater: the newer release (its format), else 204 |
 //!
@@ -27,15 +27,15 @@ use crate::site::{esc, page, Lang};
 
 /// The page in each language.
 pub fn path(lang: Lang) -> &'static str {
-    lang.pick("/telecharger", "/herunterladen")
+    lang.pick("/telecharger", "/herunterladen", "/scarica")
 }
 
 pub fn routes() -> Router<App> {
-    Router::new()
-        .route("/telecharger", get(|s, h| download_page(Lang::Fr, s, h)))
-        .route("/herunterladen", get(|s, h| download_page(Lang::De, s, h)))
-        .route("/downloads/{file}", get(file))
-        .route("/api/updates/{target}/{arch}/{version}", get(update))
+    let mut router = Router::new().route("/downloads/{file}", get(file)).route("/api/updates/{target}/{arch}/{version}", get(update));
+    for lang in Lang::ALL {
+        router = router.route(path(lang), get(move |s, h| download_page(lang, s, h)));
+    }
+    router
 }
 
 /// The two systems the desktop app is made for.
@@ -196,40 +196,41 @@ fn day(date: &str) -> String {
 
 /// Megabytes, rounded (`18 Mo`, `18 MB`).
 fn size(lang: Lang, bytes: u64) -> Option<String> {
-    (bytes > 0).then(|| format!("{} {}", (bytes + 500_000) / 1_000_000, lang.pick("Mo", "MB")))
+    (bytes > 0).then(|| format!("{} {}", (bytes + 500_000) / 1_000_000, lang.pick("Mo", "MB", "MB")))
 }
 
 fn platform_section(lang: Lang, platform: Platform, release: Option<&Release>) -> String {
     let (name, button, system) = match platform {
-        Platform::Macos => ("Mac", lang.pick("Télécharger pour Mac", "Für Mac herunterladen"), lang.pick("macOS 11 ou plus récent", "macOS 11 oder neuer")),
-        Platform::Windows => ("Windows", lang.pick("Télécharger pour Windows", "Für Windows herunterladen"), "Windows 10, 11"),
+        Platform::Macos => ("Mac", lang.pick("Télécharger pour Mac", "Für Mac herunterladen", "Scarica per Mac"), lang.pick("macOS 11 ou plus récent", "macOS 11 oder neuer", "macOS 11 o più recente")),
+        Platform::Windows => ("Windows", lang.pick("Télécharger pour Windows", "Für Windows herunterladen", "Scarica per Windows"), "Windows 10, 11"),
     };
     let Some(r) = release else {
-        return format!(r#"<section class="platform"><h2>{name}</h2><p class="muted">{}</p></section>"#, lang.pick("Pas encore disponible : bientôt ici.", "Noch nicht verfügbar: bald hier."));
+        return format!(r#"<section class="platform"><h2>{name}</h2><p class="muted">{}</p></section>"#, lang.pick("Pas encore disponible : bientôt ici.", "Noch nicht verfügbar: bald hier.", "Non ancora disponibile: presto qui."));
     };
-    let mut facts = vec![format!("{} {}", lang.pick("Version", "Version"), esc(&r.version))];
+    let mut facts = vec![format!("{} {}", lang.pick("Version", "Version", "Versione"), esc(&r.version))];
     let built = day(&r.date);
     if !built.is_empty() {
-        facts[0] = format!("{} {} {built}", facts[0], lang.pick("du", "vom"));
+        facts[0] = format!("{} {} {built}", facts[0], lang.pick("du", "vom", "del"));
     }
     facts.extend(size(lang, r.installer_size));
     facts.push(system.to_string());
     if platform == Platform::Macos && !r.arch.iter().any(|a| a == "x86_64") {
-        facts.push(lang.pick("Mac avec puce Apple (M1 ou plus récent)", "Mac mit Apple-Chip (M1 oder neuer)").into());
+        facts.push(lang.pick("Mac avec puce Apple (M1 ou plus récent)", "Mac mit Apple-Chip (M1 oder neuer)", "Mac con chip Apple (M1 o più recente)").into());
     }
     let steps: &[&str] = match platform {
         Platform::Macos => &[
-            lang.pick("Ouvrez le fichier téléchargé.", "Öffnen Sie die heruntergeladene Datei."),
-            lang.pick("Glissez EquiEvents dans le dossier Applications.", "Ziehen Sie EquiEvents in den Ordner Programme."),
-            lang.pick("Ouvrez EquiEvents depuis Applications : c’est là qu’il se met à jour.", "Öffnen Sie EquiEvents im Ordner Programme: Dort aktualisiert es sich."),
+            lang.pick("Ouvrez le fichier téléchargé.", "Öffnen Sie die heruntergeladene Datei.", "Aprite il file scaricato."),
+            lang.pick("Glissez EquiEvents dans le dossier Applications.", "Ziehen Sie EquiEvents in den Ordner Programme.", "Trascinate EquiEvents nella cartella Applicazioni."),
+            lang.pick("Ouvrez EquiEvents depuis Applications : c’est là qu’il se met à jour.", "Öffnen Sie EquiEvents im Ordner Programme: Dort aktualisiert es sich.", "Aprite EquiEvents da Applicazioni: è lì che si aggiorna."),
         ],
         Platform::Windows => &[
-            lang.pick("Ouvrez le fichier téléchargé.", "Öffnen Sie die heruntergeladene Datei."),
+            lang.pick("Ouvrez le fichier téléchargé.", "Öffnen Sie die heruntergeladene Datei.", "Aprite il file scaricato."),
             lang.pick(
                 "Windows ne connaît pas encore EquiEvents et affiche « Windows a protégé votre ordinateur » : cliquez sur « Informations complémentaires », puis sur « Exécuter quand même ».",
                 "Windows kennt EquiEvents noch nicht und zeigt «Der Computer wurde durch Windows geschützt»: Klicken Sie auf «Weitere Informationen», dann auf «Trotzdem ausführen».",
+                "Windows non conosce ancora EquiEvents e mostra «PC protetto da Windows»: cliccate su «Ulteriori informazioni», poi su «Esegui comunque».",
             ),
-            lang.pick("Suivez l’installation : EquiEvents s’ouvre à la fin.", "Folgen Sie der Installation: Am Ende öffnet sich EquiEvents."),
+            lang.pick("Suivez l’installation : EquiEvents s’ouvre à la fin.", "Folgen Sie der Installation: Am Ende öffnet sich EquiEvents.", "Seguite l’installazione: alla fine EquiEvents si apre."),
         ],
     };
     format!(
@@ -246,26 +247,31 @@ pub fn page_body(lang: Lang, manifest: &Manifest, platform: Option<Platform>) ->
         Some(Platform::Windows) => [Platform::Windows, Platform::Macos],
         _ => [Platform::Macos, Platform::Windows],
     };
-    let phone = platform.is_none().then(|| format!(r#"<p class="muted">{}</p>"#, lang.pick("EquiEvents s’installe sur l’ordinateur du secrétariat de concours, Mac ou Windows : ouvrez cette page sur celui-ci.", "EquiEvents wird auf dem Computer des Turniersekretariats installiert, Mac oder Windows: Öffnen Sie diese Seite dort.")));
-    let account = crate::site::register_path(lang);
+    let phone = platform.is_none().then(|| format!(r#"<p class="muted">{}</p>"#, lang.pick(
+            "EquiEvents s’installe sur l’ordinateur du secrétariat de concours, Mac ou Windows : ouvrez cette page sur celui-ci.",
+            "EquiEvents wird auf dem Computer des Turniersekretariats installiert, Mac oder Windows: Öffnen Sie diese Seite dort.",
+            "EquiEvents si installa sul computer della segreteria del concorso, Mac o Windows: aprite questa pagina su quel computer."
+        )));
     format!(
         r#"<h1>{title}</h1>
 <p class="muted">{intro}</p>
 {phone}{first}{second}
-<p class="muted then">{then} <a href="{account}">{make}</a></p>"#,
-        title = lang.pick("Télécharger EquiEvents", "EquiEvents herunterladen"),
+<p class="muted then">{then}</p>"#,
+        title = lang.pick("Télécharger EquiEvents", "EquiEvents herunterladen", "Scarica EquiEvents"),
         intro = lang.pick(
             "L’application du secrétariat de concours. Elle fonctionne aussi sans internet ; les nouvelles versions s’installent depuis l’application.",
-            "Die App für das Turniersekretariat. Sie funktioniert auch ohne Internet; neue Versionen werden in der App installiert."
+            "Die App für das Turniersekretariat. Sie funktioniert auch ohne Internet; neue Versionen werden in der App installiert.",
+            "L’app della segreteria del concorso. Funziona anche senza internet; le nuove versioni si installano dall’app."
         ),
         phone = phone.unwrap_or_default(),
         first = platform_section(lang, order[0], manifest.release(order[0])),
         second = platform_section(lang, order[1], manifest.release(order[1])),
+        // Signed in already (the page is for accounts): what else a show needs.
         then = lang.pick(
-            "Pour travailler sur un concours : un compte EquiEvents et la clé d’accès du concours, fournie par Swiss Equestrian.",
-            "Um an einem Turnier zu arbeiten: ein EquiEvents-Konto und der Zugangsschlüssel des Turniers von Swiss Equestrian."
+            "Dans l’application, connectez-vous avec votre compte. Pour travailler sur un concours, il vous faut sa clé d’accès, fournie par Swiss Equestrian.",
+            "Melden Sie sich in der App mit Ihrem Konto an. Um an einem Turnier zu arbeiten, brauchen Sie seinen Zugangsschlüssel von Swiss Equestrian.",
+            "Nell’app, accedete con il vostro account. Per lavorare su un concorso vi serve la sua chiave d’accesso, fornita da Swiss Equestrian."
         ),
-        make = lang.pick("Créer un compte", "Konto erstellen"),
     )
 }
 
@@ -283,7 +289,7 @@ async fn download_page(lang: Lang, State(app): State<App>, headers: HeaderMap) -
     let agent = headers.get(header::USER_AGENT).and_then(|v| v.to_str().ok()).unwrap_or("");
     let manifest = Manifest::read(app.downloads.as_deref()).await;
     let body = page_body(lang, &manifest, Platform::of_agent(agent));
-    page(lang, lang.pick("Télécharger EquiEvents", "EquiEvents herunterladen"), Some(path(lang.other())), &body)
+    page(lang, lang.pick("Télécharger EquiEvents", "EquiEvents herunterladen", "Scarica EquiEvents"), Some(&|l| path(l).to_string()), &body)
 }
 
 /// The folder from `DOWNLOADS_DIR` (none: no downloads yet).
@@ -366,7 +372,8 @@ mod tests {
         let de = page_body(Lang::De, &Manifest { macos: Some(release("0.2.0", &["aarch64", "x86_64"])), windows: None }, None);
         assert!(de.find("<h2>Mac</h2>").unwrap() < de.find("<h2>Windows</h2>").unwrap());
         assert!(de.contains("Version 0.2.0 vom 14.11.2026 · 18 MB · macOS 11 oder neuer</p>"));
-        assert!(de.contains("Öffnen Sie diese Seite dort") && de.contains(r#"href="/registrieren""#));
+        // Signed in already: no account to make.
+        assert!(de.contains("Öffnen Sie diese Seite dort") && de.contains("Melden Sie sich in der App mit Ihrem Konto an") && !de.contains(r#"href="/registrieren""#));
         let none = page_body(Lang::Fr, &Manifest::default(), Some(Platform::Macos));
         assert_eq!(none.matches("Pas encore disponible").count(), 2);
         assert!(!none.contains("/downloads/"));

@@ -334,12 +334,34 @@ async fn the_site_signs_people_up_and_resets_passwords() {
     let Some(test_db) = TestDb::new("site").await else { return };
     let s = server(&test_db).await;
 
-    // Home, and the form in both languages.
+    // Home is signing in (the user, 2026-11-21), in one language: the browser's (else German),
+    // the one chosen last on the site first; the others a click away.
     let (status, home) = s.page("/", None).await;
     assert_eq!(status, StatusCode::OK);
-    assert!(home.contains("href=\"/inscription\"") && home.contains("href=\"/registrieren\""));
+    assert!(home.contains("<html lang=\"de\"") && home.contains("action=\"/anmelden\"") && home.contains("href=\"/registrieren\""), "{home}");
+    assert!(home.contains("href=\"/connexion\"") && home.contains("href=\"/accedi\"") && !home.contains("Bienvenue"));
+    let home = |headers: &'static [(&'static str, &'static str)]| {
+        let router = s.router.clone();
+        async move {
+            let mut req = Request::builder().uri("/").header("x-real-ip", "10.0.0.2");
+            for (k, v) in headers {
+                req = req.header(*k, *v);
+            }
+            let res = router.oneshot(req.body(Body::empty()).unwrap()).await.unwrap();
+            let cookie = res.headers().get_all("set-cookie").iter().map(|v| v.to_str().unwrap().to_string()).collect::<Vec<_>>().join(" | ");
+            (String::from_utf8(res.into_body().collect().await.unwrap().to_bytes().to_vec()).unwrap(), cookie)
+        }
+    };
+    let (page, remembered) = home(&[("accept-language", "it-CH,it;q=0.9,de;q=0.8")]).await;
+    assert!(page.contains("<html lang=\"it\"") && page.contains("Benvenuti in EquiEvents") && page.contains("action=\"/accedi\"") && remembered.contains("equievents_lang=it"), "{remembered}");
+    let (page, _) = home(&[("accept-language", "fr-CH,fr;q=0.9"), ("cookie", "equievents_lang=de")]).await;
+    assert!(page.contains("Willkommen bei EquiEvents"));
+    let (page, _) = home(&[("accept-language", "fr-CH,fr;q=0.9")]).await;
+    assert!(page.contains("Bienvenue dans EquiEvents"));
     let (_, form) = s.page("/registrieren", None).await;
-    assert!(form.contains("Konto erstellen") && form.contains("lang=\"de\"") && form.contains("href=\"/inscription\""));
+    assert!(form.contains("Konto erstellen") && form.contains("lang=\"de\"") && form.contains("href=\"/inscription\"") && form.contains("href=\"/registrati\""));
+    let (_, form) = s.page("/registrati", None).await;
+    assert!(form.contains("Crea un account") && form.contains("<html lang=\"it\""));
 
     // Signing up.
     let fields = [("name", "Émile Büro"), ("email", "emile@example.ch"), ("password", "emile-password-1"), ("website", "")];
@@ -1174,9 +1196,12 @@ async fn the_online_version_works_on_the_master() {
         auth::create_user(&pool, name, email, "a-good-password", false, Lang::Fr).await.unwrap().unwrap();
     }
 
-    // Signed out: the interface and the downloads send to the sign-in, and come back after.
+    // Signed out: the interface and the downloads send to the sign-in (the browser's language,
+    // else German), and come back after.
     let (status, headers, _) = browser(&router, "GET", "/app/", &[], None).await;
-    assert_eq!((status, headers["location"].to_str().unwrap()), (StatusCode::SEE_OTHER, "/connexion?next=/app/"));
+    assert_eq!((status, headers["location"].to_str().unwrap()), (StatusCode::SEE_OTHER, "/anmelden?next=/app/"));
+    let (_, headers, _) = browser(&router, "GET", "/app/", &[("accept-language", "fr-CH,fr")], None).await;
+    assert_eq!(headers["location"].to_str().unwrap(), "/connexion?next=/app/");
     let (status, headers, _) = browser(&router, "GET", "/herunterladen", &[], None).await;
     assert_eq!((status, headers["location"].to_str().unwrap()), (StatusCode::SEE_OTHER, "/anmelden?next=/herunterladen"));
     assert_eq!(browser(&router, "POST", "/app/api/library", &[], Some("{}".into())).await.0, StatusCode::UNAUTHORIZED);
@@ -1245,12 +1270,14 @@ async fn the_online_version_works_on_the_master() {
     let (status, headers, _) = browser(&router, "GET", "/deconnexion", &anne, None).await;
     assert_eq!((status, headers["location"].to_str().unwrap()), (StatusCode::SEE_OTHER, "/"));
     assert!(headers["set-cookie"].to_str().unwrap().contains("Max-Age=0"));
+    // The home page after it in the language signed out in.
+    assert!(headers.get_all("set-cookie").iter().any(|c| c.to_str().unwrap().starts_with("equievents_lang=fr;")));
     assert_eq!(api("account", json!({})).await.0, StatusCode::UNAUTHORIZED);
 
     // An account made on the site is signed in at once.
     let (status, headers, _) = browser(&router, "POST", "/inscription", &urlencoded, Some("name=Carla+Third&email=carla%40example.ch&password=a-good-password".into())).await;
     assert_eq!(status, StatusCode::OK);
-    assert!(headers["set-cookie"].to_str().unwrap().starts_with("equievents_session="));
+    assert!(headers.get_all("set-cookie").iter().any(|c| c.to_str().unwrap().starts_with("equievents_session=")));
     test_db.drop().await;
 }
 

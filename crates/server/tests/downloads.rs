@@ -42,7 +42,7 @@ async fn the_page_the_files_and_the_update_check() {
     let router = server(dir.path());
 
     // The page, signed out: the sign-in first, back to it after.
-    for (page, sign_in) in [("/telecharger", "/connexion?next=/telecharger"), ("/herunterladen", "/anmelden?next=/herunterladen")] {
+    for (page, sign_in) in [("/telecharger", "/connexion?next=/telecharger"), ("/herunterladen", "/anmelden?next=/herunterladen"), ("/scarica", "/accedi?next=/scarica")] {
         let (status, headers, _) = get(&router, page, &[]).await;
         assert_eq!((status, headers["location"].to_str().unwrap()), (StatusCode::SEE_OTHER, sign_in), "{page}");
     }
@@ -53,10 +53,12 @@ async fn the_page_the_files_and_the_update_check() {
     assert!(html.contains("Télécharger pour Mac") && html.contains(r#"href="/downloads/EquiEvents-0.2.0-macos.dmg""#));
     assert!(html.find("<h2>Windows</h2>").unwrap() < html.find("<h2>Mac</h2>").unwrap(), "this computer's system first");
     assert!(page_body(Lang::De, &manifest, None).contains("Für Mac herunterladen"));
-    // The home page, signed out: signing in, making an account.
+    assert!(page_body(Lang::It, &manifest, None).contains("Scarica per Mac"));
+    // The home page, signed out: signing in (German without a language from the browser), making
+    // an account, the other languages.
     let (_, _, home) = get(&router, "/", &[]).await;
     let home = String::from_utf8(home).unwrap();
-    assert!(home.contains(r#"href="/connexion""#) && home.contains(r#"href="/anmelden""#) && home.contains(r#"href="/inscription""#));
+    assert!(home.contains(r#"action="/anmelden""#) && home.contains(r#"href="/registrieren""#) && home.contains(r#"href="/connexion""#) && home.contains(r#"href="/accedi""#));
 
     // The files the manifest names, whole or in part (a download picked up again).
     let (status, headers, body) = get(&router, "/downloads/EquiEvents-0.2.0-macos.dmg", &[]).await;

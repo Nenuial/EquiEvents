@@ -13,6 +13,7 @@ import { Cloud, CloudDownload, CloudOff, HardDrive, RefreshCw, Trash2, TriangleA
 import { Button, Callout, Field, Modal, Switch, Tooltip, buttonClass } from '../ui';
 import type { SyncLook } from '../shell/ShowShell';
 import { ConflictsNotice } from './conflicts';
+import { downloadPage, signOutPage } from '../site';
 
 export interface Account {
   server: string;
@@ -246,12 +247,18 @@ export function AccountButton({ onChange }: { onChange: () => void }) {
                 )}
               </div>
               <ArchiveSetting />
+              {/* The online version: the desktop app's download page (signed in on the site). */}
+              {account.data!.hosted && (
+                <a href={downloadPage(language)} className={`${secondary} justify-self-start`}>
+                  {t('online_download_app')}
+                </a>
+              )}
               <button
                 className={`${secondary} justify-self-start`}
                 onClick={async () => {
                   // The online version: signed out on the site.
                   if (account.data!.hosted) {
-                    window.location.href = language === 'de' ? '/abmelden' : '/deconnexion';
+                    window.location.href = signOutPage(language);
                     return;
                   }
                   await call('sign_out');

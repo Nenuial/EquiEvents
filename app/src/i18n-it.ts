@@ -593,6 +593,7 @@ export const it: Dictionary = {
   online_sign_up: 'Crea un account',
   online_forgot: 'Password dimenticata?',
   online_sign_out: 'Esci',
+  online_download_app: 'Scarica l’app',
   online_account: 'Account equievents.ch',
   online_name: 'Nome e cognome',
   online_email: 'Indirizzo e-mail',

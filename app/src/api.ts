@@ -5,6 +5,7 @@
 // language (refusals.ts).
 
 import { refusal } from './refusals';
+import { firstLanguage, signInPage } from './site';
 
 /** In the desktop app (Tauri), not a browser. */
 export const inTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
@@ -126,14 +127,7 @@ function pickInBrowser(extensions: string[]): Promise<File | null> {
 
 /** The online version's sign-in on the site, in the office's language, back to the app after. */
 function signInAgain(): never {
-  const german = (() => {
-    try {
-      return localStorage.getItem('language') === 'de';
-    } catch {
-      return false;
-    }
-  })();
-  window.location.href = `${german ? '/anmelden' : '/connexion'}?next=${encodeURIComponent(window.location.pathname)}`;
+  window.location.href = `${signInPage(firstLanguage())}?next=${encodeURIComponent(window.location.pathname)}`;
   throw new Error(refusal('EquiEvents does not answer'));
 }
 

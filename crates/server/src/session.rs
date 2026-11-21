@@ -37,22 +37,36 @@ pub fn clear(secure: bool) -> HeaderValue {
     HeaderValue::from_str(&format!("{COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0{secure}")).unwrap_or(HeaderValue::from_static(""))
 }
 
-/// The visitor's language, from the browser (German if it comes before French).
+/// The language last chosen on the site (a page in that language seen: `lang_cookie`), for the
+/// home page and the online version. Not a secret: the app reads it too.
+pub const LANG_COOKIE: &str = "equievents_lang";
+
+/// The visitor's language (the user, 2026-11-21): the one they last chose on the site, else the
+/// first of French, German and Italian their browser asks for, else German.
 pub fn lang_of(headers: &HeaderMap) -> Lang {
-    let accept = headers.get(header::ACCEPT_LANGUAGE).and_then(|v| v.to_str().ok()).unwrap_or("").to_lowercase();
-    match (accept.find("de"), accept.find("fr")) {
-        (Some(de), Some(fr)) if de < fr => Lang::De,
-        (Some(_), None) => Lang::De,
-        _ => Lang::Fr,
-    }
+    let chosen = headers
+        .get_all(header::COOKIE)
+        .iter()
+        .filter_map(|v| v.to_str().ok())
+        .flat_map(|v| v.split(';'))
+        .filter_map(|c| c.trim().split_once('='))
+        .find(|(name, _)| *name == LANG_COOKIE)
+        .and_then(|(_, value)| Lang::parse(value));
+    let accept = || headers.get(header::ACCEPT_LANGUAGE).and_then(|v| v.to_str().ok()).and_then(Lang::from_accept);
+    chosen.or_else(accept).unwrap_or(Lang::De)
+}
+
+/// The cookie keeping the language of the page seen (a year; a preference, nothing secret).
+pub fn lang_cookie(lang: Lang) -> HeaderValue {
+    HeaderValue::from_str(&format!("{LANG_COOKIE}={}; Path=/; SameSite=Lax; Max-Age={MAX_AGE}", lang.code())).unwrap_or(HeaderValue::from_static(""))
 }
 
 pub fn sign_in(lang: Lang) -> &'static str {
-    lang.pick("/connexion", "/anmelden")
+    lang.pick("/connexion", "/anmelden", "/accedi")
 }
 
 pub fn sign_out(lang: Lang) -> &'static str {
-    lang.pick("/deconnexion", "/abmelden")
+    lang.pick("/deconnexion", "/abmelden", "/esci")
 }
 
 /// The sign-in, coming back to `next` after.
@@ -89,5 +103,21 @@ mod tests {
             assert_eq!(next_or_app(Some(elsewhere)), "/app/", "{elsewhere}");
         }
         assert_eq!(sign_in_path(Lang::De, "/app/"), "/anmelden?next=/app/");
+    }
+
+    #[test]
+    fn the_visitors_language() {
+        let with = |pairs: &[(header::HeaderName, &'static str)]| {
+            let mut h = HeaderMap::new();
+            for (k, v) in pairs {
+                h.append(k.clone(), HeaderValue::from_static(v));
+            }
+            lang_of(&h)
+        };
+        assert_eq!(with(&[]), Lang::De);
+        assert_eq!(with(&[(header::ACCEPT_LANGUAGE, "en-US,en;q=0.9")]), Lang::De);
+        assert_eq!(with(&[(header::ACCEPT_LANGUAGE, "it-CH,it;q=0.9,de;q=0.8")]), Lang::It);
+        assert_eq!(with(&[(header::ACCEPT_LANGUAGE, "fr-CH"), (header::COOKIE, "equievents_lang=de")]), Lang::De);
+        assert_eq!(with(&[(header::ACCEPT_LANGUAGE, "fr-CH"), (header::COOKIE, "equievents_lang=xx")]), Lang::Fr);
     }
 }

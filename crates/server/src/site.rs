@@ -1,17 +1,20 @@
 //! The site at www.equievents.ch: anyone makes their own account there (an account alone opens
 //! nothing: a show needs its Swiss Equestrian keys), signs in (`session`: for the online version
 //! and the desktop app's downloads), and resets a forgotten password with a link sent by
-//! e-mail. French and German pages, plain HTML forms (no script), for phones too:
+//! e-mail. French, German and Italian pages, plain HTML forms (no script), for phones too:
 //!
-//! | French | German | |
-//! |---|---|---|
-//! | `/` | | home, both languages: signed in, the online version and the downloads |
-//! | `/connexion` | `/anmelden` | sign in (`?next=`: a page of the site to go to after) |
-//! | `/deconnexion` | `/abmelden` | sign out |
-//! | `/inscription` | `/registrieren` | make an account (signed in at once) |
-//! | `/mot-de-passe` | `/passwort` | a forgotten password: the link by e-mail |
-//! | `/nouveau-mot-de-passe?t=…` | `/neues-passwort?t=…` | the link: a new password |
-//! | `/telecharger` | `/herunterladen` | the desktop app (`downloads`) |
+//! | French | German | Italian | |
+//! |---|---|---|---|
+//! | `/` | | | signing in, in the visitor's language (`session::lang_of`); signed in: the online version |
+//! | `/connexion` | `/anmelden` | `/accedi` | sign in (`?next=`: a page of the site to go to after) |
+//! | `/deconnexion` | `/abmelden` | `/esci` | sign out |
+//! | `/inscription` | `/registrieren` | `/registrati` | make an account (signed in at once) |
+//! | `/mot-de-passe` | `/passwort` | `/password-dimenticata` | a forgotten password: the link by e-mail |
+//! | `/nouveau-mot-de-passe?t=…` | `/neues-passwort?t=…` | `/nuova-password?t=…` | the link: a new password |
+//! | `/telecharger` | `/herunterladen` | `/scarica` | the desktop app (`downloads`) |
+//!
+//! One language per page, the others a click away (the switch); the one seen is remembered for
+//! the home page (the user, 2026-11-21: "people can use the language switcher by themselves").
 
 use axum::extract::{Query, State};
 use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
@@ -38,27 +41,24 @@ enum Path {
 impl Path {
     fn of(self, lang: Lang) -> &'static str {
         match self {
-            Path::Register => lang.pick("/inscription", "/registrieren"),
-            Path::Forgot => lang.pick("/mot-de-passe", "/passwort"),
-            Path::Reset => lang.pick("/nouveau-mot-de-passe", "/neues-passwort"),
+            Path::Register => lang.pick("/inscription", "/registrieren", "/registrati"),
+            Path::Forgot => lang.pick("/mot-de-passe", "/passwort", "/password-dimenticata"),
+            Path::Reset => lang.pick("/nouveau-mot-de-passe", "/neues-passwort", "/nuova-password"),
         }
     }
 }
 
 pub fn routes() -> Router<App> {
-    Router::new()
-        .route("/", get(home))
-        .route("/site/inter.woff2", get(font))
-        .route("/connexion", get(|s, h, q| sign_in_form(Lang::Fr, s, h, q)).post(|s, c, f| sign_in(Lang::Fr, s, c, f)))
-        .route("/anmelden", get(|s, h, q| sign_in_form(Lang::De, s, h, q)).post(|s, c, f| sign_in(Lang::De, s, c, f)))
-        .route("/deconnexion", get(|s, h| sign_out(Lang::Fr, s, h)))
-        .route("/abmelden", get(|s, h| sign_out(Lang::De, s, h)))
-        .route("/inscription", get(|| register_form(Lang::Fr)).post(|s, c, f| register(Lang::Fr, s, c, f)))
-        .route("/registrieren", get(|| register_form(Lang::De)).post(|s, c, f| register(Lang::De, s, c, f)))
-        .route("/mot-de-passe", get(|| forgot_form(Lang::Fr)).post(|s, c, f| forgot(Lang::Fr, s, c, f)))
-        .route("/passwort", get(|| forgot_form(Lang::De)).post(|s, c, f| forgot(Lang::De, s, c, f)))
-        .route("/nouveau-mot-de-passe", get(|s, q| reset_form(Lang::Fr, s, q)).post(|s, c, f| reset(Lang::Fr, s, c, f)))
-        .route("/neues-passwort", get(|s, q| reset_form(Lang::De, s, q)).post(|s, c, f| reset(Lang::De, s, c, f)))
+    let mut router = Router::new().route("/", get(home)).route("/site/inter.woff2", get(font));
+    for lang in Lang::ALL {
+        router = router
+            .route(session::sign_in(lang), get(move |s, h, q| sign_in_form(lang, s, h, q)).post(move |s, c, f| sign_in(lang, s, c, f)))
+            .route(session::sign_out(lang), get(move |s, h| sign_out(lang, s, h)))
+            .route(Path::Register.of(lang), get(move || register_form(lang)).post(move |s, c, f| register(lang, s, c, f)))
+            .route(Path::Forgot.of(lang), get(move || forgot_form(lang)).post(move |s, c, f| forgot(lang, s, c, f)))
+            .route(Path::Reset.of(lang), get(move |s, q| reset_form(lang, s, q)).post(move |s, c, f| reset(lang, s, c, f)));
+    }
+    router
 }
 
 /// The page to make an account, in each language.
@@ -155,7 +155,9 @@ async fn font() -> Response {
 
 /// A whole page: the band (the logo, the language switch, the page's heading and the line under
 /// it: the body's first `<h1>` and `<p class="muted">`, else `title`), the rest in the card.
-pub(crate) fn page(lang: Lang, title: &str, switch_to: Option<&str>, body: &str) -> Response {
+/// `switch`: this page in another language (none: no switch, a page that only follows a form).
+/// Its language is remembered for the home page (`session::lang_cookie`).
+pub(crate) fn page(lang: Lang, title: &str, switch: Option<&dyn Fn(Lang) -> String>, body: &str) -> Response {
     let (heading, rest) = match body.trim_start().strip_prefix("<h1>").and_then(|b| b.split_once("</h1>")) {
         Some((h, rest)) => (h.to_string(), rest.trim_start()),
         None => (esc(title), body),
@@ -164,15 +166,17 @@ pub(crate) fn page(lang: Lang, title: &str, switch_to: Option<&str>, body: &str)
         Some((p, rest)) => (format!("<p>{p}</p>"), rest.trim_start()),
         None => (String::new(), rest),
     };
-    // FR · DE, this page's language marked; the other one when the page has it.
-    let langs = [Lang::Fr, Lang::De]
-        .iter()
-        .map(|l| match (*l == lang, switch_to) {
-            (true, _) => format!(r#"<span lang="{0}">{1}</span>"#, l.code(), l.code().to_uppercase()),
-            (false, Some(href)) => format!(r#"<a href="{href}" hreflang="{0}" lang="{0}">{1}</a>"#, l.code(), l.code().to_uppercase()),
-            (false, None) => String::new(),
-        })
-        .collect::<String>();
+    // FR · DE · IT, this page's language marked; the others when the page has them.
+    let langs = match switch {
+        Some(to) => Lang::ALL
+            .iter()
+            .map(|l| match *l == lang {
+                true => format!(r#"<span lang="{0}">{1}</span>"#, l.code(), l.code().to_uppercase()),
+                false => format!(r#"<a href="{href}" hreflang="{0}" lang="{0}">{1}</a>"#, l.code(), l.code().to_uppercase(), href = esc(&to(*l))),
+            })
+            .collect::<String>(),
+        None => String::new(),
+    };
     let html = format!(
         r##"<!doctype html><html lang="{code}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#00283c"><title>{title} · EquiEvents</title><style>{STYLE}</style></head><body><header class="band"><div class="bar"><a class="brand" href="/">{LOGO}<b>Equi<span>Events</span></b></a><nav class="langs">{langs}</nav></div><div class="head"><h1>{heading}</h1>{under}</div></header><main><div class="card">{rest}</div></main></body></html>"##,
         code = lang.code(),
@@ -186,6 +190,7 @@ pub(crate) fn page(lang: Lang, title: &str, switch_to: Option<&str>, body: &str)
     headers.insert(header::REFERRER_POLICY, HeaderValue::from_static("no-referrer"));
     headers.insert(header::X_CONTENT_TYPE_OPTIONS, HeaderValue::from_static("nosniff"));
     headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    headers.append(header::SET_COOKIE, session::lang_cookie(lang));
     res
 }
 
@@ -197,74 +202,43 @@ fn with_status(status: StatusCode, mut res: Response) -> Response {
 fn invalid_text(lang: Lang, e: Invalid) -> String {
     let forgot = Path::Forgot.of(lang);
     match e {
-        Invalid::Name => lang.pick("Votre nom, s’il vous plaît.", "Bitte Ihren Namen angeben.").into(),
-        Invalid::Email => lang.pick("Cette adresse e-mail n’est pas valable.", "Diese E-Mail-Adresse ist ungültig.").into(),
-        Invalid::Password => lang.pick("Le mot de passe doit compter de 10 à 200 caractères.", "Das Passwort hat 10 bis 200 Zeichen.").into(),
+        Invalid::Name => lang.pick("Votre nom, s’il vous plaît.", "Bitte Ihren Namen angeben.", "Il vostro nome, per favore.").into(),
+        Invalid::Email => lang.pick("Cette adresse e-mail n’est pas valable.", "Diese E-Mail-Adresse ist ungültig.", "Questo indirizzo e-mail non è valido.").into(),
+        Invalid::Password => lang.pick("Le mot de passe doit compter de 10 à 200 caractères.", "Das Passwort hat 10 bis 200 Zeichen.", "La password deve avere da 10 a 200 caratteri.").into(),
         Invalid::Taken => format!(
             "{} <a href=\"{forgot}\">{}</a>",
-            lang.pick("Cette adresse a déjà un compte.", "Für diese Adresse besteht schon ein Konto."),
-            lang.pick("Mot de passe oublié ?", "Passwort vergessen?")
+            lang.pick("Cette adresse a déjà un compte.", "Für diese Adresse besteht schon ein Konto.", "Questo indirizzo ha già un account."),
+            lang.pick("Mot de passe oublié ?", "Passwort vergessen?", "Password dimenticata?")
         ),
-        Invalid::Link => lang.pick("Ce lien n’est plus valable (une heure, une seule fois).", "Dieser Link ist nicht mehr gültig (eine Stunde, nur einmal).").into(),
+        Invalid::Link => lang.pick("Ce lien n’est plus valable (une heure, une seule fois).", "Dieser Link ist nicht mehr gültig (eine Stunde, nur einmal).", "Questo link non è più valido (un’ora, una sola volta).").into(),
     }
 }
 
 fn too_many(lang: Lang) -> Response {
-    let body = format!(r#"<h1>{}</h1><p>{}</p>"#, lang.pick("Trop d’essais", "Zu viele Versuche"), lang.pick("Réessayez dans un moment.", "Bitte versuchen Sie es später wieder."));
-    with_status(StatusCode::TOO_MANY_REQUESTS, page(lang, lang.pick("Trop d’essais", "Zu viele Versuche"), None, &body))
+    let title = lang.pick("Trop d’essais", "Zu viele Versuche", "Troppi tentativi");
+    let body = format!(r#"<h1>{title}</h1><p>{}</p>"#, lang.pick("Réessayez dans un moment.", "Bitte versuchen Sie es später wieder.", "Riprovate tra un momento."));
+    with_status(StatusCode::TOO_MANY_REQUESTS, page(lang, title, None, &body))
 }
 
 pub(crate) fn server_error(lang: Lang, e: crate::db::Error) -> Response {
     eprintln!("error: {e}");
-    let body = format!(r#"<h1>{}</h1><p>{}</p>"#, lang.pick("Un problème est survenu", "Ein Problem ist aufgetreten"), lang.pick("Le serveur n’a pas pu traiter la demande. Réessayez plus tard.", "Der Server konnte es nicht ausführen. Bitte später wieder versuchen."));
-    with_status(StatusCode::INTERNAL_SERVER_ERROR, page(lang, lang.pick("Un problème est survenu", "Ein Problem ist aufgetreten"), None, &body))
+    let title = lang.pick("Un problème est survenu", "Ein Problem ist aufgetreten", "Si è verificato un problema");
+    let body = format!(
+        r#"<h1>{title}</h1><p>{}</p>"#,
+        lang.pick("Le serveur n’a pas pu traiter la demande. Réessayez plus tard.", "Der Server konnte es nicht ausführen. Bitte später wieder versuchen.", "Il server non ha potuto eseguire la richiesta. Riprovate più tardi.")
+    );
+    with_status(StatusCode::INTERNAL_SERVER_ERROR, page(lang, title, None, &body))
 }
 
+/// The home page is signing in (the user, 2026-11-21: "what you get under /connexion as the main
+/// screen"), in the visitor's language; signed in: the online version.
 async fn home(State(app): State<App>, headers: HeaderMap) -> Response {
-    let signed_in = match session::token(&headers) {
-        Some(token) => auth::user_of(&app.pool, &token).await.ok().flatten(),
-        None => None,
-    };
-    let group = |lang: Lang| match &signed_in {
-        // Signed in: the online version, the desktop app, signing out.
-        Some(_) => format!(
-            r#"<div class="group" lang="{code}"><a class="button" href="/app/">{open}</a><a class="button second" href="{download}">{download_label}</a></div>"#,
-            code = lang.code(),
-            open = lang.pick("Ouvrir EquiEvents en ligne", "EquiEvents online öffnen"),
-            download = crate::downloads::path(lang),
-            download_label = lang.pick("Télécharger l’application", "App herunterladen"),
-        ),
-        None => format!(
-            r#"<div class="group" lang="{code}"><a class="button" href="{sign_in}">{sign_in_label}</a><a class="button second" href="{register}">{register_label}</a></div>"#,
-            code = lang.code(),
-            sign_in = session::sign_in(lang),
-            sign_in_label = lang.pick("Se connecter", "Anmelden"),
-            register = Path::Register.of(lang),
-            register_label = lang.pick("Créer un compte", "Konto erstellen"),
-        ),
-    };
-    let footer = match &signed_in {
-        Some(user) => format!(
-            r#"<footer class="muted">{} · <a href="{}" lang="fr">Se déconnecter</a> · <a href="{}" lang="de">Abmelden</a></footer>"#,
-            esc(&user.name),
-            session::sign_out(Lang::Fr),
-            session::sign_out(Lang::De),
-        ),
-        None => format!(
-            r#"<footer class="muted"><a href="{}" lang="fr">Mot de passe oublié ?</a> · <a href="{}" lang="de">Passwort vergessen?</a></footer>"#,
-            Path::Forgot.of(Lang::Fr),
-            Path::Forgot.of(Lang::De),
-        ),
-    };
-    let body = format!(
-        r#"<h1>Le secrétariat de concours · Das Turniersekretariat</h1>
-<p class="muted">Concours hippiques de Swiss Equestrian · Pferdesportturniere von Swiss Equestrian</p>
-{}{}
-{footer}"#,
-        group(Lang::Fr),
-        group(Lang::De),
-    );
-    page(Lang::Fr, "EquiEvents", None, &body)
+    if let Some(token) = session::token(&headers) {
+        if auth::user_of(&app.pool, &token).await.ok().flatten().is_some() {
+            return redirect("/app/", None);
+        }
+    }
+    sign_in_page(session::lang_of(&headers), "", "/app/", None)
 }
 
 // --- Signing in and out --------------------------------------------------------------------------
@@ -276,19 +250,24 @@ fn welcome(lang: Lang) -> String {
         r#"<h1>{}</h1>
 <p class="muted">{}</p>
 <p class="muted">{}</p>"#,
-        lang.pick("Bienvenue dans EquiEvents", "Willkommen bei EquiEvents"),
-        lang.pick("EquiEvents s’utilise avec un compte : connectez-vous, ou créez le vôtre.", "EquiEvents braucht ein Konto: Melden Sie sich an, oder erstellen Sie Ihres."),
+        lang.pick("Bienvenue dans EquiEvents", "Willkommen bei EquiEvents", "Benvenuti in EquiEvents"),
+        lang.pick(
+            "EquiEvents s’utilise avec un compte : connectez-vous, ou créez le vôtre.",
+            "EquiEvents braucht ein Konto: Melden Sie sich an, oder erstellen Sie Ihres.",
+            "EquiEvents si usa con un account: accedete, o createne uno."
+        ),
         lang.pick(
             "Avec un compte, vos concours sont sur equievents.ch : sauvegardés, partagés avec votre équipe, et vous y travaillez en ligne, ici, ou dans l’application.",
-            "Mit einem Konto sind Ihre Turniere auf equievents.ch: gesichert, mit Ihrem Team geteilt, und Sie arbeiten online damit, hier, oder in der App."
+            "Mit einem Konto sind Ihre Turniere auf equievents.ch: gesichert, mit Ihrem Team geteilt, und Sie arbeiten online damit, hier, oder in der App.",
+            "Con un account, i vostri concorsi sono su equievents.ch: salvati, condivisi con il vostro team, e ci lavorate online, qui, o nell’app."
         ),
     )
 }
 
 /// Signing in, making an account: the two tabs (`next`: where signing in goes after).
 fn tabs(lang: Lang, signing_in: bool, next: &str) -> String {
-    let sign_in = lang.pick("Se connecter", "Anmelden");
-    let register = lang.pick("Créer un compte", "Konto erstellen");
+    let sign_in = lang.pick("Se connecter", "Anmelden", "Accedi");
+    let register = lang.pick("Créer un compte", "Konto erstellen", "Crea un account");
     if signing_in {
         format!(r#"<nav class="tabs"><span>{sign_in}</span><a href="{}">{register}</a></nav>"#, Path::Register.of(lang))
     } else {
@@ -328,14 +307,16 @@ fn sign_in_page(lang: Lang, email: &str, next: &str, error: Option<&str>) -> Res
         tabs = tabs(lang, true, next),
         action = session::sign_in(lang),
         next = esc(next),
-        email_label = lang.pick("Adresse e-mail", "E-Mail-Adresse"),
+        email_label = lang.pick("Adresse e-mail", "E-Mail-Adresse", "Indirizzo e-mail"),
         email = esc(email),
-        password = lang.pick("Mot de passe", "Passwort"),
-        submit = lang.pick("Se connecter", "Anmelden"),
+        password = lang.pick("Mot de passe", "Passwort", "Password"),
+        submit = lang.pick("Se connecter", "Anmelden", "Accedi"),
         forgot = Path::Forgot.of(lang),
-        forgot_label = lang.pick("Mot de passe oublié ?", "Passwort vergessen?"),
+        forgot_label = lang.pick("Mot de passe oublié ?", "Passwort vergessen?", "Password dimenticata?"),
     );
-    page(lang, lang.pick("Se connecter", "Anmelden"), Some(&session::sign_in_path(lang.other(), next)), &body)
+    // The other languages: this sign-in, coming back to the same page after.
+    let switch = |l: Lang| if next == "/app/" { session::sign_in(l).to_string() } else { session::sign_in_path(l, next) };
+    page(lang, lang.pick("Se connecter", "Anmelden", "Accedi"), Some(&switch), &body)
 }
 
 /// The sign-in; already signed in: straight on.
@@ -369,17 +350,21 @@ async fn sign_in(lang: Lang, State(app): State<App>, Client(client): Client, For
         Ok(Some((token, _))) => redirect(&next, Some(session::set(&token, app.site_url.starts_with("https://")))),
         Ok(None) => with_status(
             StatusCode::UNAUTHORIZED,
-            sign_in_page(lang, &form.email, &next, Some(lang.pick("Adresse e-mail ou mot de passe incorrect.", "E-Mail-Adresse oder Passwort falsch."))),
+            sign_in_page(lang, &form.email, &next, Some(lang.pick("Adresse e-mail ou mot de passe incorrect.", "E-Mail-Adresse oder Passwort falsch.", "Indirizzo e-mail o password errati."))),
         ),
         Err(e) => server_error(lang, e),
     }
 }
 
-async fn sign_out(_lang: Lang, State(app): State<App>, headers: HeaderMap) -> Response {
+/// Signed out, to the home page in the language signed out in (`/deconnexion`, `/abmelden`, `/esci`:
+/// the app's).
+async fn sign_out(lang: Lang, State(app): State<App>, headers: HeaderMap) -> Response {
     if let Some(token) = session::token(&headers) {
         let _ = auth::sign_out(&app.pool, &token).await;
     }
-    redirect("/", Some(session::clear(app.site_url.starts_with("https://"))))
+    let mut res = redirect("/", Some(session::clear(app.site_url.starts_with("https://"))));
+    res.headers_mut().append(header::SET_COOKIE, session::lang_cookie(lang));
+    res
 }
 
 // --- Making an account -------------------------------------------------------------------------
@@ -417,22 +402,24 @@ fn register_page(lang: Lang, form: &RegisterForm, error: Option<String>) -> Resp
         tabs = tabs(lang, false, "/app/"),
         key = lang.pick(
             "Pour travailler sur un concours, il vous faut sa clé d’accès, fournie par Swiss Equestrian.",
-            "Um an einem Turnier zu arbeiten, brauchen Sie seinen Zugangsschlüssel von Swiss Equestrian."
+            "Um an einem Turnier zu arbeiten, brauchen Sie seinen Zugangsschlüssel von Swiss Equestrian.",
+            "Per lavorare su un concorso vi serve la sua chiave d’accesso, fornita da Swiss Equestrian."
         ),
         action = Path::Register.of(lang),
-        name = lang.pick("Prénom et nom", "Vorname und Name"),
+        name = lang.pick("Prénom et nom", "Vorname und Name", "Nome e cognome"),
         name_v = esc(&form.name),
-        email = lang.pick("Adresse e-mail", "E-Mail-Adresse"),
+        email = lang.pick("Adresse e-mail", "E-Mail-Adresse", "Indirizzo e-mail"),
         email_v = esc(&form.email),
-        password = lang.pick("Mot de passe", "Passwort"),
-        password_hint = lang.pick("Au moins 10 caractères.", "Mindestens 10 Zeichen."),
-        submit = lang.pick("Créer le compte", "Konto erstellen"),
+        password = lang.pick("Mot de passe", "Passwort", "Password"),
+        password_hint = lang.pick("Au moins 10 caractères.", "Mindestens 10 Zeichen.", "Almeno 10 caratteri."),
+        submit = lang.pick("Créer le compte", "Konto erstellen", "Crea l’account"),
         privacy = lang.pick(
             "Nous gardons votre nom et votre adresse e-mail pour votre compte, rien d’autre, et ne les donnons à personne.",
-            "Wir speichern Ihren Namen und Ihre E-Mail-Adresse für Ihr Konto, nichts anderes, und geben sie niemandem weiter."
+            "Wir speichern Ihren Namen und Ihre E-Mail-Adresse für Ihr Konto, nichts anderes, und geben sie niemandem weiter.",
+            "Conserviamo il vostro nome e il vostro indirizzo e-mail per il vostro account, nient’altro, e non li diamo a nessuno."
         ),
     );
-    page(lang, lang.pick("Créer un compte", "Konto erstellen"), Some(Path::Register.of(lang.other())), &body)
+    page(lang, lang.pick("Créer un compte", "Konto erstellen", "Crea un account"), Some(&|l| Path::Register.of(l).to_string()), &body)
 }
 
 async fn register_form(lang: Lang) -> Response {
@@ -442,17 +429,18 @@ async fn register_form(lang: Lang) -> Response {
 fn registered(lang: Lang, email: &str) -> Response {
     let body = format!(
         r#"<h1>{}</h1><p class="done">{}</p><p>{}</p><a class="button" href="/app/">{}</a><a class="button second" href="{}">{}</a>"#,
-        lang.pick("Votre compte est prêt", "Ihr Konto ist bereit"),
+        lang.pick("Votre compte est prêt", "Ihr Konto ist bereit", "Il vostro account è pronto"),
         esc(email),
         lang.pick(
             "Travaillez en ligne, ici, ou installez l’application sur vos ordinateurs et connectez-vous-y avec cette adresse. Pour travailler sur un concours, il vous faut sa clé d’accès, fournie par Swiss Equestrian.",
-            "Arbeiten Sie online, hier, oder installieren Sie die App auf Ihren Computern und melden Sie sich dort mit dieser Adresse an. Um an einem Turnier zu arbeiten, brauchen Sie seinen Zugangsschlüssel von Swiss Equestrian."
+            "Arbeiten Sie online, hier, oder installieren Sie die App auf Ihren Computern und melden Sie sich dort mit dieser Adresse an. Um an einem Turnier zu arbeiten, brauchen Sie seinen Zugangsschlüssel von Swiss Equestrian.",
+            "Lavorate online, qui, o installate l’app sui vostri computer e accedete con questo indirizzo. Per lavorare su un concorso vi serve la sua chiave d’accesso, fornita da Swiss Equestrian."
         ),
-        lang.pick("Ouvrir EquiEvents en ligne", "EquiEvents online öffnen"),
+        lang.pick("Ouvrir EquiEvents en ligne", "EquiEvents online öffnen", "Apri EquiEvents online"),
         crate::downloads::path(lang),
-        lang.pick("Télécharger l’application", "App herunterladen"),
+        lang.pick("Télécharger l’application", "App herunterladen", "Scarica l’app"),
     );
-    page(lang, lang.pick("Votre compte est prêt", "Ihr Konto ist bereit"), None, &body)
+    page(lang, lang.pick("Votre compte est prêt", "Ihr Konto ist bereit", "Il vostro account è pronto"), None, &body)
 }
 
 async fn register(lang: Lang, State(app): State<App>, Client(client): Client, Form(form): Form<RegisterForm>) -> Response {
@@ -494,14 +482,14 @@ fn forgot_page(lang: Lang, email: &str) -> Response {
 <label for="email">{label}</label><input id="email" name="email" type="email" autocomplete="email" required maxlength="254" value="{email}">
 <button>{submit}</button>
 </form>"#,
-        title = lang.pick("Mot de passe oublié", "Passwort vergessen"),
-        intro = lang.pick("Nous vous envoyons un lien pour en choisir un nouveau.", "Wir senden Ihnen einen Link, um ein neues zu wählen."),
+        title = lang.pick("Mot de passe oublié", "Passwort vergessen", "Password dimenticata"),
+        intro = lang.pick("Nous vous envoyons un lien pour en choisir un nouveau.", "Wir senden Ihnen einen Link, um ein neues zu wählen.", "Vi inviamo un link per sceglierne una nuova."),
         action = Path::Forgot.of(lang),
-        label = lang.pick("Adresse e-mail de votre compte", "E-Mail-Adresse Ihres Kontos"),
+        label = lang.pick("Adresse e-mail de votre compte", "E-Mail-Adresse Ihres Kontos", "Indirizzo e-mail del vostro account"),
         email = esc(email),
-        submit = lang.pick("Envoyer le lien", "Link senden"),
+        submit = lang.pick("Envoyer le lien", "Link senden", "Invia il link"),
     );
-    page(lang, lang.pick("Mot de passe oublié", "Passwort vergessen"), Some(Path::Forgot.of(lang.other())), &body)
+    page(lang, lang.pick("Mot de passe oublié", "Passwort vergessen", "Password dimenticata"), Some(&|l| Path::Forgot.of(l).to_string()), &body)
 }
 
 async fn forgot_form(lang: Lang) -> Response {
@@ -519,6 +507,10 @@ pub fn reset_mail(lang: Lang, site: &str, name: &str, email: &str, token: &str) 
         Lang::De => (
             "EquiEvents: neues Passwort".into(),
             format!("Guten Tag {name}\n\nUm ein neues Passwort für Ihr EquiEvents-Konto ({email}) zu wählen, öffnen Sie diesen Link innerhalb einer Stunde:\n\n{link}\n\nFalls Sie nichts angefordert haben, ignorieren Sie diese E-Mail: Ihr Passwort bleibt unverändert.\n\nEquiEvents\n"),
+        ),
+        Lang::It => (
+            "EquiEvents: nuova password".into(),
+            format!("Buongiorno {name},\n\nPer scegliere una nuova password per il vostro account EquiEvents ({email}), aprite questo link entro un’ora:\n\n{link}\n\nSe non avete chiesto nulla, ignorate questa e-mail: la vostra password non cambia.\n\nEquiEvents\n"),
         ),
     }
 }
@@ -557,15 +549,19 @@ async fn forgot(lang: Lang, State(app): State<App>, Client(client): Client, Form
     if let Err(e) = send_reset_link(&app, lang, &form.email).await {
         return server_error(lang, e);
     }
+    let title = lang.pick("Regardez vos e-mails", "Schauen Sie in Ihre E-Mails", "Controllate le vostre e-mail");
     let body = format!(
-        r#"<h1>{}</h1><p>{} <strong>{}</strong>{}</p><p class="muted">{}</p>"#,
-        lang.pick("Regardez vos e-mails", "Schauen Sie in Ihre E-Mails"),
-        lang.pick("Si un compte existe pour", "Falls für"),
+        r#"<h1>{title}</h1><p>{} <strong>{}</strong>{}</p><p class="muted">{}</p>"#,
+        lang.pick("Si un compte existe pour", "Falls für", "Se esiste un account per"),
         esc(form.email.trim()),
-        lang.pick(", un e-mail avec un lien vient de partir.", " ein Konto besteht, ist eine E-Mail mit einem Link unterwegs."),
-        lang.pick("Le lien est valable une heure. Rien reçu ? Regardez dans les indésirables.", "Der Link ist eine Stunde gültig. Nichts erhalten? Schauen Sie im Spam-Ordner nach."),
+        lang.pick(", un e-mail avec un lien vient de partir.", " ein Konto besteht, ist eine E-Mail mit einem Link unterwegs.", ", vi è appena stata inviata un’e-mail con un link."),
+        lang.pick(
+            "Le lien est valable une heure. Rien reçu ? Regardez dans les indésirables.",
+            "Der Link ist eine Stunde gültig. Nichts erhalten? Schauen Sie im Spam-Ordner nach.",
+            "Il link è valido un’ora. Non avete ricevuto nulla? Guardate nella posta indesiderata."
+        ),
     );
-    page(lang, lang.pick("Regardez vos e-mails", "Schauen Sie in Ihre E-Mails"), None, &body)
+    page(lang, title, None, &body)
 }
 
 // --- The link: a new password ------------------------------------------------------------------
@@ -585,8 +581,14 @@ pub struct ResetForm {
 }
 
 fn link_gone(lang: Lang) -> Response {
-    let body = format!(r#"<h1>{}</h1><p class="error">{}</p><a class="button" href="{}">{}</a>"#, lang.pick("Lien expiré", "Link abgelaufen"), invalid_text(lang, Invalid::Link), Path::Forgot.of(lang), lang.pick("Demander un nouveau lien", "Neuen Link anfordern"));
-    with_status(StatusCode::GONE, page(lang, lang.pick("Lien expiré", "Link abgelaufen"), None, &body))
+    let title = lang.pick("Lien expiré", "Link abgelaufen", "Link scaduto");
+    let body = format!(
+        r#"<h1>{title}</h1><p class="error">{}</p><a class="button" href="{}">{}</a>"#,
+        invalid_text(lang, Invalid::Link),
+        Path::Forgot.of(lang),
+        lang.pick("Demander un nouveau lien", "Neuen Link anfordern", "Richiedi un nuovo link")
+    );
+    with_status(StatusCode::GONE, page(lang, title, None, &body))
 }
 
 fn reset_page(lang: Lang, token: &str, error: Option<String>) -> Response {
@@ -600,14 +602,18 @@ fn reset_page(lang: Lang, token: &str, error: Option<String>) -> Response {
 <p class="hint">{hint}</p>
 <button>{submit}</button>
 </form>"#,
-        title = lang.pick("Nouveau mot de passe", "Neues Passwort"),
+        title = lang.pick("Nouveau mot de passe", "Neues Passwort", "Nuova password"),
         action = Path::Reset.of(lang),
         token = esc(token),
-        label = lang.pick("Nouveau mot de passe", "Neues Passwort"),
-        hint = lang.pick("Au moins 10 caractères. Vos appareils seront déconnectés.", "Mindestens 10 Zeichen. Ihre Geräte werden abgemeldet."),
-        submit = lang.pick("Enregistrer", "Speichern"),
+        label = lang.pick("Nouveau mot de passe", "Neues Passwort", "Nuova password"),
+        hint = lang.pick(
+            "Au moins 10 caractères. Vos appareils seront déconnectés.",
+            "Mindestens 10 Zeichen. Ihre Geräte werden abgemeldet.",
+            "Almeno 10 caratteri. I vostri dispositivi verranno disconnessi."
+        ),
+        submit = lang.pick("Enregistrer", "Speichern", "Salva"),
     );
-    page(lang, lang.pick("Nouveau mot de passe", "Neues Passwort"), None, &body)
+    page(lang, lang.pick("Nouveau mot de passe", "Neues Passwort", "Nuova password"), None, &body)
 }
 
 async fn reset_form(lang: Lang, State(app): State<App>, Query(q): Query<ResetQuery>) -> Response {
@@ -624,13 +630,19 @@ async fn reset(lang: Lang, State(app): State<App>, Client(client): Client, Form(
     }
     match auth::reset_finish(&app.pool, &form.t, &form.password).await {
         Ok(Ok(user)) => {
+            let title = lang.pick("Mot de passe changé", "Passwort geändert", "Password cambiata");
             let body = format!(
-                r#"<h1>{}</h1><p class="done">{}</p><p>{}</p>"#,
-                lang.pick("Mot de passe changé", "Passwort geändert"),
+                r#"<h1>{title}</h1><p class="done">{}</p><p>{}</p><a class="button" href="{}">{}</a>"#,
                 esc(&user.email),
-                lang.pick("Vos appareils sont déconnectés : connectez-vous avec le nouveau mot de passe.", "Ihre Geräte sind abgemeldet: Melden Sie sich mit dem neuen Passwort an."),
+                lang.pick(
+                    "Vos appareils sont déconnectés : connectez-vous avec le nouveau mot de passe.",
+                    "Ihre Geräte sind abgemeldet: Melden Sie sich mit dem neuen Passwort an.",
+                    "I vostri dispositivi sono disconnessi: accedete con la nuova password."
+                ),
+                session::sign_in(lang),
+                lang.pick("Se connecter", "Anmelden", "Accedi"),
             );
-            page(lang, lang.pick("Mot de passe changé", "Passwort geändert"), None, &body)
+            page(lang, title, None, &body)
         }
         Ok(Err(Invalid::Link)) => link_gone(lang),
         Ok(Err(e)) => with_status(StatusCode::BAD_REQUEST, reset_page(lang, &form.t, Some(invalid_text(lang, e)))),
@@ -654,5 +666,7 @@ mod tests {
         assert!(body.contains("https://www.equievents.ch/neues-passwort?t=abc123") && body.starts_with("Guten Tag Anne Office"));
         let (_, body) = reset_mail(Lang::Fr, "https://www.equievents.ch", "Anne", "anne@example.ch", "abc123");
         assert!(body.contains("https://www.equievents.ch/nouveau-mot-de-passe?t=abc123"));
+        let (subject, body) = reset_mail(Lang::It, "https://www.equievents.ch", "Anna", "anna@example.ch", "abc123");
+        assert!(subject == "EquiEvents: nuova password" && body.starts_with("Buongiorno Anna,") && body.contains("/nuova-password?t=abc123"));
     }
 }

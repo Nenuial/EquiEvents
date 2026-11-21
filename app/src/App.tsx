@@ -5,6 +5,7 @@ import ShowScreen from './screens/ShowScreen';
 import Welcome, { accountHere } from './screens/Welcome';
 import Accounts from './screens/Accounts';
 import { ActingBand, staffMe } from './parts/staff';
+import { firstLanguage, rememberOnSite } from './site';
 import { ErrorNote, useLoad } from './parts/common';
 import { useZoomKeys } from './parts/zoom';
 import { ToastProvider } from './ui';
@@ -51,7 +52,7 @@ export function href(place: Place): string {
 
 export default function App() {
   const [place, setPlace] = useState<Place>(() => parse(window.location.hash));
-  const [language, setLanguage] = useState<Language>(() => (localStorage.getItem('language') as Language) || 'fr');
+  const [language, setLanguage] = useState<Language>(firstLanguage);
   // Nothing without an equievents.ch account (the user, 2026-11-21).
   const [accountRound, setAccountRound] = useState(0);
   const account = useLoad(accountHere, [accountRound]);
@@ -73,6 +74,7 @@ export default function App() {
   };
   const switchLanguage = (l: Language) => {
     localStorage.setItem('language', l);
+    rememberOnSite(l);
     setLanguage(l);
   };
 

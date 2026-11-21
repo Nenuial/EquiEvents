@@ -5,13 +5,14 @@ use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 use tokio_postgres::NoTls;
 
 /// The migrations, in order: (version, SQL).
-const MIGRATIONS: [(&str, &str); 6] = [
+const MIGRATIONS: [(&str, &str); 7] = [
     ("0001_init", include_str!("../migrations/0001_init.sql")),
     ("0002_password_resets", include_str!("../migrations/0002_password_resets.sql")),
     ("0003_owners_and_requests", include_str!("../migrations/0003_owners_and_requests.sql")),
     ("0004_archives", include_str!("../migrations/0004_archives.sql")),
     ("0005_registries", include_str!("../migrations/0005_registries.sql")),
     ("0006_staff", include_str!("../migrations/0006_staff.sql")),
+    ("0007_italian", include_str!("../migrations/0007_italian.sql")),
 ];
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;

@@ -7,6 +7,7 @@
 // in the error log (Réglages › Avancé) and shows in developer mode.
 
 import catalogue from './refusals.json';
+import { firstLanguage } from './site';
 
 type Language = 'fr' | 'de' | 'it';
 type Texts = Record<Language, string>;
@@ -21,14 +22,9 @@ const patterns = Object.entries(catalogue as Record<string, Texts>)
   })
   .sort((a, b) => b.own - a.own || a.holes - b.holes);
 
-/** The office's language (App.tsx keeps it). */
+/** The office's language (App.tsx keeps it; before it was chosen, the one the app starts in). */
 function language(): Language {
-  try {
-    const l = localStorage.getItem('language');
-    return l === 'de' || l === 'it' ? l : 'fr';
-  } catch {
-    return 'fr';
-  }
+  return firstLanguage();
 }
 
 function developer(): boolean {

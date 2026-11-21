@@ -73,7 +73,7 @@ Both apply the migrations when they start (`crates/server/migrations`, each once
   needs its Swiss Equestrian keys. The first administrator: `create-admin`; then roles in the
   online version's « Comptes », or `set-role e-mail admin|support|none`; `create-user` and
   `set-password` (a new password printed once, the account signed out everywhere) from the
-  command line too. Each has a language (`fr`, `de`) for their e-mails.
+  command line too. Each has a language (`fr`, `de`, `it`) for their e-mails.
 - `sessions.acting_as`: the account a staff session acts as (`admin.rs`), none when it works
   for itself.
 - `password_resets`: a forgotten password's link, its token kept as a SHA-256 hash, valid an
@@ -221,21 +221,27 @@ Only the server talks to it (`crates/server/src/se.rs`; the contract: [se-api.md
 
 ## The site
 
-Plain HTML forms (no script, nothing loaded from elsewhere), French and German, for phones
-too, in the app's look (the navy band with the logo and the title, the card below, Inter, light
-or dark as the system is; signing in and making an account as the app's welcome screen):
-`crates/server/src/site.rs`.
+Plain HTML forms (no script, nothing loaded from elsewhere), in French, German and Italian, for
+phones too, in the app's look (the navy band with the logo, the language switch and the title,
+the card below, Inter, light or dark as the system is; signing in and making an account as the
+app's welcome screen): `crates/server/src/site.rs`.
 
-| French | German | |
-|---|---|---|
-| `/` | | both languages: signed out, signing in and making an account; signed in, the online version and the downloads |
-| `/connexion` | `/anmelden` | signing in (`?next=`: a page of the site to go back to); a year's cookie |
-| `/deconnexion` | `/abmelden` | signing out (the session ends everywhere it was used: the online version) |
-| `/inscription` | `/registrieren` | name, e-mail, password: the account is made at once, signed in |
-| `/mot-de-passe` | `/passwort` | a forgotten password: the link by e-mail |
-| `/nouveau-mot-de-passe?t=…` | `/neues-passwort?t=…` | the link: a new password; signed out everywhere |
-| `/telecharger` | `/herunterladen` | the desktop app, Mac and Windows (this computer's first), signed in only: [releases.md](releases.md); the files themselves stay reachable for the apps' updates |
-| `/app/` | | the online version (above), signed in only |
+**One language per page** (the user, 2026-11-21), the others a click away in the switch. The
+home page is signing in, in the visitor's language: the one last chosen on the site (a page seen
+in it, or signing out of the app in it: the `equievents_lang` cookie, a preference the online
+version reads and writes too), else the first of the three the browser asks for, else German.
+The online version starts in the same one until a language is chosen in it.
+
+| French | German | Italian | |
+|---|---|---|---|
+| `/` | | | signing in, in the visitor's language; signed in: the online version |
+| `/connexion` | `/anmelden` | `/accedi` | signing in (`?next=`: a page of the site to go back to); a year's cookie |
+| `/deconnexion` | `/abmelden` | `/esci` | signing out (the session ends everywhere it was used: the online version) |
+| `/inscription` | `/registrieren` | `/registrati` | name, e-mail, password: the account is made at once, signed in |
+| `/mot-de-passe` | `/passwort` | `/password-dimenticata` | a forgotten password: the link by e-mail |
+| `/nouveau-mot-de-passe?t=…` | `/neues-passwort?t=…` | `/nuova-password?t=…` | the link: a new password; signed out everywhere |
+| `/telecharger` | `/herunterladen` | `/scarica` | the desktop app, Mac and Windows (this computer's first), signed in only (the online version's account dialog links to it): [releases.md](releases.md); the files themselves stay reachable for the apps' updates |
+| `/app/` | | | the online version (above), signed in only |
 
 What it says is the same for an address with or without an account (no list of who has one to
 be had by asking), except when making an account with an address that has one ("forgot your
