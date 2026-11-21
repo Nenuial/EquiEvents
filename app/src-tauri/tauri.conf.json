@@ -24,6 +24,6 @@
     "macOS": { "minimumSystemVersion": "11.0" }
   },
   "plugins": {
-    "updater": { "pubkey": "", "requireSignedVersion": true, "windows": { "installMode": "passive" } }
+    "updater": { "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEU0QkI2RDJBQUQ4NTI4NzAKUldSd0tJV3RLbTI3NU5yNVhCUWJIQlB4NEZYNXFUc21tYlA2bkgwb0NVUnNVcjhqSTg0SllySUMK", "requireSignedVersion": true, "windows": { "installMode": "passive" } }
   }
 }
