@@ -56,10 +56,12 @@ Settings › Environments › `release`, its deployment branches and tags limite
 |---|---|
 | `TAURI_SIGNING_PRIVATE_KEY` | the update key's file, as text |
 | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | its password |
-| `APPLE_CERTIFICATE` | the Developer ID Application certificate with its key (.p12, exported from the keychain), `base64 -i cert.p12 \| pbcopy` |
-| `APPLE_CERTIFICATE_PASSWORD` | the .p12's password |
-| `APPLE_API_KEY`, `APPLE_API_ISSUER`, `APPLE_API_KEY_P8` | notarization with an App Store Connect API key (recommended) |
-| or `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID` | notarization with the Apple ID and an app-specific password |
+| `APPLE_CERTIFICATE` | the Developer ID Application certificate with its key, as base64: made in Xcode › Settings › Accounts › (the team) › Manage Certificates › + › *Developer ID Application* (the account holder only); exported from Keychain Access › My Certificates › (it) › Export… as a .p12 with a password; `base64 -i DeveloperID.p12 \| pbcopy` |
+| `APPLE_CERTIFICATE_PASSWORD` | the password the .p12 was exported with |
+| `APPLE_API_KEY`, `APPLE_API_ISSUER`, `APPLE_API_KEY_P8` | notarization with an App Store Connect API key (recommended): appstoreconnect.apple.com › Users and Access › Integrations › App Store Connect API › Team Keys › + (access: Developer); the Key ID, the Issuer ID shown above the list, the .p8 file (downloadable once: `pbcopy < AuthKey_<ID>.p8`) |
+| or `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID` | notarization with the Apple ID, an app-specific password (account.apple.com › Sign-In and Security) and the team ID (developer.apple.com › Membership) |
+
+Keep the .p12 and the .p8 in the password manager, then delete the files.
 
 Windows is not signed for the pilot (SmartScreen warns once; the download page says what to
 click).
