@@ -12,11 +12,18 @@
 # The secrets, in the environment `release` (Settings › Environments; deployment tags v*, branch main):
 #   TAURI_SIGNING_PRIVATE_KEY           the update key's file (~/.tauri/equievents.key), as text
 #   TAURI_SIGNING_PRIVATE_KEY_PASSWORD  its password
-#   APPLE_CERTIFICATE                   the Developer ID Application certificate and key (.p12), base64
-#   APPLE_CERTIFICATE_PASSWORD          the .p12's password
-#   notarization, either an App Store Connect API key (recommended):
-#     APPLE_API_KEY (its ID), APPLE_API_ISSUER (the issuer ID), APPLE_API_KEY_P8 (the .p8 file, as text)
-#   or the Apple ID: APPLE_ID, APPLE_PASSWORD (an app-specific password), APPLE_TEAM_ID
+#   APPLE_CERTIFICATE                   the Developer ID Application certificate and key (.p12), base64:
+#                                       Xcode › Settings › Accounts › Manage Certificates › + › Developer ID
+#                                       Application; Keychain Access › My Certificates › it › Export (.p12);
+#                                       base64 -i DeveloperID.p12 | pbcopy
+#   APPLE_CERTIFICATE_PASSWORD          the password the .p12 was exported with
+#   notarization, either an App Store Connect API key (recommended): appstoreconnect.apple.com ›
+#   Users and Access › Integrations › App Store Connect API › Team Keys › + (Developer access):
+#     APPLE_API_KEY (its Key ID), APPLE_API_ISSUER (the Issuer ID above the list),
+#     APPLE_API_KEY_P8 (the .p8 file, downloadable once, as text: pbcopy < AuthKey_<ID>.p8)
+#   or the Apple ID: APPLE_ID, APPLE_PASSWORD (an app-specific password, account.apple.com),
+#     APPLE_TEAM_ID (developer.apple.com › Membership)
+# Without the Apple secrets the Mac build stops (a run by hand: the Windows build goes on).
 name: Release
 
 on:
