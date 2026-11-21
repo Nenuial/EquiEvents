@@ -48,6 +48,7 @@ impl Path {
 pub fn routes() -> Router<App> {
     Router::new()
         .route("/", get(home))
+        .route("/site/inter.woff2", get(font))
         .route("/connexion", get(|s, h, q| sign_in_form(Lang::Fr, s, h, q)).post(|s, c, f| sign_in(Lang::Fr, s, c, f)))
         .route("/anmelden", get(|s, h, q| sign_in_form(Lang::De, s, h, q)).post(|s, c, f| sign_in(Lang::De, s, c, f)))
         .route("/deconnexion", get(|s, h| sign_out(Lang::Fr, s, h)))
@@ -81,45 +82,99 @@ pub fn esc(text: &str) -> String {
     out
 }
 
+/// The site's look is the app's (docs/ux/design.md; the user, 2026-11-21: "like the app"): the
+/// navy band with the logo, the language switch and the page's title, its card below; Inter (the
+/// app's typeface, `/site/inter.woff2`); light or dark as the system is. No script.
 const STYLE: &str = r#"
-:root{--ink:#14202b;--ink-2:#4b5966;--line:#d5dde4;--page:#f4f7f9;--card:#fff;--accent:#00283c;--accent-ink:#fff;--bad:#a4262c;--good:#1d6b3a;color-scheme:light}
-@media (prefers-color-scheme:dark){:root{--ink:#e8eef3;--ink-2:#a6b4c0;--line:#33424f;--page:#0f1820;--card:#17232d;--accent:#7fb6d6;--accent-ink:#0f1820;--bad:#ff8a8a;--good:#7fd69a;color-scheme:dark}}
+@font-face{font-family:Inter;font-style:normal;font-weight:100 900;font-display:swap;src:url(/site/inter.woff2) format("woff2")}
+:root{--bg:#f3f5f8;--surface:#fff;--line:#e4e9f0;--line-strong:#d3dbe5;--ink:#0d1b2a;--ink-2:#3a4859;--ink-3:#66768a;--ink-4:#98a5b5;--hover:#eef2f6;--accent:#e5484d;--accent-strong:#cc3a3f;--on-accent:#fff;--mark:#e5484d;--ok:#138a4c;--danger:#d32f3a;--info:#1f6fc4;--nav:#00283c;--shadow:16 32 48;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#060f17;--surface:#0c1824;--line:#1b3043;--line-strong:#264057;--ink:#e9eff6;--ink-2:#b8c6d4;--ink-3:#8195a9;--ink-4:#5d7186;--hover:#132637;--accent:#ef5559;--accent-strong:#ff7477;--ok:#3ccf8a;--danger:#ff6370;--info:#5aa8ff;--nav:#0a1b29;--shadow:0 0 0;color-scheme:dark}}
 *{box-sizing:border-box}
-body{margin:0;background:var(--page);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:max(1rem,env(safe-area-inset-top)) 1rem max(1rem,env(safe-area-inset-bottom))}
-main{max-width:28rem;margin:2rem auto}
-header{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;margin-bottom:1.25rem}
-.brand{font-weight:700;font-size:1.35rem;letter-spacing:.01em;color:var(--ink);text-decoration:none}
-.lang{color:var(--ink-2);font-size:.9rem}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1.5rem}
-h1{font-size:1.3rem;margin:0 0 .5rem}
-p{margin:.5rem 0}
-.muted{color:var(--ink-2);font-size:.92rem}
-label{display:block;font-weight:600;margin:1rem 0 .3rem}
-input{width:100%;font:inherit;padding:.65rem .75rem;border:1px solid var(--line);border-radius:8px;background:var(--page);color:var(--ink)}
-input:focus{outline:2px solid var(--accent);outline-offset:1px}
-.hint{color:var(--ink-2);font-size:.85rem;margin-top:.25rem}
-button,.button{display:inline-block;width:100%;margin-top:1.25rem;padding:.75rem 1rem;border:0;border-radius:8px;background:var(--accent);color:var(--accent-ink);font:inherit;font-weight:600;text-align:center;text-decoration:none;cursor:pointer}
-.second{background:transparent;color:var(--accent);border:1px solid var(--line)}
-.error{color:var(--bad);font-weight:600}
-.done{color:var(--good);font-weight:600}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+.band{position:relative;overflow:hidden;background:var(--nav);color:#fff;padding:max(1rem,env(safe-area-inset-top)) 1rem 6.5rem}
+.band::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(80% 120% at 100% 0%,rgb(242 90 93/.22),transparent 55%),radial-gradient(60% 90% at 0% 100%,rgb(31 111 196/.18),transparent 60%)}
+.bar,.head{position:relative;margin:0 auto}
+.bar{max-width:72rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.25rem 0}
+.brand{display:inline-flex;align-items:center;gap:.6rem;color:#fff;text-decoration:none;font-weight:700;font-size:17px;letter-spacing:-.01em}
+.brand svg{width:2rem;height:2rem;flex:none}
+.brand span{color:var(--mark)}
+.langs{display:inline-flex;gap:2px;padding:3px;border-radius:9px;background:rgb(255 255 255/.08)}
+.langs a,.langs span{display:inline-block;min-width:2.4rem;padding:.35rem .55rem;border-radius:7px;font-size:12px;font-weight:700;text-align:center;color:rgb(255 255 255/.55);text-decoration:none}
+.langs a:hover{color:#fff}
+.langs span{background:#fff;color:#0d1b2a}
+.head{max-width:28rem;padding-top:3.25rem}
+.head h1{margin:0;font-size:32px;line-height:1.15;font-weight:700;letter-spacing:-.025em;text-wrap:balance}
+.head p{margin:.65rem 0 0;color:rgb(255 255 255/.72);font-size:15px}
+main{position:relative;max-width:28rem;margin:-4rem auto 0;padding:0 1rem max(2.5rem,env(safe-area-inset-bottom))}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:1.6rem;box-shadow:0 1px 2px rgb(var(--shadow)/.06),0 10px 28px -14px rgb(var(--shadow)/.22)}
+.card>:first-child{margin-top:0}
+p{margin:.6rem 0}
+.muted{color:var(--ink-2);font-size:15px}
+.tabs{display:flex;gap:4px;padding:4px;border-radius:10px;background:var(--hover);margin:1rem 0}
+.tabs a,.tabs span{flex:1;padding:.55rem .75rem;border-radius:7px;text-align:center;font-weight:600;font-size:15px;color:var(--ink-3);text-decoration:none}
+.tabs a:hover{color:var(--ink)}
+.tabs span{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgb(var(--shadow)/.14)}
+label{display:block;font-weight:600;font-size:15px;margin:1rem 0 .4rem}
+input{width:100%;height:2.85rem;font:inherit;padding:0 .8rem;border:1px solid var(--line-strong);border-radius:9px;background:var(--surface);color:var(--ink)}
+input:focus{outline:none;border-color:var(--info);box-shadow:0 0 0 3px rgb(31 111 196/.2)}
+.hint{color:var(--ink-3);font-size:13px;margin-top:.35rem}
+button,.button{display:flex;align-items:center;justify-content:center;width:100%;min-height:2.85rem;margin-top:1.25rem;padding:.6rem 1rem;border:0;border-radius:9px;background:var(--accent);color:var(--on-accent);font:inherit;font-weight:600;text-align:center;text-decoration:none;cursor:pointer}
+button:hover,.button:hover{background:var(--accent-strong)}
+.second{background:transparent;color:var(--ink);border:1px solid var(--line-strong)}
+.second:hover{background:var(--hover)}
+.error{color:var(--danger);font-weight:600}
+.done{color:var(--ok);font-weight:600}
 .trap{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}
 a{color:var(--accent)}
-footer{margin-top:1rem;text-align:center}
-h2{font-size:1.1rem;margin:0}
+.links{margin:1rem 0 0;font-size:15px}
+.links a{color:var(--ink-3);text-decoration:none}
+.links a:hover{color:var(--ink)}
+footer{margin-top:1rem;text-align:center;color:var(--ink-4);font-size:13px}
+footer a{color:var(--ink-3)}
+h2{font-size:16px;margin:0}
 .platform{margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--line)}
 .platform .button{margin-top:.75rem}
-.steps{padding-left:1.25rem;margin:.75rem 0 0;color:var(--ink-2);font-size:.92rem}
+.steps{padding-left:1.25rem;margin:.75rem 0 0;color:var(--ink-2);font-size:14px}
 .steps li{margin:.3rem 0}
 .then{margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--line)}
 .group{margin-top:1.25rem}
 .group .button{margin-top:.6rem}
+:focus-visible{outline:2px solid var(--info);outline-offset:2px}
 "#;
 
-/// A whole page: the site's head, the language switch, `body` in a card.
+/// The app's logo (`app/src/ui/Logo.tsx`): the E on its tile.
+const LOGO: &str = r##"<svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" style="fill:var(--mark)"/><path d="M22.5 9.5H16a6.5 6.5 0 0 0 0 13h6.5M13 16h7.5" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>"##;
+
+/// The app's typeface (Inter, SIL Open Font License: `assets/inter-LICENSE.txt`).
+const INTER: &[u8] = include_bytes!("../assets/inter-latin.woff2");
+
+async fn font() -> Response {
+    ([(header::CONTENT_TYPE, "font/woff2"), (header::CACHE_CONTROL, "public, max-age=31536000, immutable")], INTER).into_response()
+}
+
+/// A whole page: the band (the logo, the language switch, the page's heading and the line under
+/// it: the body's first `<h1>` and `<p class="muted">`, else `title`), the rest in the card.
 pub(crate) fn page(lang: Lang, title: &str, switch_to: Option<&str>, body: &str) -> Response {
-    let switch = switch_to.map(|href| format!(r#"<a class="lang" href="{href}" hreflang="{0}" lang="{0}">{1}</a>"#, lang.other().code(), lang.pick("Deutsch", "Français"))).unwrap_or_default();
+    let (heading, rest) = match body.trim_start().strip_prefix("<h1>").and_then(|b| b.split_once("</h1>")) {
+        Some((h, rest)) => (h.to_string(), rest.trim_start()),
+        None => (esc(title), body),
+    };
+    let (under, rest) = match rest.strip_prefix(r#"<p class="muted">"#).and_then(|b| b.split_once("</p>")) {
+        Some((p, rest)) => (format!("<p>{p}</p>"), rest.trim_start()),
+        None => (String::new(), rest),
+    };
+    // FR · DE, this page's language marked; the other one when the page has it.
+    let langs = [Lang::Fr, Lang::De]
+        .iter()
+        .map(|l| match (*l == lang, switch_to) {
+            (true, _) => format!(r#"<span lang="{0}">{1}</span>"#, l.code(), l.code().to_uppercase()),
+            (false, Some(href)) => format!(r#"<a href="{href}" hreflang="{0}" lang="{0}">{1}</a>"#, l.code(), l.code().to_uppercase()),
+            (false, None) => String::new(),
+        })
+        .collect::<String>();
     let html = format!(
-        r#"<!doctype html><html lang="{code}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>{title} · EquiEvents</title><style>{STYLE}</style></head><body><main><header><a class="brand" href="/">EquiEvents</a>{switch}</header><div class="card">{body}</div></main></body></html>"#,
+        r##"<!doctype html><html lang="{code}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#00283c"><title>{title} · EquiEvents</title><style>{STYLE}</style></head><body><header class="band"><div class="bar"><a class="brand" href="/">{LOGO}<b>Equi<span>Events</span></b></a><nav class="langs">{langs}</nav></div><div class="head"><h1>{heading}</h1>{under}</div></header><main><div class="card">{rest}</div></main></body></html>"##,
         code = lang.code(),
         title = esc(title),
     );
@@ -127,7 +182,7 @@ pub(crate) fn page(lang: Lang, title: &str, switch_to: Option<&str>, body: &str)
     let headers = res.headers_mut();
     headers.insert(header::CONTENT_TYPE, HeaderValue::from_static("text/html; charset=utf-8"));
     // Nothing from elsewhere, no frames, no address (reset links!) passed on to other sites.
-    headers.insert(header::CONTENT_SECURITY_POLICY, HeaderValue::from_static("default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"));
+    headers.insert(header::CONTENT_SECURITY_POLICY, HeaderValue::from_static("default-src 'none'; style-src 'unsafe-inline'; font-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"));
     headers.insert(header::REFERRER_POLICY, HeaderValue::from_static("no-referrer"));
     headers.insert(header::X_CONTENT_TYPE_OPTIONS, HeaderValue::from_static("nosniff"));
     headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
@@ -214,6 +269,33 @@ async fn home(State(app): State<App>, headers: HeaderMap) -> Response {
 
 // --- Signing in and out --------------------------------------------------------------------------
 
+/// The head of signing in and making an account, as the app's welcome screen: its title, the
+/// line under it, what an account is for.
+fn welcome(lang: Lang) -> String {
+    format!(
+        r#"<h1>{}</h1>
+<p class="muted">{}</p>
+<p class="muted">{}</p>"#,
+        lang.pick("Bienvenue dans EquiEvents", "Willkommen bei EquiEvents"),
+        lang.pick("EquiEvents s’utilise avec un compte : connectez-vous, ou créez le vôtre.", "EquiEvents braucht ein Konto: Melden Sie sich an, oder erstellen Sie Ihres."),
+        lang.pick(
+            "Avec un compte, vos concours sont sur equievents.ch : sauvegardés, partagés avec votre équipe, et vous y travaillez en ligne, ici, ou dans l’application.",
+            "Mit einem Konto sind Ihre Turniere auf equievents.ch: gesichert, mit Ihrem Team geteilt, und Sie arbeiten online damit, hier, oder in der App."
+        ),
+    )
+}
+
+/// Signing in, making an account: the two tabs (`next`: where signing in goes after).
+fn tabs(lang: Lang, signing_in: bool, next: &str) -> String {
+    let sign_in = lang.pick("Se connecter", "Anmelden");
+    let register = lang.pick("Créer un compte", "Konto erstellen");
+    if signing_in {
+        format!(r#"<nav class="tabs"><span>{sign_in}</span><a href="{}">{register}</a></nav>"#, Path::Register.of(lang))
+    } else {
+        format!(r#"<nav class="tabs"><a href="{}">{sign_in}</a><span>{register}</span></nav>"#, esc(&session::sign_in_path(lang, next)))
+    }
+}
+
 #[derive(Debug, Default, Deserialize)]
 pub struct SignInForm {
     #[serde(default)]
@@ -232,7 +314,8 @@ pub struct NextQuery {
 fn sign_in_page(lang: Lang, email: &str, next: &str, error: Option<&str>) -> Response {
     let error = error.map(|e| format!(r#"<p class="error" role="alert">{e}</p>"#)).unwrap_or_default();
     let body = format!(
-        r#"<h1>{title}</h1>
+        r#"{welcome}
+{tabs}
 {error}
 <form method="post" action="{action}">
 <input type="hidden" name="next" value="{next}">
@@ -240,8 +323,9 @@ fn sign_in_page(lang: Lang, email: &str, next: &str, error: Option<&str>) -> Res
 <label for="password">{password}</label><input id="password" name="password" type="password" autocomplete="current-password" required maxlength="200">
 <button>{submit}</button>
 </form>
-<p class="muted"><a href="{forgot}">{forgot_label}</a> · <a href="{register}">{register_label}</a></p>"#,
-        title = lang.pick("Se connecter", "Anmelden"),
+<p class="links"><a href="{forgot}">{forgot_label}</a></p>"#,
+        welcome = welcome(lang),
+        tabs = tabs(lang, true, next),
         action = session::sign_in(lang),
         next = esc(next),
         email_label = lang.pick("Adresse e-mail", "E-Mail-Adresse"),
@@ -250,8 +334,6 @@ fn sign_in_page(lang: Lang, email: &str, next: &str, error: Option<&str>) -> Res
         submit = lang.pick("Se connecter", "Anmelden"),
         forgot = Path::Forgot.of(lang),
         forgot_label = lang.pick("Mot de passe oublié ?", "Passwort vergessen?"),
-        register = Path::Register.of(lang),
-        register_label = lang.pick("Créer un compte", "Konto erstellen"),
     );
     page(lang, lang.pick("Se connecter", "Anmelden"), Some(&session::sign_in_path(lang.other(), next)), &body)
 }
@@ -318,8 +400,8 @@ pub struct RegisterForm {
 fn register_page(lang: Lang, form: &RegisterForm, error: Option<String>) -> Response {
     let error = error.map(|e| format!(r#"<p class="error" role="alert">{e}</p>"#)).unwrap_or_default();
     let body = format!(
-        r#"<h1>{title}</h1>
-<p class="muted">{intro}</p>
+        r#"{welcome}
+{tabs}
 {error}
 <form method="post" action="{action}">
 <label for="name">{name}</label><input id="name" name="name" autocomplete="name" required maxlength="100" value="{name_v}">
@@ -329,11 +411,13 @@ fn register_page(lang: Lang, form: &RegisterForm, error: Option<String>) -> Resp
 <div class="trap" aria-hidden="true"><label for="website">Website</label><input id="website" name="website" tabindex="-1" autocomplete="off"></div>
 <button>{submit}</button>
 </form>
-<p class="muted">{privacy}</p>"#,
-        title = lang.pick("Créer un compte", "Konto erstellen"),
-        intro = lang.pick(
-            "Votre compte vous connecte à EquiEvents sur vos ordinateurs et appareils. Pour travailler sur un concours, il vous faut sa clé d’accès, fournie par Swiss Equestrian.",
-            "Mit Ihrem Konto melden Sie sich in EquiEvents auf Ihren Computern und Geräten an. Um an einem Turnier zu arbeiten, brauchen Sie seinen Zugangsschlüssel von Swiss Equestrian."
+<p class="hint">{key}</p>
+<p class="hint">{privacy}</p>"#,
+        welcome = welcome(lang),
+        tabs = tabs(lang, false, "/app/"),
+        key = lang.pick(
+            "Pour travailler sur un concours, il vous faut sa clé d’accès, fournie par Swiss Equestrian.",
+            "Um an einem Turnier zu arbeiten, brauchen Sie seinen Zugangsschlüssel von Swiss Equestrian."
         ),
         action = Path::Register.of(lang),
         name = lang.pick("Prénom et nom", "Vorname und Name"),
