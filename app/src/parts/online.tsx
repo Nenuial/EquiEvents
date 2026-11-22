@@ -60,6 +60,7 @@ interface Request {
   status: 'pending' | 'accepted' | 'refused' | 'withdrawn';
   person: { id: number; name: string; email: string };
   created_at: string;
+  decided_at?: string | null;
 }
 interface Person {
   id: number;
@@ -67,7 +68,7 @@ interface Person {
   email: string;
   role: 'owner' | 'collaborator';
 }
-interface RemoteShow {
+export interface RemoteShow {
   id: string;
   name: string;
   role: 'owner' | 'collaborator';
@@ -247,6 +248,7 @@ export function AccountButton({ onChange }: { onChange: () => void }) {
                 )}
               </div>
               <ArchiveSetting />
+              <MyRequests />
               <button
                 className={`${secondary} justify-self-start`}
                 onClick={async () => {
@@ -652,7 +654,7 @@ function Linked({ show, status, reload, sync }: { show: string; status: SyncStat
 
 /** The requests waiting for the owner. Accepting a transfer: staying on as a collaborator or
  * leaving the show. */
-function Requests({ show, sync }: { show: string; sync: () => Promise<void> }) {
+function Requests({ show, sync, empty = null, heading = true }: { show: string; sync: () => Promise<void>; empty?: ReactNode; heading?: boolean }) {
   const t = useT();
   const refusal = useRefusal();
   const requests = useLoad(() => call<{ ok: true; requests: Request[] } | Refusal>('show_requests', { show }), [show]);
@@ -665,10 +667,10 @@ function Requests({ show, sync }: { show: string; sync: () => Promise<void> }) {
     await sync();
   };
   const list = requests.data?.ok ? requests.data.requests : [];
-  if (list.length === 0) return null;
+  if (list.length === 0) return requests.data ? <>{empty}</> : null;
   return (
     <section className="grid gap-2">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-3">{t('online_requests')}</h3>
+      {heading && <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-3">{t('online_requests')}</h3>}
       {list.map(r => (
         <div key={r.id} className="grid gap-2 rounded-lg border border-line p-3">
           <div>
@@ -765,16 +767,16 @@ function Team({ show, owner, sync, reload }: { show: string; owner: boolean; syn
 
 /** In the library: the shows one works on at equievents.ch that are not on this computer yet,
  * and one's requests; in the archives, those archived. */
-export function OnlineShows({ open, version, archived = false }: { open: (show: string) => void; version: number; archived?: boolean }) {
+/** The account's events on equievents.ch not on this computer yet, to download (the desktop app
+ *  only: the online version has every one by itself). One's own requests are in the account's
+ *  dialog (the user, 2026-11-22: less in one's face). */
+export function OnlineShows({ shows, open, archived = false }: { shows: RemoteShow[]; open: (show: string) => void; archived?: boolean }) {
   const t = useT();
   const refusal = useRefusal();
-  const online = useLoad(() => call<{ ok: true; shows: RemoteShow[]; requests: Request[] } | Refusal>('online_shows'), [version]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  if (!online.data?.ok) return null;
-  const waiting = online.data.shows.filter(s => !s.local && !!s.archived === archived);
-  const requests = archived ? [] : online.data.requests.filter(r => r.status !== 'withdrawn').slice(0, 5);
-  if (waiting.length === 0 && requests.length === 0) return null;
+  const waiting = shows.filter(s => !s.local && !!s.archived === archived);
+  if (waiting.length === 0) return null;
   const download = async (remote: string) => {
     setBusy(remote);
     setError(null);
@@ -783,7 +785,6 @@ export function OnlineShows({ open, version, archived = false }: { open: (show: 
     if (a.ok) open(a.show);
     else setError(refusal(a.code));
   };
-  const statusKey: Record<Request['status'], Key> = { pending: 'online_status_pending', accepted: 'online_status_accepted', refused: 'online_status_refused', withdrawn: 'online_status_withdrawn' };
   return (
     <section className="grid gap-3 rounded-2xl border border-line bg-card p-5 shadow-card">
       <h2 className="flex items-center gap-2 text-[15px] font-semibold">
@@ -803,31 +804,53 @@ export function OnlineShows({ open, version, archived = false }: { open: (show: 
           </button>
         </div>
       ))}
-      {requests.length > 0 && (
-        <div className="grid gap-1 border-t border-line pt-2 text-sm">
-          <div className="text-xs text-ink-3">{t('online_my_requests')}</div>
-          {requests.map(r => (
-            <div key={r.id} className="flex flex-wrap items-center gap-x-2">
-              <span className="font-semibold">{r.show_name}</span>
-              <span className="text-ink-3">{r.kind === 'ownership' ? t('online_ask_ownership') : t('online_ask_access')}</span>
-              <span className={r.status === 'refused' ? 'text-danger' : r.status === 'accepted' ? 'text-ok' : 'text-warn'}>· {t(statusKey[r.status])}</span>
-              {r.status === 'pending' && (
-                <button
-                  onClick={async () => {
-                    await call('withdraw_request', { id: r.id });
-                    online.reload();
-                  }}
-                  className="text-xs text-ink-3 hover:text-accent"
-                >
-                  {t('online_withdraw')}
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
       {error && <p className="text-sm font-semibold text-danger">{error}</p>}
     </section>
+  );
+}
+
+/** One's own requests (the account's dialog): those still waiting (to withdraw), and those
+ *  refused lately. An accepted one shows as the event itself. */
+function MyRequests() {
+  const t = useT();
+  const online = useLoad(() => call<{ ok: true; requests: Request[] } | Refusal>('online_shows'), []);
+  if (!online.data?.ok) return null;
+  const lately = Date.now() - 14 * 24 * 3600 * 1000;
+  const shown = online.data.requests.filter(r => r.status === 'pending' || (r.status === 'refused' && !!r.decided_at && Date.parse(r.decided_at) > lately));
+  if (shown.length === 0) return null;
+  return (
+    <div className="grid gap-1.5 border-t border-line pt-3 text-sm">
+      <div className="text-xs font-semibold text-ink-2">{t('online_my_requests')}</div>
+      {shown.map(r => (
+        <div key={r.id} className="flex flex-wrap items-center gap-x-2">
+          <span className="font-semibold">{r.show_name}</span>
+          <span className="text-ink-3">{r.kind === 'ownership' ? t('online_ask_ownership') : t('online_ask_access')}</span>
+          <span className={r.status === 'refused' ? 'text-danger' : 'text-warn'}>· {t(r.status === 'refused' ? 'online_status_refused' : 'online_status_pending')}</span>
+          {r.status === 'pending' && (
+            <button
+              onClick={async () => {
+                await call('withdraw_request', { id: r.id });
+                online.reload();
+              }}
+              className="text-xs text-ink-3 hover:text-accent"
+            >
+              {t('online_withdraw')}
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** The requests waiting for the owner of a show, from its card in the library (the user,
+ *  2026-11-22: a counter on the dashboard). */
+export function RequestsDialog({ show, name, close }: { show: string; name: string; close: () => void }) {
+  const t = useT();
+  return (
+    <Modal open onClose={close} title={t('online_requests_for').replace('{show}', name)} icon={UserRound} size="md" footer={<Button onClick={close}>{t('close')}</Button>}>
+      <Requests show={show} sync={async () => void (await call('sync', { show }).catch(() => null))} empty={<p className="text-sm text-ink-3">{t('online_requests_none')}</p>} heading={false} />
+    </Modal>
   );
 }
 

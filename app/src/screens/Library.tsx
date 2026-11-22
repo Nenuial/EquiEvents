@@ -4,11 +4,29 @@
 // page of their own (#/archives), by year: archived is only how they are listed.
 
 import { useState } from 'react';
-import { Archive, ArchiveRestore, ArrowLeft, CalendarDays, CloudDownload, Download, Ellipsis, FileDown, FileInput, FolderOpen, Import, MapPin, Plus, Trash2, Trophy, Users } from 'lucide-react';
+import {
+  Archive,
+  ArchiveRestore,
+  ArrowLeft,
+  CalendarDays,
+  CloudDownload,
+  Download,
+  Ellipsis,
+  FileDown,
+  FileInput,
+  FolderOpen,
+  Import,
+  MapPin,
+  Plus,
+  Trash2,
+  Trophy,
+  UserPlus,
+  Users,
+} from 'lucide-react';
 import { call, chooseFile, saveFile, type EventInFile, type ShowSummary } from '../api';
 import { formatDate, usePlural, useT, type Language } from '../i18n';
 import { ErrorNote, useLoad } from '../parts/common';
-import { AccountButton, AfterImport, DeleteShow, OnlineShows, OpenWithKey, useLibrarySync, useRefusal, type AccountView, type PutAnswer } from '../parts/online';
+import { AccountButton, AfterImport, DeleteShow, OnlineShows, OpenWithKey, RequestsDialog, useLibrarySync, useRefusal, type AccountView, type PutAnswer, type RemoteShow } from '../parts/online';
 import { SettingsButton } from '../parts/settings';
 import { downloadPage } from '../site';
 import { UpdateButton } from '../parts/update';
@@ -40,7 +58,18 @@ export default function Library({
   // equievents.ch: the account (the bar), shows waiting there, the sync while the library is open.
   const [online, setOnline] = useState(0);
   const account = useLoad(() => call<AccountView>('account'), [online]);
-  useLibrarySync(!!account.data?.signed_in, shows.reload);
+  const signedIn = !!account.data?.signed_in;
+  // The account's shows on equievents.ch: those not here yet (the desktop app), the requests
+  // waiting for their owner (a counter on each card and in the band: the user, 2026-11-22).
+  const remote = useLoad(() => (signedIn ? call<{ ok: true; shows: RemoteShow[] } | { ok: false }>('online_shows').catch(() => null) : Promise.resolve(null)), [online, signedIn]);
+  const remoteShows = remote.data?.ok ? remote.data.shows : [];
+  const waitingFor = (s: ShowSummary) => remoteShows.find(r => r.local === s.id && r.role === 'owner')?.requests ?? 0;
+  const waitingAll = remoteShows.filter(r => r.role === 'owner').reduce((n, r) => n + r.requests, 0);
+  const [answering, setAnswering] = useState<ShowSummary | null>(null);
+  useLibrarySync(signedIn, () => {
+    shows.reload();
+    remote.reload();
+  });
   const [error, setError] = useState<string | null>(null);
   const [picking, setPicking] = useState<{ path: string; events: EventInFile[]; chosen: string[] } | null>(null);
   const [deleting, setDeleting] = useState<ShowSummary | null>(null);
@@ -171,6 +200,17 @@ export default function Library({
           )}
         </div>
       </button>
+      {/* Requests waiting for the owner: answered from here. */}
+      {waitingFor(s) > 0 && (
+        <button
+          onClick={() => setAnswering(s)}
+          className="flex items-center gap-2 border-t border-accent/25 bg-accent-soft/50 px-4 py-2.5 text-left text-[13px] font-semibold text-accent hover:bg-accent-soft pointer-coarse:py-3"
+        >
+          <UserPlus className="size-4 shrink-0" aria-hidden />
+          <span className="flex-1">{waitingFor(s) === 1 ? t('online_requests_waiting_one') : t('online_requests_waiting').replace('{n}', String(waitingFor(s)))}</span>
+          <span className="rounded-full bg-accent px-2 py-0.5 text-[11px] text-on-accent">{t('online_requests_answer')}</span>
+        </button>
+      )}
       <div className="flex items-center gap-3 border-t border-line bg-raised px-4 py-2.5">
         <div className="flex min-w-0 flex-1 flex-wrap gap-x-4 gap-y-0.5 text-xs whitespace-nowrap text-ink-3 tabular">
           <span>
@@ -289,6 +329,12 @@ export default function Library({
                 : archives
                   ? `${archived.length} ${plural(archived.length, 'archived_count')}`
                   : `${current.length} ${plural(current.length, account.data?.hosted ? 'shows_online' : 'shows_here')}`}
+              {!archives && waitingAll > 0 && (
+                <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 align-middle text-[11px] font-semibold text-on-accent">
+                  <UserPlus className="size-3" aria-hidden />
+                  {waitingAll === 1 ? t('online_requests_waiting_one') : t('online_requests_waiting').replace('{n}', String(waitingAll))}
+                </span>
+              )}
             </p>
           </div>
           {!archives && (
@@ -320,7 +366,7 @@ export default function Library({
 
       <main className={`relative mx-auto max-w-6xl space-y-6 px-4 pb-10 sm:px-6 ${archives ? 'mt-6' : '-mt-12'}`}>
         <ErrorNote error={error ?? shows.error} />
-        <OnlineShows open={open} version={online} archived={archives} />
+        {!account.data?.hosted && <OnlineShows shows={remoteShows} open={open} archived={archives} />}
 
         {archives ? (
           shows.data &&
@@ -399,6 +445,16 @@ export default function Library({
             setDeleting(null);
             shows.reload();
             setOnline(v => v + 1);
+          }}
+        />
+      )}
+      {answering && (
+        <RequestsDialog
+          show={answering.id}
+          name={answering.event?.title[0] ?? answering.id}
+          close={() => {
+            setAnswering(null);
+            remote.reload();
           }}
         />
       )}
