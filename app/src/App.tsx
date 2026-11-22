@@ -82,7 +82,7 @@ export default function App() {
     <LanguageContext.Provider value={language}>
       {/* Inside the language: a toast's own words (close) are the office's. */}
       <ToastProvider>
-        <div className="flex h-full flex-col">
+        <div className="flex h-full flex-col phone:h-auto phone:min-h-svh">
           {me.data && <ActingBand me={me.data} />}
           <div className="min-h-0 flex-1">
             {!account.data ? (

@@ -425,7 +425,7 @@ export function Classes({ show, go }: { show: ShowView; go: Go }) {
   };
 
   return (
-    <div className="h-full overflow-auto">
+    <div className="pane">
       <div className="mx-auto max-w-[1180px] space-y-5 px-3 py-5 sm:px-6 sm:py-7">
         <PageHeader
           icon={ClipboardList}
@@ -443,6 +443,7 @@ export function Classes({ show, go }: { show: ShowView; go: Go }) {
           <Tabs
             value={tab}
             onChange={choose}
+            compact
             items={[
               { value: 'programme', label: t('programme_tab'), icon: CalendarDays, count: all.length },
               { value: 'prepare', label: t('to_set_up'), icon: Layers, count: show.not_set_up.length || null, dot: show.not_set_up.length > 0 },

@@ -29,7 +29,12 @@ colours and shadows in `app/src/index.css`.
    field never triggers a key of the screen.
 7. **Every screen works on a phone** (U10): the frame becomes a header and a bottom bar, tables
    become lists or scroll sideways with their first column kept, headers wrap rather than
-   squeeze.
+   squeeze. On a phone (narrower than 768 px, or held sideways: shorter than 500 px; `phone:`
+   in the styles, `useNarrow` in code) the page scrolls as one, never a box in it: the header
+   and a screen's head scroll away, the browser folds its own bars, the work gets the screen;
+   only what one works under stays on top (a rider's head on a judge's sheet, the bottom bar
+   unless held sideways). Text fields are 16 px there at least (smaller, iOS zooms in on them).
+   Tabs that would not fit show their icon only, but the open one.
 8. **Ordering is drag and drop** (touch and keyboard). In a start list the place can also be
    typed: a click on the number (or a digit on the selected row), then Enter.
 
@@ -42,7 +47,8 @@ colours and shadows in `app/src/index.css`.
   ⌘B; kept on this computer): the show becomes a tile with its first day, each icon says its
   name and shortcut on hover, the language is a menu.
 - **Phone and tablet:** a navy header (back to the shows, the show, its sync state) and a
-  bottom bar with four sections and *Plus* (the others, the settings, theme, language).
+  bottom bar with four sections and *Plus* (the others, the settings, theme, language). On a
+  phone the header scrolls away with the page; the bottom bar stays.
 - **The shows** (library): a navy band with the app's name and the import menu; each show a
   card (number, disciplines, rehearsal, name, place, dates; entries, classes, results; *Ouvrir*
   and a ⋯ menu: export, *Archiver*, delete). The archived shows have a page of their own

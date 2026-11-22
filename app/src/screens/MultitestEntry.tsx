@@ -118,6 +118,11 @@ export default function MultitestEntry({ show, classId }: { show: string; classI
   const narrow = useNarrow();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [judgeIndex, setJudgeIndex] = useState(0);
+  // On a phone the page scrolls: a driver's sheet opens at the top of the screen.
+  const sheetTop = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (narrow && sheetOpen) sheetTop.current?.scrollIntoView({ block: 'start' });
+  }, [narrow, sheetOpen, selected, judgeIndex]);
   const v = view.data;
   const locked = v?.class.status === 'final';
   const drivers = useMemo(() => (v?.lines ?? []).filter(l => !l.not_starting), [v]);
@@ -165,7 +170,7 @@ export default function MultitestEntry({ show, classId }: { show: string; classI
   const coefficient = (key: string) => v.items.find(i => i.number === key)?.coefficient;
 
   const list = (
-    <div className={narrow ? 'h-full w-full overflow-auto' : 'w-80 shrink-0 overflow-auto border-r border-line'}>
+    <div className={narrow ? 'w-full' : 'w-80 shrink-0 overflow-auto border-r border-line'}>
       {drivers.map(l => (
         <button
           key={l.entry}
@@ -194,7 +199,7 @@ export default function MultitestEntry({ show, classId }: { show: string; classI
   const th = 'border-b border-line bg-raised px-2 py-2.5 text-left text-xs font-semibold text-ink-3';
   const td = 'border-b border-line px-2 py-1.5 align-middle';
   const sheet = driver && (
-    <div className="min-w-0 flex-1 overflow-auto">
+    <div ref={sheetTop} className="min-w-0 flex-1 overflow-auto phone:overflow-visible">
       <div className="sticky top-0 z-10 border-b border-line bg-card px-3 py-2 sm:px-4">
         <div className="flex items-center gap-3">
           {narrow && (
@@ -298,7 +303,8 @@ export default function MultitestEntry({ show, classId }: { show: string; classI
     </div>
   );
 
-  if (narrow) return <div className="h-full">{sheetOpen ? sheet : list}</div>;
+  // A phone: the page scrolls (the sheet's head stays on top).
+  if (narrow) return <div>{sheetOpen ? sheet : list}</div>;
   return (
     <div className="flex h-full">
       {list}

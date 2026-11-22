@@ -134,9 +134,10 @@ export function StartList({ show, list, highlight, sections = [] }: { show: stri
   const classId = list.class.id;
   const starters = list.lines.filter((l): l is Starter => l.kind === 'starter');
   const team = list.lines.some(l => l.kind === 'team');
-  // (Below `sm` the horse has no column of its own: it is under the rider.)
+  // (Below `sm` the start number, the time and the horse have no column of their own: the number
+  // is before the rider, the time before the club, the horse under them; the rider keeps room.)
   const phone = useMedia('(max-width: 639px)');
-  const baseColumns = (phone ? 3 : 4) + (list.start_numbers ? 1 : 0) + (list.start_times ? 1 : 0) + (list.qualifier ? 1 : 0);
+  const baseColumns = phone ? 3 + (list.qualifier ? 1 : 0) : 4 + (list.start_numbers ? 1 : 0) + (list.start_times ? 1 : 0) + (list.qualifier ? 1 : 0);
   // Riders with several horses (U11, U12): their starts in order, the smallest gap between them.
   const byRider = new Map<number, Starter[]>();
   for (const l of starters) byRider.set(l.person, [...(byRider.get(l.person) ?? []), l]);
@@ -420,8 +421,8 @@ export function StartList({ show, list, highlight, sections = [] }: { show: stri
             <thead>
               <tr>
                 {head('place', '#', `${placeable ? 'w-[4.5rem]' : 'w-12'} text-right`)}
-                {list.start_numbers && head('number', t('start_no'), 'w-14 text-right')}
-                {list.start_times && head('time', t('time'), 'w-16')}
+                {list.start_numbers && head('number', t('start_no'), 'hidden w-14 text-right sm:table-cell')}
+                {list.start_times && head('time', t('time'), 'hidden w-16 sm:table-cell')}
                 {head('rider', t('rider'))}
                 {head('horse', t('horse'), `hidden sm:table-cell ${wide ? 'w-52' : remarks ? 'w-[26%]' : 'w-[34%]'}`)}
                 {list.qualifier && head('carried', t('carried'), 'w-16 text-right', `${t('carried_hint')} (${list.qualifier})`)}
@@ -560,10 +561,11 @@ export function StartList({ show, list, highlight, sections = [] }: { show: stri
                             )}
                           </span>
                         </td>
-                        {list.start_numbers && <td className={`${td} text-right font-bold text-ink`}>{line.start_number ?? ''}</td>}
-                        {list.start_times && <td className={`${td} font-medium text-ink-2`}>{line.time ?? '--:--'}</td>}
+                        {list.start_numbers && <td className={`${td} hidden text-right font-bold text-ink sm:table-cell`}>{line.start_number ?? ''}</td>}
+                        {list.start_times && <td className={`${td} hidden font-medium text-ink-2 sm:table-cell`}>{line.time ?? '--:--'}</td>}
                         <td className={`${td} max-w-0`}>
                           <div className="flex min-w-0 items-center gap-1.5">
+                            {list.start_numbers && line.start_number !== null && <span className="shrink-0 font-bold text-ink sm:hidden">{line.start_number}</span>}
                             <button
                               type="button"
                               onClick={e => {
@@ -588,7 +590,10 @@ export function StartList({ show, list, highlight, sections = [] }: { show: stri
                               </Tooltip>
                             )}
                           </div>
-                          <div className={`truncate text-xs text-ink-3 ${struck}`}>{[line.club, line.town].filter(Boolean).join(' · ')}</div>
+                          <div className={`truncate text-xs text-ink-3 ${struck}`}>
+                            {list.start_times && <span className="font-semibold text-ink-2 sm:hidden">{line.time ?? '--:--'} · </span>}
+                            {[line.club, line.town].filter(Boolean).join(' · ')}
+                          </div>
                           <div className={`truncate text-xs font-medium sm:hidden ${struck}`}>{line.horse}</div>
                           {remarks && (
                             <div className="mt-1 sm:hidden">

@@ -67,7 +67,7 @@ export function Prints({ show }: { show: ShowView }) {
   const [letters, setLetters] = useState(false);
   const days = show.days.map(day => ({ day, ready: day.classes.filter(c => c.starters > 0).map(c => c.id) })).filter(d => d.ready.length > 0);
   return (
-    <div className="h-full overflow-auto">
+    <div className="pane">
       <div className="mx-auto max-w-[1100px] space-y-7 px-3 py-5 sm:px-6 sm:py-7">
         <PageHeader icon={Printer} title={t('prints_tab')} subtitle={t('prints_hint')} />
         <Section title={t('prints_show')}>

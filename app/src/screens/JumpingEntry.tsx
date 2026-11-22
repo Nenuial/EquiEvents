@@ -8,8 +8,8 @@ import { useChanges } from '../parts/changes';
 import { ErrorNote, useLoad, useNarrow } from '../parts/common';
 import { findStarter, QuickJump } from '../parts/jump';
 import { ScoringTablePicker, type ScoringTableChoice } from '../parts/pickers';
-import { Download, Upload, X } from 'lucide-react';
-import { Button, IconButton, Pill, Tooltip } from '../ui';
+import { Download, Timer, Upload, X } from 'lucide-react';
+import { Button, IconButton, Menu, MenuCheck, MenuItem, MenuSeparator, Pill, Tooltip } from '../ui';
 
 // A number; a time also in minutes and seconds ("5:12", cross-country).
 const valid = (text: string) => text.trim() === '' || /^\d+([.,]\d+)?$/.test(text.trim()) || /^\d+:[0-5]\d([.,]\d+)?$/.test(text.trim()) || /^\d{1,2}:[0-5]\d:[0-5]\d([.,]\d+)?$/.test(text.trim());
@@ -271,27 +271,52 @@ export default function JumpingEntry({ show, classId }: { show: string; classId:
   const toolbar = (
     <div className="flex flex-wrap items-center gap-2 border-b border-line bg-card px-3 py-2.5 sm:px-6">
       {tablePicker && (
-        <div className="mr-1 flex min-w-0 items-center gap-2">
+        <div className="mr-1 flex min-w-0 items-center gap-2 phone:mr-0 phone:w-full">
           <span className="text-xs font-semibold text-ink-2">{t('scoring_label')}</span>
           {details?.has_results && !locked ? (
             <Tooltip label={t('pub_scoring_locked')} side="bottom">
-              <div className="w-[min(60vw,22rem)]">{tablePicker}</div>
+              <div className="w-[min(60vw,22rem)] phone:w-auto phone:min-w-0 phone:flex-1">{tablePicker}</div>
             </Tooltip>
           ) : (
-            <div className="w-[min(60vw,22rem)]">{tablePicker}</div>
+            <div className="w-[min(60vw,22rem)] phone:w-auto phone:min-w-0 phone:flex-1">{tablePicker}</div>
           )}
         </div>
       )}
-      <Button size="sm" icon={Download} onClick={exportList}>
-        {t('timekeeper_out')}
-      </Button>
-      <Button size="sm" variant="primary" icon={Upload} disabled={locked} onClick={importFile}>
-        {t('timekeeper_in')}
-      </Button>
-      <label className="ml-1 flex cursor-pointer items-center gap-2 text-xs font-semibold text-ink-2">
-        <input type="checkbox" className="check" checked={adopt} onChange={e => setAdopt(e.target.checked)} />
-        {t('adopt_ranks')}
-      </label>
+      {/* The timekeeper's files: on a phone in one menu (rarely there), the results first. */}
+      <div className="contents phone:hidden">
+        <Button size="sm" icon={Download} onClick={exportList}>
+          {t('timekeeper_out')}
+        </Button>
+        <Button size="sm" variant="primary" icon={Upload} disabled={locked} onClick={importFile}>
+          {t('timekeeper_in')}
+        </Button>
+        <label className="ml-1 flex cursor-pointer items-center gap-2 text-xs font-semibold text-ink-2">
+          <input type="checkbox" className="check" checked={adopt} onChange={e => setAdopt(e.target.checked)} />
+          {t('adopt_ranks')}
+        </label>
+      </div>
+      <div className="hidden phone:block">
+        <Menu
+          width="w-72"
+          align="start"
+          trigger={
+            <Button size="sm" icon={Timer}>
+              {t('timekeeper_menu')}
+            </Button>
+          }
+        >
+          <MenuItem icon={Upload} disabled={locked} onSelect={importFile}>
+            {t('timekeeper_in')}
+          </MenuItem>
+          <MenuItem icon={Download} onSelect={exportList}>
+            {t('timekeeper_out')}
+          </MenuItem>
+          <MenuSeparator />
+          <MenuCheck checked={adopt} onChange={setAdopt}>
+            {t('adopt_ranks')}
+          </MenuCheck>
+        </Menu>
+      </div>
       {v.qualifier && (
         <Pill tone="info">
           {t('qualifier')}
@@ -359,9 +384,9 @@ export default function JumpingEntry({ show, classId }: { show: string; classId:
   // A phone: the riders as a list; one rider's result opens under its row.
   if (narrow)
     return (
-      <div className="flex h-full flex-col">
+      <div className="flex h-full flex-col phone:h-auto">
         {toolbar}
-        <div className="min-h-0 flex-1 overflow-auto">
+        <div className="min-h-0 flex-1 overflow-auto phone:overflow-visible">
           {notes}
           <ul className="text-sm">
             {rows.map((l, i) => (

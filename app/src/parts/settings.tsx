@@ -109,6 +109,7 @@ export function SettingsModal({ open, onClose, language, setLanguage }: { open: 
         <Tabs
           value={tab}
           onChange={setTab}
+          compact
           items={[
             { value: 'general', label: t('settings_general'), icon: SlidersHorizontal },
             { value: 'training', label: t('training_tab'), icon: GraduationCap },

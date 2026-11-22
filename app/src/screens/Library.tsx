@@ -290,7 +290,7 @@ export default function Library({
   );
 
   return (
-    <div className="h-full overflow-auto">
+    <div className="pane">
       {/* The band on top: the app, the account, the settings; the screen's title and action. */}
       <div className={`relative overflow-hidden bg-nav text-white ${archives ? 'pb-8' : 'pb-20'}`}>
         <div

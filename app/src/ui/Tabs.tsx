@@ -18,7 +18,22 @@ export interface TabItem<V extends string> {
   dot?: boolean;
 }
 
-export function Tabs<V extends string>({ value, onChange, items, className = '', children }: { value: V; onChange: (v: V) => void; items: TabItem<V>[]; className?: string; children?: ReactNode }) {
+export function Tabs<V extends string>({
+  value,
+  onChange,
+  items,
+  className = '',
+  compact = false,
+  children,
+}: {
+  value: V;
+  onChange: (v: V) => void;
+  items: TabItem<V>[];
+  className?: string;
+  /** On a phone, the tabs other than the open one are their icon (and count) only: all in view. */
+  compact?: boolean;
+  children?: ReactNode;
+}) {
   return (
     <T.Root value={value} onValueChange={v => onChange(v as V)} activationMode="manual">
       {/* Sideways only, when the tabs are wider than the screen (a phone), with no scrollbar:
@@ -32,7 +47,7 @@ export function Tabs<V extends string>({ value, onChange, items, className = '',
             className="group relative inline-flex h-11 shrink-0 items-center gap-2 rounded-t-lg px-3 text-[13px] font-semibold text-ink-3 outline-none transition-colors hover:text-ink focus-visible:ring-2 focus-visible:ring-info/50 focus-visible:ring-inset data-[state=active]:text-ink pointer-coarse:h-12"
           >
             {i.icon && <i.icon className="size-4 text-ink-4 group-data-[state=active]:text-accent" />}
-            {i.label}
+            <span className={compact && i.icon ? 'phone:hidden phone:group-data-[state=active]:inline' : undefined}>{i.label}</span>
             {i.count != null && (
               <span className="rounded-full bg-sunken px-1.5 py-px text-[11px] font-semibold text-ink-3 tabular group-data-[state=active]:bg-accent-soft group-data-[state=active]:text-accent">
                 {i.count}

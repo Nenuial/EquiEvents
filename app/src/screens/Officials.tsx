@@ -136,7 +136,7 @@ export default function Officials({ show, language }: { show: string; language: 
     sessionStorage.setItem('officials-tab', v);
   };
   return (
-    <div className="h-full overflow-auto">
+    <div className="pane">
       <div className="mx-auto max-w-[1600px] space-y-5 px-3 py-5 sm:px-6 sm:py-7">
         <PageHeader
           icon={Gavel}

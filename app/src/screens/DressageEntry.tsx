@@ -171,7 +171,7 @@ function MarkInput({
           setText(value);
         }
       }}
-      className={`h-8 w-full rounded-md border bg-card px-2 text-right text-[13px] font-semibold tabular shadow-xs outline-none transition-[border-color,box-shadow] focus:border-info focus:ring-3 focus:ring-info/20 pointer-coarse:h-11 ${valid ? 'border-line-strong' : 'border-danger bg-danger/8'} ${disabled ? 'opacity-50' : ''}`}
+      className={`h-8 w-full rounded-md border bg-card px-2 text-right text-[13px] font-semibold tabular shadow-xs outline-none transition-[border-color,box-shadow] focus:border-info focus:ring-3 focus:ring-info/20 pointer-coarse:h-11 phone:scroll-mt-40 ${valid ? 'border-line-strong' : 'border-danger bg-danger/8'} ${disabled ? 'opacity-50' : ''}`}
     />
   );
 }
@@ -190,6 +190,9 @@ export default function DressageEntry({ show, classId, language }: { show: strin
   const narrow = useNarrow();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [judgeIndex, setJudgeIndex] = useState(0);
+  // On a phone the page scrolls: a rider's sheet opened (or the next rider's) starts at the top
+  // of the screen, the class's head and tools above it out of the way.
+  const sheetTop = useRef<HTMLDivElement>(null);
   const v = view.data;
   const locked = v?.class.status === 'final';
 
@@ -199,6 +202,9 @@ export default function DressageEntry({ show, classId, language }: { show: strin
     if (rider && selected === null) setSelected(keyOf(rider));
   }, [rider, selected]);
   const programme = rider?.programme !== null && rider ? v?.programmes[String(rider.programme)] : undefined;
+  useEffect(() => {
+    if (narrow && sheetOpen) sheetTop.current?.scrollIntoView({ block: 'start' });
+  }, [narrow, sheetOpen, selected, judgeIndex]);
   const movements = useMemo(() => programme?.sections.flatMap(s => s.movements) ?? [], [programme]);
   // What is entered for each judge: the marks, or one total.
   const fields = v?.totals_per_judge ? 1 : movements.length;
@@ -241,14 +247,14 @@ export default function DressageEntry({ show, classId, language }: { show: strin
   const toolbar = (
     <div className="flex flex-wrap items-center gap-3 border-b border-line bg-card px-3 py-2.5 text-[13px] sm:px-6">
       {/* The class's test, from a searchable list; not once there are marks (its settings too). */}
-      <div className="flex min-w-0 items-center gap-2">
+      <div className="flex min-w-0 items-center gap-2 phone:w-full">
         <span className="text-xs font-semibold text-ink-2">{t('programme')}</span>
         {hasMarks && !locked ? (
           <Tooltip label={t('programme_locked')} side="bottom">
-            <div className="w-[min(60vw,26rem)]">{programmePicker}</div>
+            <div className="w-[min(60vw,26rem)] phone:w-auto phone:min-w-0 phone:flex-1">{programmePicker}</div>
           </Tooltip>
         ) : (
-          <div className="w-[min(60vw,26rem)]">{programmePicker}</div>
+          <div className="w-[min(60vw,26rem)] phone:w-auto phone:min-w-0 phone:flex-1">{programmePicker}</div>
         )}
       </div>
       <Tooltip label={t('fast_hint')} side="bottom">
@@ -417,7 +423,7 @@ export default function DressageEntry({ show, classId, language }: { show: strin
   };
 
   const riderList = (
-    <div className={narrow ? 'h-full w-full overflow-auto bg-card' : 'w-80 shrink-0 overflow-auto border-r border-line bg-card'}>
+    <div className={narrow ? 'w-full bg-card' : 'w-80 shrink-0 overflow-auto border-r border-line bg-card'}>
       {riders.map(r => (
         <button
           key={keyOf(r)}
@@ -443,24 +449,67 @@ export default function DressageEntry({ show, classId, language }: { show: strin
     </div>
   );
 
+  // Out of the class (retired, eliminated…): a rider's, or the team's in team dressage.
+  const status = rider && (
+    <div className="flex items-center gap-2">
+      <label className="text-xs text-ink-3">{t('status_col')}</label>
+      <select
+        value={rider.out === null ? '' : String(rider.out)}
+        disabled={locked}
+        onChange={e => change('edit_result', { class: classId, ...whose(rider), values: {}, out: e.target.value === '' ? null : Number(e.target.value) })}
+        className={`field field-sm w-auto ${rider.out !== null ? 'font-semibold text-warn' : ''}`}
+      >
+        <option value="">{t('in_class')}</option>
+        {v.reasons.map(r => (
+          <option key={r.code} value={r.code}>
+            {reason(r.name)}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+  // The penalties: one set for every judge (a box ticked counts on every sheet; the exclusion box,
+  // with no value, switches the rider to eliminated).
+  const penalties = rider && programme && (
+    <div className="flex flex-wrap gap-x-4 gap-y-0.5 phone:mt-1 phone:grid phone:gap-0 phone:font-normal phone:text-ink">
+      {programme.penalties.map((p, i) => (
+        <label key={i} className="flex min-w-0 items-center gap-1 text-[11px] pointer-coarse:gap-2 pointer-coarse:py-1.5 pointer-coarse:text-[13px]" title={say(lang, p.cost_fr, p.cost_de, p.cost_it)}>
+          <input
+            type="checkbox"
+            className="check"
+            disabled={locked}
+            checked={rider.penalties.includes(i)}
+            onChange={e => change('set_penalties', { class: classId, ...whose(rider), penalties: e.target.checked ? [...rider.penalties, i] : rider.penalties.filter(x => x !== i) })}
+          />
+          <span className="truncate">{say(lang, p.fr, p.de, p.it)}</span>
+          <span className="shrink-0 text-ink-4">{say(lang, p.cost_fr, p.cost_de, p.cost_it)}</span>
+        </label>
+      ))}
+    </div>
+  );
+  // On a phone the head stays on top while the marks scroll under it: who, the result, the judge
+  // shown and the next rider; the status and the sheet's tools below it, scrolling away.
   const sheet = rider && programme && (
-    <div className="min-w-0 flex-1 overflow-auto">
-      <div className="sticky top-0 z-10 border-b border-line bg-card/95 px-3 py-3 backdrop-blur-sm sm:px-5">
-        <div className="flex items-center gap-3">
+    <div ref={sheetTop} className="min-w-0 flex-1 overflow-auto phone:overflow-visible">
+      <div className="sticky top-0 z-10 border-b border-line bg-card/95 px-3 py-3 backdrop-blur-sm sm:px-5 phone:py-2">
+        <div className="flex items-center gap-3 phone:gap-2">
           {narrow && (
-            <button onClick={() => setSheetOpen(false)} className="-ml-1 grid size-10 place-items-center rounded-lg text-ink-3 hover:bg-hover" aria-label={t('riders')}>
+            <button onClick={() => setSheetOpen(false)} className="-ml-1 grid size-10 shrink-0 place-items-center rounded-lg text-ink-3 hover:bg-hover" aria-label={t('riders')}>
               <ChevronLeft className="size-5" />
             </button>
           )}
-          <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-sunken text-lg font-bold tabular ring-1 ring-line">{rider.start_number ?? rider.position}</div>
+          <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-sunken text-lg font-bold tabular ring-1 ring-line phone:size-10 phone:text-base">
+            {rider.start_number ?? rider.position}
+          </div>
           <div className="min-w-0">
             <div className="truncate text-[15px] font-semibold">{rider.rider}</div>
             <div className="truncate text-xs text-ink-3">
-              {rider.horse} · {programme.name} {say(lang, programme.title_fr, programme.title_de, programme.title_it)}
+              {rider.horse}
+              {!narrow && ` · ${programme.name} ${say(lang, programme.title_fr, programme.title_de, programme.title_it)}`}
             </div>
           </div>
-          <div className="ml-auto text-right">
-            <div className={`text-xl font-bold tabular ${complete(rider) ? 'text-ink' : 'text-ink-3 italic'}`} title={complete(rider) ? undefined : t('partial')}>
+          <div className="ml-auto shrink-0 text-right">
+            <div className={`text-xl font-bold tabular phone:text-lg ${complete(rider) ? 'text-ink' : 'text-ink-3 italic'}`} title={complete(rider) ? undefined : t('partial')}>
               {rider.percentage ? (v.driving ? `${rider.percentage} ${t('points_160')}` : `${rider.percentage}%`) : '–'}
             </div>
             {parts(rider)}
@@ -471,54 +520,41 @@ export default function DressageEntry({ show, classId, language }: { show: strin
             )}
           </div>
         </div>
-        {/* Out of the class (retired, eliminated…): a rider's, or the team's in team dressage. */}
-        <div className="mt-1 flex items-center gap-2">
-          <label className="text-xs text-ink-3">{t('status_col')}</label>
-          <select
-            value={rider.out === null ? '' : String(rider.out)}
-            disabled={locked}
-            onChange={e => change('edit_result', { class: classId, ...whose(rider), values: {}, out: e.target.value === '' ? null : Number(e.target.value) })}
-            className={`field field-sm w-auto ${rider.out !== null ? 'font-semibold text-warn' : ''}`}
-          >
-            <option value="">{t('in_class')}</option>
-            {v.reasons.map(r => (
-              <option key={r.code} value={r.code}>
-                {reason(r.name)}
-              </option>
-            ))}
-          </select>
-        </div>
+        {!narrow && <div className="mt-1">{status}</div>}
         {narrow && (
-          <>
-            <div className="mt-2 flex items-center gap-1.5">
-              {judges.map((j, i) => {
-                const s = rider.sheets[j.assignment];
-                const tone = !s ? 'border-line' : s.complete ? 'border-ok/60 text-ok' : 'border-warn/60 text-warn';
-                return (
-                  <button
-                    key={j.assignment}
-                    onClick={() => (setJudgeIndex(i), setMoving(null))}
-                    className={`min-h-10 min-w-10 rounded-lg border-2 font-bold ${i === base ? 'border-accent bg-accent text-on-accent' : `${tone} bg-card`}`}
-                  >
-                    {j.letter}
-                  </button>
-                );
-              })}
-              <span className="ml-1 min-w-0 flex-1 truncate text-xs text-ink-3">
-                {shown[0]?.name}
-                {shown[0] && rider.judge_riders?.[shown[0].assignment] && ` → ${rider.judge_riders[shown[0].assignment]}`}
-              </span>
-              <button onClick={() => step(-1)} className="btn btn-sm btn-secondary" aria-label="Alt+↑">
-                <ChevronUp className="size-4" />
-              </button>
-              <button onClick={() => step(1)} className="btn btn-sm btn-secondary" aria-label="Alt+↓">
-                <ChevronDown className="size-4" />
-              </button>
-            </div>
-            {shown[0] && sheetTools(shown[0])}
-          </>
+          <div className="mt-2 flex items-center gap-1.5">
+            {judges.map((j, i) => {
+              const s = rider.sheets[j.assignment];
+              const tone = !s ? 'border-line' : s.complete ? 'border-ok/60 text-ok' : 'border-warn/60 text-warn';
+              return (
+                <button
+                  key={j.assignment}
+                  onClick={() => (setJudgeIndex(i), setMoving(null))}
+                  className={`min-h-10 min-w-10 rounded-lg border-2 font-bold ${i === base ? 'border-accent bg-accent text-on-accent' : `${tone} bg-card`}`}
+                >
+                  {j.letter}
+                </button>
+              );
+            })}
+            <span className="ml-1 min-w-0 flex-1 truncate text-xs text-ink-3">
+              {shown[0]?.name}
+              {shown[0] && rider.judge_riders?.[shown[0].assignment] && ` → ${rider.judge_riders[shown[0].assignment]}`}
+            </span>
+            <button onClick={() => step(-1)} disabled={riders[0] === rider} className="btn btn-sm btn-secondary" aria-label={t('rider_previous')}>
+              <ChevronUp className="size-4" />
+            </button>
+            <button onClick={() => step(1)} disabled={riders[riders.length - 1] === rider} className="btn btn-sm btn-secondary" aria-label={t('rider_next')}>
+              <ChevronDown className="size-4" />
+            </button>
+          </div>
         )}
       </div>
+      {narrow && (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-3 py-2">
+          {status}
+          {shown[0] && sheetTools(shown[0])}
+        </div>
+      )}
       <table className="w-full table-fixed text-sm">
         <thead className={narrow ? '' : 'sticky top-[57px] z-10 bg-card'}>
           <tr>
@@ -584,27 +620,16 @@ export default function DressageEntry({ show, classId, language }: { show: strin
             ))}
           {programme.penalties.length > 0 && (
             <tr>
-              <td colSpan={3} className="border-t-2 border-line px-2 py-2 align-top text-xs font-semibold text-ink-3">
+              {/* (A phone: under the title, the whole width.) */}
+              <td colSpan={narrow ? 3 + shown.length : 3} className="border-t-2 border-line px-2 py-2 align-top text-xs font-semibold text-ink-3">
                 {t('penalties')}
+                {narrow && penalties}
               </td>
-              {/* One set for every judge: a box ticked counts on every sheet; the exclusion box
-                  (no value) switches the rider to eliminated. */}
-              <td colSpan={shown.length} className="border-l border-t-2 border-line px-2 py-1 align-top">
-                <div className="flex flex-wrap gap-x-4 gap-y-0.5">
-                  {programme.penalties.map((p, i) => (
-                    <label key={i} className="flex items-center gap-1 text-[11px] pointer-coarse:py-1" title={say(lang, p.cost_fr, p.cost_de, p.cost_it)}>
-                      <input
-                        type="checkbox"
-                        disabled={locked}
-                        checked={rider.penalties.includes(i)}
-                        onChange={e => change('set_penalties', { class: classId, ...whose(rider), penalties: e.target.checked ? [...rider.penalties, i] : rider.penalties.filter(x => x !== i) })}
-                      />
-                      <span className="truncate">{say(lang, p.fr, p.de, p.it)}</span>
-                      <span className="text-ink-4">{say(lang, p.cost_fr, p.cost_de, p.cost_it)}</span>
-                    </label>
-                  ))}
-                </div>
-              </td>
+              {!narrow && (
+                <td colSpan={shown.length} className="border-l border-t-2 border-line px-2 py-1 align-top">
+                  {penalties}
+                </td>
+              )}
             </tr>
           )}
           <tr className="font-bold">
@@ -626,7 +651,7 @@ export default function DressageEntry({ show, classId, language }: { show: strin
   );
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col phone:h-auto">
       {toolbar}
       <div className="flex min-h-0 flex-1">
         {narrow ? (
@@ -675,7 +700,7 @@ function SectionRows(props: {
         <tr key={m.number} className="hover:bg-hover">
           <td className="border-b border-line px-2 py-0.5 text-ink-3 tabular">{m.number}</td>
           <td className={`max-w-0 border-b border-line px-2 py-0.5 ${narrow ? '' : 'truncate'}`} title={say(lang, m.fr, m.de, m.it)}>
-            {narrow ? <div className="line-clamp-2 text-xs">{say(lang, m.fr, m.de, m.it)}</div> : say(lang, m.fr, m.de, m.it)}
+            {narrow ? <div className="py-1 text-xs leading-snug">{say(lang, m.fr, m.de, m.it)}</div> : say(lang, m.fr, m.de, m.it)}
           </td>
           <td className="border-b border-line px-1 py-0.5 text-center text-xs text-ink-3">{m.coefficient !== '1' ? m.coefficient : ''}</td>
           {judges.map((j, ji) => (

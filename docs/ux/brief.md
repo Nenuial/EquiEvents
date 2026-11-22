@@ -135,6 +135,12 @@ app to try. Each item has an id (U…) so code and discussions can point at it.
   officials (roles at the cell), dressage entry (riders, then one rider's sheet, one judge at a
   time).
   New screens are built for phones too.
+  The page scrolls as one on a phone (the user, 2026-11-22: dressage results were unusable, the
+  marks squeezed under fixed heads): a class's head scrolls away; a judge's sheet keeps only
+  the rider, the result, the judge and the next rider on top, every movement's text in full;
+  the start list puts the number before the rider and the time before the club, the rider's
+  name never cut for them; the timekeeper's files are one menu; text fields never make iOS
+  zoom.
 - U4: dressage entry: a judge's sheet sent to another rider or judge (swapped if one is there),
   put aside and placed later, also for another judge; nothing is typed twice; undo.
 - U5: fast entry (option): `6.` writes 6.5 and moves on.

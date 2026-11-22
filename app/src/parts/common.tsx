@@ -71,9 +71,9 @@ export function useMedia(query: string): boolean {
   return matches;
 }
 
-/** A phone, or a window as narrow (U10): below Tailwind's `md`. */
+/** A phone (U10): narrower than Tailwind's `md`, or held sideways (as short); the CSS `phone:`. */
 export function useNarrow(): boolean {
-  return useMedia('(max-width: 767px)');
+  return useMedia('(max-width: 767px), (max-height: 500px)');
 }
 
 /** Two panes side by side, the divider movable; the right one closes. On a phone there is no
@@ -103,10 +103,10 @@ export function Split({ left, right, onCloseRight, narrow: onPhone = 'stack' }: 
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);
   }, [right, onCloseRight]);
-  if (!right) return <div className="h-full overflow-auto">{left}</div>;
+  if (!right) return <div className="pane">{left}</div>;
   if (narrow)
     return (
-      <div className="h-full overflow-auto">
+      <div className="pane">
         {onPhone === 'right' ? (
           right
         ) : (

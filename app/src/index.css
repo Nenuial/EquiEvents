@@ -163,6 +163,34 @@ body,
 #root {
   height: 100%;
 }
+
+/* A phone (U10): narrow, or held sideways (short). The page scrolls as one there, not boxes in
+   it: the browser folds its own bars away, heads scroll off and the work gets the screen
+   (`useNarrow` is the same test). */
+@custom-variant phone {
+  @media (max-width: 767px) {
+    @slot;
+  }
+  @media (max-height: 500px) {
+    @slot;
+  }
+}
+@media (max-width: 767px), (max-height: 500px) {
+  html,
+  body,
+  #root {
+    height: auto;
+    min-height: 100svh;
+  }
+}
+/* A touch screen's text fields at 16px at least: smaller, iOS zooms the page in on them. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"], [type="radio"], [type="range"]),
+  select,
+  textarea {
+    font-size: max(16px, 1em);
+  }
+}
 body {
   margin: 0;
   background: var(--bg);
@@ -205,6 +233,10 @@ table {
   }
   .field-sm {
     @apply h-8 px-2.5 text-xs;
+  }
+  /* A screen's own scroll; on a phone, the page's. */
+  .pane {
+    @apply h-full overflow-auto phone:h-auto phone:overflow-visible;
   }
   /* Buttons written as classes (where a <Button> does not fit): the same look. */
   .btn {

@@ -62,7 +62,7 @@ export default function History({ show }: { show: string }) {
     days[days.length - 1].lines.push(l);
   }
   return (
-    <div className="h-full overflow-auto">
+    <div className="pane">
       <div className="mx-auto max-w-4xl space-y-5 px-3 py-5 sm:px-6 sm:py-7">
         <PageHeader
           icon={HistoryIcon}

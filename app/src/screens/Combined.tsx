@@ -304,7 +304,7 @@ export function CombinedScreen({ show, id, go }: { show: ShowView; id: string; g
   const ranked = view.data?.lines.some(l => l.rank !== null) ?? false;
 
   return (
-    <div className="h-full overflow-auto">
+    <div className="pane">
       <div className="mx-auto max-w-[1180px] space-y-5 px-3 py-5 sm:px-6 sm:py-7">
         <a href={href({ show: show.id, view: 'classes' })} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-ink-3 hover:text-ink">
           <ArrowLeft className="size-4" />

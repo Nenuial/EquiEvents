@@ -40,7 +40,7 @@ export default function Sending({ show }: { show: string }) {
   const again = () => setRound(r => r + 1);
 
   return (
-    <div className="h-full overflow-auto">
+    <div className="pane">
       <div className="mx-auto max-w-6xl space-y-5 px-3 py-5 sm:px-6 sm:py-7">
         <PageHeader icon={CloudUpload} title="Swiss Equestrian" subtitle={t('sending_hint')} />
         <ErrorNote error={connection.error ?? view.error} />

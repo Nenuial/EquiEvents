@@ -83,7 +83,7 @@ export default function Accounts({ me, language }: { me: StaffMe; language: Lang
   const changed = () => setRound(r => r + 1);
 
   return (
-    <div className="h-full overflow-auto">
+    <div className="pane">
       <div className="relative overflow-hidden bg-nav pb-20 text-white">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(80%_120%_at_100%_0%,rgb(31_111_196/0.22),transparent_55%)]" aria-hidden />
         <div className="relative mx-auto max-w-6xl px-4 pt-[max(1.25rem,env(safe-area-inset-top))] sm:px-6 sm:pt-8">

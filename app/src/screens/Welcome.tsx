@@ -11,7 +11,7 @@ import { Card, Logo } from '../ui';
 export default function Welcome({ server, done, language, setLanguage }: { server: string; done: () => void; language: Language; setLanguage: (l: Language) => void }) {
   const t = useT();
   return (
-    <div className="h-full overflow-auto bg-page">
+    <div className="pane bg-page">
       <div className="relative overflow-hidden bg-nav pb-24 text-white">
         <div
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(80%_120%_at_100%_0%,rgb(242_90_93/0.22),transparent_55%),radial-gradient(60%_90%_at_0%_100%,rgb(31_111_196/0.18),transparent_60%)]"

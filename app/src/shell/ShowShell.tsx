@@ -1,6 +1,6 @@
 // An open show's frame: on a computer a sidebar (the show, its parts, sync, settings) that folds
 // to its icons (⌘B, kept), on a phone a bar on top and the main parts at the bottom (U10). The
-// part itself fills the rest.
+// part itself fills the rest; on a phone the page scrolls as one, the top bar with it.
 
 import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import { ArrowLeft, CloudUpload, Ellipsis, Gavel, History, LayoutList, Moon, Monitor, PanelLeftClose, PanelLeftOpen, Printer, Settings, Sun, Users } from 'lucide-react';
@@ -170,7 +170,7 @@ export function ShowShell({
   const dates = event ? `${formatDate(event.from, language)}${event.to !== event.from ? ` – ${formatDate(event.to, language)}` : ''}` : '';
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full phone:h-auto phone:min-h-svh">
       {/* The sidebar (a computer), folded to its icons or not. */}
       {wide && (
         <aside className={`relative flex shrink-0 flex-col overflow-hidden bg-nav text-white transition-[width] duration-200 ${folded ? 'w-[68px]' : 'w-[264px]'}`}>
@@ -308,10 +308,11 @@ export function ShowShell({
             <div className="flex shrink-0 items-center gap-1.5">{sync('bar')}</div>
           </header>
         )}
-        <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
-        {/* The main parts at the bottom (a phone). */}
+        <main className="min-h-0 flex-1 overflow-hidden phone:overflow-visible">{children}</main>
+        {/* The main parts at the bottom (a phone: kept there while the page scrolls, unless held
+            sideways: the screen is too short to give them a band). */}
         {!wide && (
-          <nav className="grid shrink-0 grid-cols-5 border-t border-line bg-card pb-[env(safe-area-inset-bottom)]">
+          <nav className="grid shrink-0 grid-cols-5 border-t border-line bg-card pb-[env(safe-area-inset-bottom)] max-md:sticky max-md:bottom-0 max-md:z-30">
             {NAV.slice(0, 4).map(n => (
               <a
                 key={n.view}

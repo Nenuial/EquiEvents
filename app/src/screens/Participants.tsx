@@ -120,7 +120,7 @@ export function Participants({ show, peek, classes, go }: { show: string; peek?:
   const td = 'px-3 py-2.5 align-top';
 
   return (
-    <div className="h-full overflow-auto">
+    <div className="pane">
       <div className="mx-auto max-w-[1400px] space-y-4 px-3 py-5 sm:px-6 sm:py-7">
         <PageHeader
           icon={Users}
@@ -173,9 +173,9 @@ export function Participants({ show, peek, classes, go }: { show: string; peek?:
                 return (
                   <li key={e.id} onClick={() => setOpen(e.id)} className={`group cursor-pointer px-4 py-3 active:bg-hover ${highlight === e.id ? 'bg-accent-soft' : ''}`}>
                     {first && (
-                      <div className="mb-1 flex items-baseline gap-2">
-                        <span className="truncate font-semibold">{e.rider}</span>
-                        <span className="truncate text-xs text-ink-3">{[e.club, e.town].filter(Boolean).join(' · ')}</span>
+                      <div className="mb-1">
+                        <div className="font-semibold">{e.rider}</div>
+                        <div className="truncate text-xs text-ink-3">{[e.club, e.town].filter(Boolean).join(' · ')}</div>
                       </div>
                     )}
                     <div className="flex items-start gap-2">

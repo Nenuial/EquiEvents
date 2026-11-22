@@ -119,7 +119,7 @@ export function ClassPage({ show, classId, entry, classes, go, language }: { sho
     return () => window.removeEventListener('keydown', key);
   });
 
-  if (!row) return <div className="h-full overflow-auto">{list.error ? <ErrorNote error={list.error} /> : <Loading rows={10} />}</div>;
+  if (!row) return <div className="pane">{list.error ? <ErrorNote error={list.error} /> : <Loading rows={10} />}</div>;
 
   const sendResults = () => change('send', { what: 'results', class: classId, language });
   const startCards = ['HI', 'DE', 'GE'].includes(row.discipline)
@@ -403,7 +403,7 @@ export function ClassPage({ show, classId, entry, classes, go, language }: { sho
   );
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col phone:h-auto">
       <div className="shrink-0 border-b border-line bg-card/80 backdrop-blur-sm">
         <div className="mx-auto max-w-[1400px] px-3 pt-3 sm:px-6 sm:pt-4">
           <div className="mb-2 flex items-center gap-2 text-[13px]">
@@ -451,6 +451,7 @@ export function ClassPage({ show, classId, entry, classes, go, language }: { sho
                 value={tab}
                 onChange={choose}
                 className="flex-1"
+                compact
                 items={[
                   { value: 'list', label: t('start_list'), icon: ListOrdered, kbd: 'S', count: row.starters },
                   ...(entryCapable ? [{ value: 'entry' as Tab, label: t('entry_mode'), icon: ClipboardPen, kbd: 'E' }] : []),
@@ -463,7 +464,7 @@ export function ClassPage({ show, classId, entry, classes, go, language }: { sho
         </div>
       </div>
       <ErrorNote error={list.error ?? (tab === 'ranking' ? ranking.error : null)} />
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className="min-h-0 flex-1 overflow-auto phone:overflow-visible">
         {overall ? (
           <div className="mx-auto max-w-[1400px] px-3 py-4 sm:px-6">
             <Card className="overflow-hidden">
