@@ -12,11 +12,12 @@ export function LogoMark({ className = 'size-8' }: { className?: string }) {
   );
 }
 
-export function Logo({ dark = false }: { dark?: boolean }) {
+/** `compact`: the name only from a small tablet up, the mark alone on a phone (the bar's room). */
+export function Logo({ dark = false, compact = false }: { dark?: boolean; compact?: boolean }) {
   return (
-    <span className="inline-flex items-center gap-2.5">
+    <span className="inline-flex shrink-0 items-center gap-2.5" aria-label="EquiEvents">
       <LogoMark />
-      <span className={`text-[17px] font-bold tracking-tight ${dark ? 'text-white' : 'text-ink'}`}>
+      <span className={`text-[17px] font-bold tracking-tight ${dark ? 'text-white' : 'text-ink'} ${compact ? 'hidden sm:inline' : ''}`}>
         Equi<span className="text-accent">Events</span>
       </span>
     </span>

@@ -221,16 +221,18 @@ export function AccountButton({ onChange }: { onChange: () => void }) {
   const signedIn = account.data?.signed_in && account.data.account;
   return (
     <>
+      {/* A phone: the initial alone, the name from a small tablet up. */}
       <button
         onClick={() => setOpen(true)}
-        className="inline-flex h-9 max-w-52 items-center gap-2 rounded-lg border border-white/15 bg-white/[0.06] px-3 text-[13px] font-semibold text-white/90 hover:bg-white/[0.12]"
+        aria-label={signedIn ? account.data!.account!.name : t('online_sign_in')}
+        className="inline-flex h-9 max-w-52 min-w-0 items-center gap-2 rounded-lg border border-white/15 bg-white/[0.06] px-1.5 text-[13px] font-semibold text-white/90 hover:bg-white/[0.12] sm:px-3"
       >
         {signedIn ? (
           <span className="grid size-6 shrink-0 place-items-center rounded-full bg-accent text-[11px] font-bold text-on-accent">{account.data!.account!.name.slice(0, 1).toUpperCase()}</span>
         ) : (
           <UserRound className="size-4 shrink-0" />
         )}
-        <span className="truncate">{signedIn ? account.data!.account!.name : t('online_sign_in')}</span>
+        <span className="hidden truncate sm:inline">{signedIn ? account.data!.account!.name : t('online_sign_in')}</span>
       </button>
       {open && (
         <Drawer title={t('online_account')} close={() => setOpen(false)}>

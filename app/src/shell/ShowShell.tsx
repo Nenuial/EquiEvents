@@ -47,18 +47,28 @@ export function ThemeButton({ className = '', side }: { className?: string; side
   );
 }
 
-/** The language as one button (the folded sidebar): FR, DE or IT in a menu. */
-function LanguageButton({ language, setLanguage }: { language: Language; setLanguage: (l: Language) => void }) {
+/** The language as one button (the folded sidebar, a phone's bar): FR, DE or IT in a menu. */
+export function LanguageButton({
+  language,
+  setLanguage,
+  side = 'right',
+  className = 'text-white/60 hover:bg-white/10 hover:text-white',
+}: {
+  language: Language;
+  setLanguage: (l: Language) => void;
+  side?: 'right' | 'bottom';
+  className?: string;
+}) {
   const t = useT();
   const names: Record<Language, string> = { fr: 'Français', de: 'Deutsch', it: 'Italiano' };
   return (
     <Menu
-      align="start"
-      side="right"
-      offset={22}
+      align={side === 'right' ? 'start' : 'end'}
+      side={side}
+      offset={side === 'right' ? 22 : 6}
       width="w-44"
       trigger={
-        <button aria-label={t('language')} title={t('language')} className="grid size-9 place-items-center rounded-lg text-[11px] font-bold text-white/60 uppercase hover:bg-white/10 hover:text-white">
+        <button aria-label={t('language')} title={t('language')} className={`grid size-9 shrink-0 place-items-center rounded-lg text-[11px] font-bold uppercase ${className}`}>
           {language}
         </button>
       }

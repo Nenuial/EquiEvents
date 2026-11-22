@@ -30,7 +30,7 @@ import { AccountButton, AfterImport, DeleteShow, OnlineShows, OpenWithKey, Reque
 import { SettingsButton } from '../parts/settings';
 import { downloadPage } from '../site';
 import { UpdateButton } from '../parts/update';
-import { LanguagePicker, ThemeButton } from '../shell/ShowShell';
+import { LanguageButton, LanguagePicker, ThemeButton } from '../shell/ShowShell';
 import { Button, Card, CheckRow, EmptyState, IconButton, Logo, Menu, MenuItem, MenuSeparator, Modal, Pill, useToast } from '../ui';
 
 export default function Library({
@@ -285,7 +285,7 @@ export default function Library({
           aria-hidden
         />
         <div className="relative mx-auto flex max-w-6xl items-center gap-2 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-2 sm:px-6">
-          <Logo dark />
+          <Logo dark compact />
           <div className="flex-1" />
           <UpdateButton />
           {/* The online version: the desktop apps, beside the account (the user, 2026-11-21). */}
@@ -294,7 +294,7 @@ export default function Library({
               href={downloadPage(language)}
               aria-label={t('online_download_app')}
               title={t('online_download_app')}
-              className="inline-flex h-9 items-center gap-2 rounded-lg bg-white px-3 text-[13px] font-semibold text-nav shadow-xs hover:bg-white/90 pointer-coarse:h-10"
+              className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg bg-white px-2.5 text-[13px] font-semibold text-nav shadow-xs hover:bg-white/90 sm:px-3 pointer-coarse:h-10"
             >
               <Download className="size-4 shrink-0" aria-hidden />
               <span className="hidden sm:inline">{t('download_app_short')}</span>
@@ -306,14 +306,19 @@ export default function Library({
               accountChanged();
             }}
           />
-          <SettingsButton language={language} setLanguage={setLanguage} className="text-white/70 hover:bg-white/10 hover:text-white" />
-          <ThemeButton className="hidden text-white/70 hover:bg-white/10 hover:text-white sm:grid" />
+          <SettingsButton language={language} setLanguage={setLanguage} className="shrink-0 text-white/70 hover:bg-white/10 hover:text-white" />
+          {/* A phone: all of them still there, smaller (the user, 2026-11-22: they disappeared). */}
+          <ThemeButton className="shrink-0 text-white/70 hover:bg-white/10 hover:text-white" />
           <span className="hidden sm:inline-flex">
             <LanguagePicker language={language} setLanguage={setLanguage} />
           </span>
+          <span className="sm:hidden">
+            <LanguageButton language={language} setLanguage={setLanguage} side="bottom" className="text-white/70 hover:bg-white/10 hover:text-white" />
+          </span>
         </div>
         <div className="relative mx-auto flex max-w-6xl flex-wrap items-end gap-4 px-4 pt-8 sm:px-6 sm:pt-12">
-          <div className="min-w-0 flex-1">
+          {/* Room for the title; on a phone the actions go under it. */}
+          <div className="min-w-[14rem] flex-1">
             {archives ? (
               <a href="#/" className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-accent-nav hover:text-white">
                 <ArrowLeft className="size-4" />
