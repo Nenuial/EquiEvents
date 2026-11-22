@@ -268,6 +268,35 @@ pub async fn create(pool: &Pool, user: &User, name: &str, number: Option<&str>) 
     Ok(id)
 }
 
+/// An event's show there already: one's role on it, else whose it is (to ask them).
+async fn already(client: &impl GenericClient, user: &User, id: String, name: String) -> Result<Claimed, Error> {
+    if let Some(role) = role_of(client, &id, user.id).await? {
+        return Ok(Claimed::Member { id, role });
+    }
+    let owner: String = client
+        .query_opt("SELECT u.name FROM show_members m JOIN users u ON u.id = m.user_id WHERE m.show_id = $1 AND m.role = 'owner'", &[&id])
+        .await?
+        .map(|r| r.get(0))
+        .unwrap_or_default();
+    let request = client.query_opt(&format!("{REQUEST_SELECT} WHERE r.show_id = $1 AND r.user_id = $2 AND r.status = 'pending'"), &[&id, &user.id]).await?.as_ref().map(|r| Box::new(request_of(r)));
+    Ok(Claimed::Owned { id, name, owner, request })
+}
+
+/// The show of the event whose key this is, when there is one already (`event_id`: that
+/// event's only): who works on it is known without asking Swiss Equestrian again (the user,
+/// 2026-11-22: a second account importing the same Rosson export waited on it); its event.
+pub async fn known_key(pool: &Pool, user: &User, key: &str, event_id: Option<i64>) -> Result<Option<(Claimed, i64)>, Error> {
+    let client = pool.get().await?;
+    let Some(row) = client
+        .query_opt("SELECT id, name, event_id FROM shows WHERE access_key = $1 AND event_id IS NOT NULL AND ($2::bigint IS NULL OR event_id = $2) LIMIT 1", &[&key.trim(), &event_id])
+        .await?
+    else {
+        return Ok(None);
+    };
+    let event: i64 = row.get(2);
+    Ok(Some((already(&client, user, row.get(0), row.get(1)).await?, event)))
+}
+
 /// A show that was the event's on a key Swiss Equestrian never checked, unlinked from it when
 /// someone came with a key it accepts: its name and its owner, to tell them.
 #[derive(Debug, Clone)]
@@ -315,16 +344,7 @@ pub async fn claim(pool: &Pool, user: &User, claim: &Claim) -> Result<(Claimed, 
             if claim.checked && !stored_checked {
                 client.execute("UPDATE shows SET key_checked = true WHERE id = $1", &[&id]).await?;
             }
-            if let Some(role) = role_of(&client, &id, user.id).await? {
-                return Ok((Claimed::Member { id, role }, unlinked));
-            }
-            let owner: String = client
-                .query_opt("SELECT u.name FROM show_members m JOIN users u ON u.id = m.user_id WHERE m.show_id = $1 AND m.role = 'owner'", &[&id])
-                .await?
-                .map(|r| r.get(0))
-                .unwrap_or_default();
-            let request = client.query_opt(&format!("{REQUEST_SELECT} WHERE r.show_id = $1 AND r.user_id = $2 AND r.status = 'pending'"), &[&id, &user.id]).await?.as_ref().map(|r| Box::new(request_of(r)));
-            return Ok((Claimed::Owned { id, name: show_name, owner, request }, unlinked));
+            return Ok((already(&client, user, id, show_name).await?, unlinked));
         }
         let id = new_id(claim.number.as_deref());
         let tx = client.transaction().await?;

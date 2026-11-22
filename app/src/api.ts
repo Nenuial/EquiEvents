@@ -22,6 +22,14 @@ export async function call<T>(command: string, args: Record<string, unknown> = {
   let response: Response;
   try {
     response = await fetch(`api/${command}`, { method: 'POST', body: JSON.stringify(args), headers: { 'Content-Type': 'application/json' } });
+    // Still working after a while (equievents.ch waiting for Swiss Equestrian): a job, asked
+    // again until done (a request open longer is cut by the proxy in front).
+    while (response.status === 202) {
+      const job = (await response.json().catch(() => null))?.job;
+      if (!job) break;
+      await new Promise(r => setTimeout(r, 1500));
+      response = await fetch(`api/jobs/${encodeURIComponent(job)}`);
+    }
   } catch {
     throw new Error(refusal('EquiEvents does not answer'));
   }

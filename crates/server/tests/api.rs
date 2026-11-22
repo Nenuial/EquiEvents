@@ -895,9 +895,12 @@ fn stand_in_se(preparing: usize) -> (server::se::Se, std::sync::Arc<std::sync::M
 }
 
 impl Server {
-    /// What a job answered, once done (asked again while it works).
+    /// What a job answered, once done (asked again while it works); an answer given at once
+    /// (a key known here already) as it is.
     async fn job(&self, token: &str, answer: (StatusCode, Value)) -> (StatusCode, Value) {
-        assert_eq!(answer.0, StatusCode::ACCEPTED, "{}", answer.1);
+        if answer.0 != StatusCode::ACCEPTED {
+            return answer;
+        }
         let job = answer.1["job"].as_str().unwrap().to_string();
         for _ in 0..500 {
             let (status, body) = self.call("GET", &format!("/api/jobs/{job}"), Some(token), None).await;
@@ -950,16 +953,17 @@ async fn events_come_from_swiss_equestrian() {
     let (_, listed) = s.call("GET", "/api/shows", Some(&anne), None).await;
     assert_eq!((listed[0]["name"].as_str(), listed[0]["last_day"].as_str()), (event.title.first().map(String::as_str), Some(event.to.get(..10).unwrap())));
 
-    // Again: hers already, nothing downloaded but the check.
+    // Again: hers already, known at once by its key, nothing asked of Swiss Equestrian.
     seen.lock().unwrap().clear();
-    let (_, again) = s.job(&anne, s.call("POST", "/api/shows", Some(&anne), Some(claim("PRACTICE-KEY"))).await).await;
-    assert_eq!((again["id"].as_str(), again["created"].clone()), (Some(show.as_str()), json!(false)));
-    assert_eq!(seen.lock().unwrap().len(), 1);
+    let (status, again) = s.call("POST", "/api/shows", Some(&anne), Some(claim("PRACTICE-KEY"))).await;
+    assert_eq!((status, again["id"].as_str(), again["created"].clone()), (StatusCode::OK, Some(show.as_str()), json!(false)));
+    assert!(seen.lock().unwrap().is_empty());
 
     // Bruno, with the key: Anne's; he asks to join. An event never changes its key: another key
     // Swiss Equestrian were to accept for it opens nothing here.
-    let (status, owned) = s.job(&bruno, s.call("POST", "/api/shows", Some(&bruno), Some(claim("PRACTICE-KEY"))).await).await;
+    let (status, owned) = s.call("POST", "/api/shows", Some(&bruno), Some(claim("PRACTICE-KEY"))).await;
     assert_eq!((status, owned["code"].as_str(), owned["owner"].as_str(), owned["id"].as_str()), (StatusCode::CONFLICT, Some("claimed"), Some("Anne Office"), Some(show.as_str())));
+    assert!(seen.lock().unwrap().is_empty(), "Bruno's key is the show's: known at once");
     let (status, other) = s.job(&bruno, s.call("POST", "/api/shows", Some(&bruno), Some(claim("NEW-KEY"))).await).await;
     assert_eq!((status, other["code"].as_str()), (StatusCode::FORBIDDEN, Some("key")));
     let ask = |key: &str| json!({ "kind": "access", "access_key": key });
@@ -977,8 +981,8 @@ async fn events_come_from_swiss_equestrian() {
     let (status, broken) = s.job(&bruno, s.call("POST", "/api/shows", Some(&bruno), Some(claim("BROKEN"))).await).await;
     assert_eq!((status, broken["code"].as_str()), (StatusCode::BAD_GATEWAY, Some("swiss_equestrian")), "{broken}");
 
-    // A job is its owner's only.
-    let (_, started) = s.call("POST", "/api/shows", Some(&anne), Some(claim("PRACTICE-KEY"))).await;
+    // A job is its owner's only (a key not known here yet: asked of Swiss Equestrian).
+    let (_, started) = s.call("POST", "/api/shows", Some(&anne), Some(claim("NEW-KEY"))).await;
     assert_eq!(s.call("GET", &format!("/api/jobs/{}", started["job"].as_str().unwrap()), Some(&bruno), None).await.0, StatusCode::NOT_FOUND);
 
     drop(s);
@@ -1576,5 +1580,48 @@ async fn rosson_exports_go_up_with_their_key() {
 
     drop(client);
     drop(s);
+    test_db.drop().await;
+}
+
+/// The online version, a command that takes longer than the proxy in front waits (the user,
+/// 2026-11-22: an import waiting on Swiss Equestrian spun on): it answers with a job, and the
+/// browser asks again until it is done; the job is its account's only.
+#[tokio::test(flavor = "multi_thread")]
+async fn slow_online_commands_answer_with_a_job() {
+    let Some(test_db) = TestDb::new("slow").await else { return };
+    let pool = db::pool(&test_db.url).unwrap();
+    db::migrate(&pool).await.unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}", listener.local_addr().unwrap());
+    let mut web = server::web::Web::new(dir.path().join("offices"), &url, None);
+    // No time at all: every command answers with a job.
+    web.answer_within = std::time::Duration::ZERO;
+    let app = api::App { web: Some(std::sync::Arc::new(web)), ..api::App::new(pool.clone(), mail::Mailer::off(), "https://www.equievents.ch") };
+    let router = api::router(app);
+    let served = router.clone();
+    tokio::spawn(async move { axum::serve(listener, served.into_make_service_with_connect_info::<std::net::SocketAddr>()).await.unwrap() });
+    for (name, email) in [("Anne Office", "anne@example.ch"), ("Bruno Second", "bruno@example.ch")] {
+        auth::create_user(&pool, name, email, "a-good-password", false, Lang::Fr).await.unwrap().unwrap();
+    }
+    let r = &router;
+    let anne = site_cookie(r, "anne@example.ch", "a-good-password").await;
+    let bruno = site_cookie(r, "bruno@example.ch", "a-good-password").await;
+
+    let (status, started) = online(r, &anne, "POST", "/app/api/account", Some(json!({}))).await;
+    assert_eq!(status, StatusCode::ACCEPTED, "{started}");
+    let job = format!("/app/api/jobs/{}", started["job"].as_str().unwrap());
+    assert_eq!(online(r, &bruno, "GET", &job, None).await.0, StatusCode::NOT_FOUND);
+    let mut answer = online(r, &anne, "GET", &job, None).await;
+    for _ in 0..200 {
+        if answer.0 != StatusCode::ACCEPTED {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        answer = online(r, &anne, "GET", &job, None).await;
+    }
+    assert_eq!((answer.0, answer.1["account"]["name"].as_str()), (StatusCode::OK, Some("Anne Office")), "{}", answer.1);
+    // Given once.
+    assert_eq!(online(r, &anne, "GET", &job, None).await.0, StatusCode::NOT_FOUND);
     test_db.drop().await;
 }

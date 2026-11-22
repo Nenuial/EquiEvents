@@ -13,7 +13,8 @@
 //! `EQUIEVENTS_SERVER`. Accounts are made from the app as on equievents.ch. The online version
 //! too, at `http://localhost:3999/app/`, when `WEB_DIR` names the interface built for it
 //! (`cd app && npx vite build --base /app/ --outDir <folder>`); its offices in `OFFICES_DIR`
-//! (else a folder in the system's temporary one).
+//! (else a folder in the system's temporary one); `ANSWER_WITHIN_MS`: how long a command of the
+//! online version may take before it answers with a job (20 s).
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -63,7 +64,11 @@ async fn main() -> Result<(), db::Error> {
     let offices = std::env::var("OFFICES_DIR").map(std::path::PathBuf::from).unwrap_or_else(|_| std::env::temp_dir().join("equievents-offices"));
     let interface = std::env::var("WEB_DIR").ok().map(std::path::PathBuf::from).filter(|d| d.join("index.html").is_file());
     println!("online version: {}", if interface.is_some() { format!("{site}/app/ (offices in {})", offices.display()) } else { "not served (WEB_DIR)".into() });
-    let web = server::web::Web::new(offices, &format!("http://127.0.0.1:{port}"), interface);
+    let mut web = server::web::Web::new(offices, &format!("http://127.0.0.1:{port}"), interface);
+    // To try the online version's jobs (a command slower than this answers with one).
+    if let Some(ms) = std::env::var("ANSWER_WITHIN_MS").ok().and_then(|v| v.parse().ok()) {
+        web.answer_within = Duration::from_millis(ms);
+    }
     let app = api::router(api::App { se, web: Some(std::sync::Arc::new(web)), ..api::App::new(pool, mail::Mailer::off(), &site) });
     axum::serve(listener, app.into_make_service_with_connect_info::<std::net::SocketAddr>()).await?;
     Ok(())

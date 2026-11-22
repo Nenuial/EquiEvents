@@ -380,6 +380,12 @@ async fn create_show(State(app): State<App>, headers: HeaderMap, Json(body): Jso
     if !app.limits.allow(&format!("key:{}", user.id), limit::KEY_USER) {
         return Err(too_many());
     }
+    // The event's show is here with this very key: whose it is, at once (Swiss Equestrian can
+    // take minutes, and has nothing to add).
+    if let Some((outcome, event_id)) = shows::known_key(&app.pool, &user, &access_key, body.event_id).await? {
+        let (status, answer) = claimed(outcome, event_id, &user);
+        return Ok((status, Json(answer)).into_response());
+    }
     if app.se.base.is_some() {
         let export = body.from_export.then(|| (body.name.clone(), body.number.clone()));
         let job = app.se.jobs.start(user.id, checked_claim(app.clone(), user, access_key, body.event_id, export));

@@ -53,6 +53,10 @@ The same interface as the desktop app, at `www.equievents.ch/app/` (`crates/serv
   each; administrators give a show **another owner** (the user, 2026-11-21), any account, the
   previous one staying as a collaborator or leaving, both told by e-mail. What staff may do is
   always the session's own account's, never the one it acts as; each action is logged.
+- **Slow commands answer with a job** (the user, 2026-11-22: an import waiting on Swiss
+  Equestrian spun on): a command still working after 20 s (`Web::answer_within`) answers 202
+  `{job}`, and the browser asks `GET /app/api/jobs/{id}` until it is done (its account's only;
+  forgotten after an hour), so no request outlasts the proxy in front.
 - **Online only**, never offline in the browser (the user, 2026-11-21): that is the desktop
   apps' job. A show imported in the online version stays in its account's copy until put on
   equievents.ch with its key (and is then in the nightly backup like every show).
@@ -181,6 +185,9 @@ Decided 2026-11-14 (`crates/server/src/shows.rs`):
   over one taken on trust: that show is no longer the event's (it stays, unlinked, its owner told
   by e-mail) and the event's show is made for the checked key; a key taken on trust never wins
   over a checked one. The same key, accepted later, marks the show checked.
+- **A key known here is answered at once**: when the event's show is on equievents.ch with this
+  very key, who works on it is said without asking Swiss Equestrian (a collaborator's key, a
+  second import of the same export).
 - **The key alone downloads the event**: the server asks Swiss Equestrian for the officials,
   the master data and the event, as Rosson does, and a show made now starts with them
   (operations of the server, device `equievents.ch`, by the person who entered the key); the

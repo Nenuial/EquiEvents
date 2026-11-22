@@ -44,11 +44,32 @@ pub struct Web {
     interface: Option<PathBuf>,
     offices: Mutex<HashMap<i64, Arc<office::Office>>>,
     kept: AtomicU64,
+    /// Commands still working after `answer_within` (waiting for Swiss Equestrian): the browser
+    /// asks again (`GET /app/api/jobs/{id}`), by id.
+    jobs: Mutex<HashMap<String, Job>>,
+    /// How long a command may take before it answers with a job instead: Nginx Proxy Manager cuts
+    /// a request at a minute (the user, 2026-11-22: an import waiting on Swiss Equestrian spun on).
+    pub answer_within: std::time::Duration,
+}
+
+/// A command still working, its account's.
+struct Job {
+    account: i64,
+    started: std::time::Instant,
+    task: tokio::task::JoinHandle<Result<Value, String>>,
 }
 
 impl Web {
     pub fn new(root: PathBuf, server: &str, interface: Option<PathBuf>) -> Web {
-        Web { root, server: server.trim_end_matches('/').to_string(), interface, offices: Mutex::default(), kept: AtomicU64::new(0) }
+        Web {
+            root,
+            server: server.trim_end_matches('/').to_string(),
+            interface,
+            offices: Mutex::default(),
+            kept: AtomicU64::new(0),
+            jobs: Mutex::default(),
+            answer_within: std::time::Duration::from_secs(20),
+        }
     }
 
     fn files(&self, user: &User) -> PathBuf {
@@ -104,6 +125,7 @@ pub fn routes() -> Router<App> {
         .route("/app/{file}", get(interface_file))
         .route("/app/assets/{file}", get(asset))
         .route("/app/api/{command}", post(command))
+        .route("/app/api/jobs/{id}", get(job))
         // A Rosson export of a whole database can be large.
         .route("/app/files/{name}", post(keep).layer(DefaultBodyLimit::max(256 * 1024 * 1024)))
         .route("/app/files/{folder}/{name}", get(kept))
@@ -219,15 +241,58 @@ async fn command(State(app): State<App>, headers: HeaderMap, Path(command): Path
     };
     // Someone acting for the account: their changes signed with both names.
     let author = by.map(|by| format!("{} (via {})", user.name, by.name));
-    let answer = tokio::task::spawn_blocking(move || match author {
+    let mut task = tokio::task::spawn_blocking(move || match author {
         Some(author) => office.call_as(&command, &args, &author),
         None => office.call(&command, &args),
-    })
-    .await;
-    match answer {
+    });
+    // (No time at all: always a job.)
+    let done = match web.answer_within.is_zero() {
+        true => None,
+        false => tokio::time::timeout(web.answer_within, &mut task).await.ok(),
+    };
+    match done {
+        Some(done) => answered(done),
+        // Still working (Swiss Equestrian preparing an event): a job, asked again.
+        None => {
+            let id = auth::random_hex(16);
+            if let Ok(mut jobs) = web.jobs.lock() {
+                // Jobs nobody asked for in an hour: gone.
+                jobs.retain(|_, j| j.started.elapsed() < std::time::Duration::from_secs(3600));
+                jobs.insert(id.clone(), Job { account: user.id, started: std::time::Instant::now(), task });
+            }
+            (StatusCode::ACCEPTED, Json(json!({ "job": id }))).into_response()
+        }
+    }
+}
+
+/// A command's answer, as the browser gets it.
+fn answered(done: Result<Result<Value, String>, tokio::task::JoinError>) -> Response {
+    match done {
         Ok(Ok(value)) => Json(value).into_response(),
         Ok(Err(e)) => (StatusCode::BAD_REQUEST, Json(json!({ "error": e }))).into_response(),
         Err(e) => db_error(e.to_string().into()),
+    }
+}
+
+/// A command that answered with a job: still working (202), else its answer, once.
+async fn job(State(app): State<App>, headers: HeaderMap, Path(id): Path<String>) -> Response {
+    let Some(web) = app.web.clone() else { return StatusCode::NOT_FOUND.into_response() };
+    let user = match working(&app, &headers).await {
+        Ok(Some(w)) => w.account,
+        Ok(None) => return refused(StatusCode::UNAUTHORIZED, "not signed in", "signed_out"),
+        Err(e) => return db_error(e),
+    };
+    let finished = {
+        let Ok(mut jobs) = web.jobs.lock() else { return db_error("busy".into()) };
+        match jobs.get(&id) {
+            Some(j) if j.account == user.id && j.task.is_finished() => jobs.remove(&id),
+            Some(j) if j.account == user.id => return (StatusCode::ACCEPTED, Json(json!({ "job": id, "working": true }))).into_response(),
+            _ => return refused(StatusCode::NOT_FOUND, "no such job", "not_found"),
+        }
+    };
+    match finished {
+        Some(j) => answered(j.task.await),
+        None => refused(StatusCode::NOT_FOUND, "no such job", "not_found"),
     }
 }
 
