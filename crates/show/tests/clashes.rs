@@ -214,3 +214,133 @@ fn a_mark_for_a_class_finalised_meanwhile_is_said() {
     assert!(state.sheets.is_empty());
     assert_eq!(state.conflicts.iter().map(|c| (c.kind, c.op.as_str())).collect::<Vec<_>>(), vec![(ConflictKind::ChangedGone, "pc")]);
 }
+
+// --- R13: what changes rely on --------------------------------------------------------------
+
+/// The show with a running class 1 and entries 5 and 6.
+fn with_class() -> Vec<Operation> {
+    let mut ops = start();
+    let mut more = |id: &str, millis: u64, change: Change| ops.push(Operation { id: id.into(), stamp: Stamp { millis, counter: 0, device: "import".into() }, author: "import".into(), change, saw: Default::default() });
+    more("six", 2, Change::EntryAdded { entry: entry(6) });
+    more("class", 3, Change::ClassSet { class: running_class(), seen: None });
+    ops
+}
+
+fn result(entry: u64, points: i64) -> Change {
+    Change::ResultEntered { class: ClassId("1".into()), entry: EntryId(entry), values: BTreeMap::from([("punkte".to_string(), points.into())]), out: None }
+}
+
+/// Both orders: the later of the two is said, both are applied.
+fn both_orders(a: Change, b: Change) -> Vec<(State, String)> {
+    let (before, _) = State::from_log(with_class());
+    [(a.clone(), b.clone()), (b, a)]
+        .into_iter()
+        .map(|(first, second)| {
+            let mut ops = with_class();
+            ops.extend([made(&before, "first", 100, "pc", first), made(&before, "second", 200, "mac", second)]);
+            (together(ops), "second".to_string())
+        })
+        .collect()
+}
+
+#[test]
+fn a_result_for_a_rider_withdrawn_meanwhile_is_said() {
+    for (state, later) in both_orders(status(EntryStatus::NotStarting), result(5, 80)) {
+        assert_eq!(state.entries[&EntryId(5)].status, EntryStatus::NotStarting);
+        assert!(state.results.contains_key(&(ClassId("1".into()), EntryId(5))));
+        let c: Vec<_> = state.conflicts.iter().map(|c| (c.kind, c.op.clone(), c.over.clone())).collect();
+        assert_eq!(c, vec![(ConflictKind::Basis, later, Some("first".to_string()))], "{:#?}", state.conflicts);
+    }
+    // Another rider's result: nothing to say.
+    for (state, _) in both_orders(status(EntryStatus::NotStarting), result(6, 80)) {
+        assert!(state.conflicts.is_empty(), "{:#?}", state.conflicts);
+    }
+    // A horse changed while the result was entered: said too.
+    for (state, _) in both_orders(horse(22), result(5, 80)) {
+        assert_eq!(state.conflicts.iter().map(|c| c.kind).collect::<Vec<_>>(), vec![ConflictKind::Basis]);
+    }
+}
+
+#[test]
+fn marks_of_a_judge_taken_off_meanwhile_are_said() {
+    let judge = AssignmentId("j1".into());
+    let mark = Change::SheetEdited { class: ClassId("1".into()), entry: EntryId(5), judge: judge.clone(), marks: BTreeMap::from([("1".to_string(), Some(7.into()))]), penalties: None, total: None };
+    let mut base = with_class();
+    let assignment: Assignment = serde_json::from_value(json!({ "id": "j1", "class": "1", "person": 30, "role": "DRI", "letter": "C" })).unwrap();
+    base.push(Operation { id: "judge".into(), stamp: Stamp { millis: 4, counter: 0, device: "import".into() }, author: "import".into(), change: Change::AssignmentSet { assignment }, saw: Default::default() });
+    let (before, _) = State::from_log(base.clone());
+    for (first, second) in [(Change::AssignmentRemoved { assignment: judge.clone() }, mark.clone()), (mark.clone(), Change::AssignmentRemoved { assignment: judge.clone() })] {
+        let mut ops = base.clone();
+        ops.extend([made(&before, "first", 100, "pc", first), made(&before, "second", 200, "mac", second)]);
+        let state = together(ops);
+        assert_eq!(state.conflicts.iter().map(|c| (c.kind, c.op.as_str())).collect::<Vec<_>>(), vec![(ConflictKind::Basis, "second")], "{:#?}", state.conflicts);
+    }
+}
+
+#[test]
+fn results_under_a_scoring_table_changed_meanwhile_are_said() {
+    let table = Change::ClassSet { class: Class { scoring_table: Some(9), ..running_class() }, seen: Some(running_class()) };
+    for (state, later) in both_orders(table, result(5, 80)) {
+        assert_eq!(state.classes[&ClassId("1".into())].scoring_table, Some(9));
+        assert_eq!(state.conflicts.iter().map(|c| (c.kind, c.op.clone())).collect::<Vec<_>>(), vec![(ConflictKind::Basis, later)], "{:#?}", state.conflicts);
+    }
+    // Its name changed: nothing to say.
+    let name = Change::ClassSet { class: Class { name: "Libre R/N".into(), ..running_class() }, seen: Some(running_class()) };
+    for (state, _) in both_orders(name, result(5, 80)) {
+        assert!(state.conflicts.is_empty(), "{:#?}", state.conflicts);
+    }
+}
+
+// --- R14: sent to Swiss Equestrian without what was made offline before ---------------------
+
+#[test]
+fn results_sent_without_a_change_made_offline_before_are_to_send_again() {
+    let class = ClassId("1".into());
+    let (before, _) = State::from_log(with_class());
+    // The Mac, offline, enters rider 5's result; the PC enters rider 6's, which reaches the
+    // server; the server sends the class's results (knowing the PC's only).
+    let mac = made(&before, "mac", 100, "mac", result(5, 80));
+    let pc = made(&before, "pc", 150, "pc", result(6, 70));
+    let mut server_log = with_class();
+    server_log.push(pc.clone());
+    let (server, _) = State::from_log(server_log.clone());
+    let mut sent = vec![Change::Uploaded { upload: Upload::Results(class.clone()), based_on: None }];
+    server.fill_uploads(&mut sent);
+    let upload = Operation { id: "sent".into(), stamp: Stamp { millis: 200, counter: 0, device: "server".into() }, author: "Anne".into(), change: sent.remove(0), saw: Default::default() };
+    // On the server, all is sent.
+    server_log.push(upload.clone());
+    let (server, _) = State::from_log(server_log);
+    assert!(server.conflicts.is_empty());
+    assert!(server.results_changed[&class] < 200);
+    // The Mac syncs: Swiss Equestrian lacks its result. To send again, and said.
+    let mut ops = with_class();
+    ops.extend([mac, pc, upload]);
+    let state = together(ops);
+    assert!(state.results_changed[&class] > state.uploaded[&Upload::Results(class.clone())].millis);
+    let c: Vec<_> = state.conflicts.iter().map(|c| (c.kind, c.op.as_str(), c.over.as_deref(), c.what.clone())).collect();
+    assert_eq!(c, vec![(ConflictKind::LateForUpload, "sent", Some("mac"), vec!["mac".to_string()])]);
+}
+
+// --- R8: Swiss Equestrian replaced a change of the office -----------------------------------
+
+#[test]
+fn swiss_equestrian_replacing_the_offices_horse_is_said() {
+    let delivered = |id: &str, millis: u64, horse: u64| Operation {
+        id: id.into(),
+        stamp: Stamp { millis, counter: 0, device: "server".into() },
+        author: "Swiss Equestrian".into(),
+        change: Change::EntryDelivered { entry: Entry { horse: Some(HorseId(horse)), ..entry(7) } },
+        saw: Default::default(),
+    };
+    let mut ops = vec![delivered("d1", 1, 20)];
+    let (seen, _) = State::from_log(ops.clone());
+    let office = Change::EntryEdited { entry: EntryId(7), edit: EntryEdit { horse: Some(HorseOnEntry { horse: Some(HorseId(21)), guest_horse: None, horses_on_entry: Vec::new() }), ..Default::default() } };
+    ops.extend([made(&seen, "office", 100, "pc", office.clone()), delivered("d2", 200, 23)]);
+    let state = together(ops);
+    assert_eq!(state.entries[&EntryId(7)].horse, Some(HorseId(23)));
+    assert_eq!(state.conflicts.len(), 1, "{:#?}", state.conflicts);
+    let c = &state.conflicts[0];
+    assert_eq!((c.kind, c.op.as_str(), c.over.as_deref()), (ConflictKind::Delivered, "d2", Some("office")));
+    // The office's horse put back.
+    assert_eq!(c.things[0].restore(&c.lost[c.things[0].key()]), Some(office));
+}

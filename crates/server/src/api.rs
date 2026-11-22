@@ -588,7 +588,10 @@ async fn sent(app: App, user: User, show: String, key: String, body: SendBody) -
     if let Some(e) = outcome.failed {
         return (502, json!({ "error": e.to_string(), "code": "swiss_equestrian" }));
     }
-    let ops = app.se.operations(outcome.changes, &user.name, state.last.as_ref());
+    // What was sent was made of what the server knew (R14).
+    let mut changes = outcome.changes;
+    state.fill_uploads(&mut changes);
+    let ops = app.se.operations(changes, &user.name, state.last.as_ref());
     if let Err(e) = shows::add(&app.pool, &user, &show, &ops).await {
         eprintln!("error: {e}");
         return (500, json!({ "error": "the server could not do it" }));
@@ -827,6 +830,17 @@ struct Push {
 
 async fn push(State(app): State<App>, headers: HeaderMap, Path(id): Path<String>, Json(body): Json<Push>) -> Answer {
     let user = member(&app, &headers, &id, false).await?;
+    // An app that does not say what its changes' authors saw: clashes with its changes would go
+    // unsaid (R12–R14). It is told to update, in its account's language.
+    let speaks = headers.get("x-equievents-sync").and_then(|v| v.to_str().ok()).and_then(|v| v.trim().parse::<u32>().ok()).unwrap_or(1);
+    if speaks < show::oplog::SYNC_VERSION {
+        let why = Lang::of(&user.language).pick(
+            "Mettez EquiEvents à jour pour synchroniser : cette version ne peut plus envoyer ses changements à equievents.ch.",
+            "Aktualisieren Sie EquiEvents, um zu synchronisieren: Diese Version kann ihre Änderungen nicht mehr an equievents.ch senden.",
+            "Aggiornate EquiEvents per sincronizzare: questa versione non può più inviare le sue modifiche a equievents.ch.",
+        );
+        return Err(ApiError(StatusCode::UPGRADE_REQUIRED, why.into(), Some("update")));
+    }
     if body.ops.len() > shows::PUSH_LIMIT {
         return Err(bad(format!("at most {} operations at a time", shows::PUSH_LIMIT)));
     }

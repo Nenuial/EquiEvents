@@ -10,6 +10,10 @@
 //! sheet too; changing different ones is no clash. Classes, start lists and results' fields have
 //! their own rules (R11, R7, R2); a results change also notes the class's status, so a change
 //! that reaches a class finalised meanwhile is said.
+//!
+//! A change also notes what it relies on without setting it (R13, `needs`): a result, who starts
+//! and on which horse; a rider's withdrawal, what was entered for them. Changed meanwhile on
+//! another computer, the two are kept and said: they may not go together.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -65,6 +69,17 @@ pub enum Thing {
     SheetTotal { class: ClassId, entry: EntryId, judge: AssignmentId },
     TeamSheetMark { class: ClassId, team: TeamId, judge: AssignmentId, mark: String },
     TeamSheetPenalties { class: ClassId, team: TeamId, judge: AssignmentId },
+    // What changes rely on without setting it (R13, `needs`): kept as fingerprints.
+    /// How a class is scored: its scoring table, its test, its fields, its phases.
+    ClassSetup { class: ClassId },
+    /// Who a judge is: the person, their place (C, E, H…), their class (not their role's code).
+    Judge { assignment: AssignmentId },
+    /// Everything entered for a rider: results, judges' sheets, the jury's penalties.
+    EntryResults { entry: EntryId },
+    /// The sheets of one judge (an assignment).
+    JudgeSheets { judge: AssignmentId },
+    /// Everything entered in a class.
+    ClassResults { class: ClassId },
 }
 
 impl Thing {
@@ -97,6 +112,12 @@ impl Thing {
             Thing::SheetTotal { class, entry, judge } => format!("s/{class}/{entry}/{judge}/total"),
             Thing::TeamSheetMark { class, team, judge, mark } => format!("ts/{class}/{team}/{judge}/m/{mark}"),
             Thing::TeamSheetPenalties { class, team, judge } => format!("ts/{class}/{team}/{judge}/penalties"),
+            Thing::ClassSetup { class } => format!("cu/{class}"),
+            // Inside the assignment: who changed it last is who changed this.
+            Thing::Judge { assignment } => format!("a/{assignment}/judge"),
+            Thing::EntryResults { entry } => format!("er/{entry}"),
+            Thing::JudgeSheets { judge } => format!("js/{judge}"),
+            Thing::ClassResults { class } => format!("crs/{class}"),
         }
     }
 
@@ -114,7 +135,9 @@ impl Thing {
             | Thing::SheetPenalties { class, .. }
             | Thing::SheetTotal { class, .. }
             | Thing::TeamSheetMark { class, .. }
-            | Thing::TeamSheetPenalties { class, .. } => Some(class),
+            | Thing::TeamSheetPenalties { class, .. }
+            | Thing::ClassSetup { class }
+            | Thing::ClassResults { class } => Some(class),
             _ => None,
         }
     }
@@ -153,7 +176,36 @@ impl Thing {
             Thing::SheetTotal { class, entry, judge } => to(sheet(class, entry, judge).and_then(|s| s.total).map(|t| json!(t))),
             Thing::TeamSheetMark { class, team, judge, mark } => to(team_sheet(class, team, judge).and_then(|s| s.marks.get(mark)).map(|m| json!(m))),
             Thing::TeamSheetPenalties { class, team, judge } => to(team_sheet(class, team, judge).map(penalties)),
+            Thing::ClassSetup { class } => to(state.classes.get(class).map(setup)),
+            Thing::Judge { assignment } => to(state.assignments.get(assignment).map(|a| json!({ "person": a.person, "letter": a.letter, "class": a.class }))),
+            Thing::EntryResults { entry } => aggregate(
+                state
+                    .results
+                    .iter()
+                    .filter(|((_, e), _)| e == entry)
+                    .map(|((c, _), card)| json!(["result", c, card]))
+                    .chain(state.sheets.iter().filter(|((_, e, _), _)| e == entry).map(|((c, _, j), sheet)| json!(["sheet", c, j, sheet])))
+                    .chain(state.jury_penalties.iter().filter(|((_, e), _)| e == entry).map(|((c, _), p)| json!(["jury", c, p])))
+                    .collect(),
+            ),
+            Thing::JudgeSheets { judge } => aggregate(state.sheets.iter().filter(|((_, _, j), _)| j == judge).map(|((c, e, _), sheet)| json!([c, e, sheet])).collect()),
+            Thing::ClassResults { class } => aggregate(
+                state
+                    .results
+                    .iter()
+                    .filter(|((c, _), _)| c == class)
+                    .map(|((_, e), card)| json!(["result", e, card]))
+                    .chain(state.sheets.iter().filter(|((c, _, _), _)| c == class).map(|((_, e, j), sheet)| json!(["sheet", e, j, sheet])))
+                    .chain(state.team_results.iter().filter(|((c, _), _)| c == class).map(|((_, t), card)| json!(["team", t, card])))
+                    .chain(state.team_sheets.iter().filter(|((c, _, _), _)| c == class).map(|((_, t, j), sheet)| json!(["team_sheet", t, j, sheet])))
+                    .collect(),
+            ),
         }
+    }
+
+    /// Whether changes rely on it rather than set it (R13): seen as a fingerprint.
+    pub fn is_basis(&self) -> bool {
+        matches!(self, Thing::ClassSetup { .. } | Thing::Judge { .. } | Thing::EntryResults { .. } | Thing::JudgeSheets { .. } | Thing::ClassResults { .. })
     }
 
     /// The change that makes it `value` again (a conflict's other version put back), when it
@@ -233,8 +285,8 @@ impl Thing {
                 let p: SheetPenalties = if value.is_null() { SheetPenalties::default() } else { from(value)? };
                 Change::TeamSheetEdited { class: class.clone(), team: team.clone(), judge: judge.clone(), marks: BTreeMap::new(), penalties: Some(p) }
             }
-            // A whole entry or class: not made again from here.
-            Thing::Entry { .. } | Thing::Class { .. } | Thing::ClassStatus { .. } => return None,
+            // A whole entry or class, what changes rely on: not made again from here.
+            Thing::Entry { .. } | Thing::Class { .. } | Thing::ClassStatus { .. } | Thing::ClassSetup { .. } | Thing::Judge { .. } | Thing::EntryResults { .. } | Thing::JudgeSheets { .. } | Thing::ClassResults { .. } => return None,
         })
     }
 }
@@ -265,7 +317,7 @@ fn penalties(s: &JudgeSheet) -> Value {
 }
 
 /// An entry's field, as the edit that sets it gives it.
-fn entry_field(e: &Entry, field: &str) -> Value {
+pub fn entry_field(e: &Entry, field: &str) -> Value {
     match field {
         "status" => json!(e.status),
         "hors_concours" => json!(e.hors_concours),
@@ -275,6 +327,12 @@ fn entry_field(e: &Entry, field: &str) -> Value {
         "stage" => json!(e.stage.unwrap_or(0)),
         "comment" => json!(e.comment),
         "horse_phases" => json!(e.horses_on_entry.iter().map(|h| h.get("einsaetze").cloned().unwrap_or(Value::Null)).collect::<Vec<_>>()),
+        // Fields only Swiss Equestrian's deliveries set (R8's notices).
+        "team" => json!(e.team),
+        "programme" => json!(e.programme),
+        "fee_paid" => json!(e.fee_paid),
+        "winning_points" => json!(e.winning_points),
+        "entered_by" => json!(e.entered_by),
         _ => Value::Null,
     }
 }
@@ -348,6 +406,91 @@ pub fn things(change: &Change) -> Vec<Thing> {
     }
 }
 
+/// How a class is scored (`Thing::ClassSetup`).
+fn setup(c: &Class) -> Value {
+    json!({ "scoring_table": c.scoring_table, "programme": c.programme, "extra_fields": c.extra_fields, "phase": c.phase, "phases": c.phases })
+}
+
+/// Many things as one: how many, and their fingerprint.
+fn aggregate(items: Vec<Value>) -> Value {
+    json!({ "n": items.len(), "h": fingerprint(&Value::Array(items)) })
+}
+
+/// A value's fingerprint (64-bit FNV-1a of its JSON, in hex): what changes saw of what they
+/// rely on (R13), small however big it is.
+pub fn fingerprint(v: &Value) -> String {
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    for byte in v.to_string().bytes() {
+        hash ^= u64::from(byte);
+        hash = hash.wrapping_mul(0x0100_0000_01b3);
+    }
+    format!("{hash:016x}")
+}
+
+/// What a change relies on without setting it (R13): changed meanwhile on another device,
+/// unknown to its author, the two may not go together — a result entered for a rider withdrawn
+/// there, or moved to another class, or given another horse; marks of a judge taken off the
+/// class; results entered under a scoring table or test changed there; and the other way round.
+pub fn needs(change: &Change) -> Vec<Thing> {
+    let field = |entry: &EntryId, f: &str| Thing::EntryField { entry: entry.clone(), field: f.into() };
+    // A rider's result: who starts, in which class, on which horse; how the class is scored.
+    let result = |class: &ClassId, entry: &EntryId| vec![field(entry, "status"), field(entry, "published"), field(entry, "horse"), field(entry, "rider"), Thing::ClassSetup { class: class.clone() }];
+    let judge = |j: &AssignmentId| Thing::Judge { assignment: j.clone() };
+    match change {
+        Change::ResultEdited { class, entry, .. } | Change::ResultEntered { class, entry, .. } | Change::JuryPenaltySet { class, entry, .. } => result(class, entry),
+        Change::RankSet { class, competitor: Competitor::Entry(entry), .. } => result(class, entry),
+        Change::JudgeSheetEntered { class, entry, judge: j, .. } | Change::SheetEdited { class, entry, judge: j, .. } | Change::SheetSet { class, place: SheetPlace::Rider { entry, judge: j }, .. } => {
+            let mut out = result(class, entry);
+            out.push(judge(j));
+            out
+        }
+        Change::TeamResultEntered { class, .. } | Change::RankSet { class, .. } | Change::SheetMoved { class, .. } | Change::SheetSet { class, .. } => vec![Thing::ClassSetup { class: class.clone() }],
+        Change::TeamSheetEdited { class, judge: j, .. } => vec![Thing::ClassSetup { class: class.clone() }, judge(j)],
+        // A rider withdrawn, moved, given another horse or rider, taken back: what was entered.
+        Change::EntryEdited { entry, edit } if edit.status.is_some() || edit.published.is_some() || edit.horse.is_some() || edit.rider.is_some() => vec![Thing::EntryResults { entry: entry.clone() }],
+        Change::EntryRemoved { entry } => vec![Thing::EntryResults { entry: entry.clone() }],
+        // A judge taken off or changed: their sheets.
+        Change::AssignmentSet { assignment } => vec![Thing::JudgeSheets { judge: assignment.id.clone() }],
+        Change::AssignmentRemoved { assignment } => vec![Thing::JudgeSheets { judge: assignment.clone() }],
+        // How a class is scored changed (`State::saw` keeps it only then), or the class taken
+        // away: what was entered in it.
+        Change::ClassSet { class, .. } => vec![Thing::ClassResults { class: class.id.clone() }],
+        Change::ClassRemoved { class } => vec![Thing::ClassResults { class: class.clone() }],
+        _ => Vec::new(),
+    }
+}
+
+/// The keys of what changes rely on that a change makes different (who did it, for R13's
+/// conflicts): what was entered for a rider, by a judge, in a class; how a class is scored.
+pub fn basis_written(change: &Change) -> Vec<String> {
+    let entered = |class: &ClassId, entry: Option<&EntryId>, judge: Option<&AssignmentId>| {
+        let mut out = vec![Thing::ClassResults { class: class.clone() }.key()];
+        out.extend(entry.map(|e| Thing::EntryResults { entry: e.clone() }.key()));
+        out.extend(judge.map(|j| Thing::JudgeSheets { judge: j.clone() }.key()));
+        out
+    };
+    match change {
+        Change::ResultEdited { class, entry, .. } | Change::ResultEntered { class, entry, .. } | Change::ResultRemoved { class, entry } | Change::JuryPenaltySet { class, entry, .. } => entered(class, Some(entry), None),
+        Change::JudgeSheetEntered { class, entry, judge, .. } | Change::SheetEdited { class, entry, judge, .. } => entered(class, Some(entry), Some(judge)),
+        Change::SheetSet { class, place, .. } => match place {
+            SheetPlace::Rider { entry, judge } => entered(class, Some(entry), Some(judge)),
+            SheetPlace::Aside { .. } => entered(class, None, None),
+        },
+        Change::SheetMoved { class, from, to } => {
+            let mut out = entered(class, None, None);
+            for place in [from, to] {
+                if let SheetPlace::Rider { entry, judge } = place {
+                    out.extend(entered(class, Some(entry), Some(judge)));
+                }
+            }
+            out
+        }
+        Change::TeamResultEntered { class, .. } | Change::TeamSheetEdited { class, .. } => entered(class, None, None),
+        Change::ClassSet { class, .. } => vec![Thing::ClassSetup { class: class.id.clone() }.key()],
+        _ => Vec::new(),
+    }
+}
+
 /// Whether two keys concern the same thing: equal, or one inside the other.
 pub fn overlap(a: &str, b: &str) -> bool {
     a == b || a.strip_prefix(b).is_some_and(|r| r.starts_with('/')) || b.strip_prefix(a).is_some_and(|r| r.starts_with('/'))
@@ -363,8 +506,21 @@ impl State {
             .iter()
             .map(|change| {
                 let things = things(change);
-                let saw: Saw = things.iter().map(|t| (t.key(), t)).filter(|(k, _)| !set.iter().any(|s| overlap(s, k))).map(|(k, t)| (k, t.value(self))).collect();
+                let mut saw: Saw = things.iter().map(|t| (t.key(), t)).filter(|(k, _)| !set.iter().any(|s| overlap(s, k))).map(|(k, t)| (k, t.value(self))).collect();
+                // What it relies on (R13), as fingerprints; not what it sets itself, or what the
+                // changes before it set. A class: only when how it is scored changes.
+                let scoring_changed = match change {
+                    Change::ClassSet { class, .. } => self.classes.get(&class.id).is_some_and(|now| setup(now) != setup(class)),
+                    _ => true,
+                };
+                for t in needs(change).into_iter().filter(|_| scoring_changed) {
+                    let k = t.key();
+                    if !set.iter().any(|s| overlap(s, &k)) && !things.iter().any(|own| overlap(&own.key(), &k)) {
+                        saw.insert(k, Value::String(fingerprint(&t.value(self))));
+                    }
+                }
                 set.extend(things.iter().map(Thing::key));
+                set.extend(basis_written(change));
                 saw
             })
             .collect()

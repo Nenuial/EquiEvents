@@ -132,7 +132,7 @@ JSON over HTTPS; `Authorization: Bearer <token>` after signing in (`crates/serve
 | `GET /api/requests` | one's own requests and their answers |
 | `POST /api/requests/{id}` | `{accept, stay?}`: the owner answers |
 | `DELETE /api/requests/{id}` | who asked takes it back |
-| `POST /api/shows/{id}/ops` | push `{ops}` (≤ 5000) → `{added, known, cursor}` |
+| `POST /api/shows/{id}/ops` | push `{ops}` (≤ 5000) → `{added, known, cursor}`; only from apps sending `X-EquiEvents-Sync: 2` or more, else 426 `update` (reconciliation.md) |
 | `GET /api/shows/{id}/ops?after=n` | pull → `{ops, cursor, more}` (≤ 2000 at a time) |
 | `GET /api/updates/{target}/{arch}/{version}` | the desktop app's update check, no account: the newer release in Tauri's format, else 204 ([releases.md](releases.md)) |
 | `GET /downloads/{file}` | an installer or update `latest.json` names (ranges: a download picked up again) |

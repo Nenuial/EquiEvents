@@ -56,6 +56,14 @@ pub enum ConflictKind {
     /// R12: what a change set had changed meanwhile and is gone, or its class was finalised
     /// meanwhile. The change was not applied.
     ChangedGone,
+    /// R13: what a change relies on changed meanwhile on another device (a result entered for a
+    /// rider withdrawn there…). Both were applied; they may not go together.
+    Basis,
+    /// R14: changes made before something was sent to Swiss Equestrian, unknown to the send
+    /// (made offline): Swiss Equestrian does not have them; to send again.
+    LateForUpload,
+    /// R8: Swiss Equestrian's new version of an entry replaced a change of the office.
+    Delivered,
 }
 
 impl ConflictKind {
@@ -71,6 +79,9 @@ impl ConflictKind {
             ConflictKind::ClassGone => "class_gone",
             ConflictKind::Changed => "change",
             ConflictKind::ChangedGone => "change_gone",
+            ConflictKind::Basis => "basis",
+            ConflictKind::LateForUpload => "late_upload",
+            ConflictKind::Delivered => "delivered",
         }
     }
 }
@@ -133,6 +144,10 @@ pub struct State {
     pub conflicts: Vec<Conflict>,
     /// Operations applied to each class's results (what a finalisation is based on, R4).
     pub class_inputs: BTreeMap<ClassId, BTreeSet<String>>,
+    /// Operations that changed what is sent of a class's results, of a published class's start
+    /// lists (what an upload is based on, R14).
+    result_inputs: BTreeMap<ClassId, BTreeSet<String>>,
+    list_inputs: BTreeMap<PublishedClassId, BTreeSet<String>>,
     /// Finalisations in the log: class, stamp, the operations they were based on (R4).
     finalisations: Vec<(ClassId, Stamp, BTreeSet<String>)>,
     /// The operation that last changed each thing a conflict can be about (a class's field, a
@@ -140,6 +155,8 @@ pub struct State {
     writers: BTreeMap<String, (Stamp, String)>,
     /// Stamp of the last applied operation.
     pub last: Option<Stamp>,
+    /// Stamps of the operations what is sent is made of (R14's conflicts: the latest missing).
+    stamp_of: BTreeMap<String, Stamp>,
 }
 
 /// What happened to an operation.
@@ -178,8 +195,8 @@ impl State {
 
     /// Apply one operation. Operations must come in stamp order.
     pub fn apply(&mut self, op: &Operation) -> Outcome {
-        // R12: what changed meanwhile, unknown to its author (before it is applied).
-        let clashes = self.clashes(op);
+        // R12, R13: what changed meanwhile, unknown to its author (before it is applied).
+        let (clashes, basis) = self.clashes(op);
         let before = self.conflicts.len();
         let outcome = match class_of_results(&op.change) {
             Some(class) => {
@@ -199,16 +216,25 @@ impl State {
             None => self.apply_change(op),
         };
         // Not a late change for a final class (R4 says it). Applied, what it made what was
-        // there already replaced nothing (both gave the same horse).
+        // there already replaced nothing (both gave the same horse); what it relies on changed:
+        // both kept (R13). Not applied: said with all of it.
         let applied = outcome == Outcome::Applied;
-        let clashes: Vec<_> = clashes.into_iter().filter(|(t, before)| !applied || &t.value(self) != before).collect();
-        if !clashes.is_empty() && !self.conflicts[before..].iter().any(|c| c.kind == ConflictKind::LateForFinalClass) {
-            self.clashed(op, clashes, applied);
+        let mut clashes: Vec<_> = clashes.into_iter().filter(|(t, before)| !applied || &t.value(self) != before).collect();
+        if !self.conflicts[before..].iter().any(|c| c.kind == ConflictKind::LateForFinalClass) {
+            if applied {
+                self.clashed(op, basis, ConflictKind::Basis);
+            } else {
+                clashes.extend(basis);
+            }
+            self.clashed(op, clashes, if applied { ConflictKind::Changed } else { ConflictKind::ChangedGone });
         }
         if outcome == Outcome::Applied {
-            self.note_changed(&op.change, op.stamp.millis);
+            self.note_changed(op);
             for t in crate::touched::things(&op.change) {
                 self.wrote(t.key(), op);
+            }
+            for key in crate::touched::basis_written(&op.change) {
+                self.wrote(key, op);
             }
             // Swiss Equestrian's new version of an entry: what an office change may go over.
             if let Change::EntryDelivered { entry } = &op.change {
@@ -219,8 +245,10 @@ impl State {
         outcome
     }
 
-    /// Note what a change changes of what is sent to Swiss Equestrian (results, start lists).
-    fn note_changed(&mut self, change: &Change, millis: u64) {
+    /// Note what a change changes of what is sent to Swiss Equestrian (results, start lists):
+    /// when (for « to send again »), and that it did (what a later send is based on, R14).
+    fn note_changed(&mut self, op: &Operation) {
+        let (change, millis) = (&op.change, op.stamp.millis);
         let mut results: Vec<ClassId> = Vec::new();
         let mut lists: Vec<PublishedClassId> = Vec::new();
         let published_of = |s: &State, c: &ClassId| s.classes.get(c).map(|c| c.published.clone());
@@ -252,14 +280,85 @@ impl State {
             }
             _ => {}
         }
+        if !results.is_empty() || !lists.is_empty() {
+            self.stamp_of.insert(op.id.clone(), op.stamp.clone());
+        }
         for c in results {
+            self.result_inputs.entry(c.clone()).or_default().insert(op.id.clone());
             let at = self.results_changed.entry(c).or_default();
             *at = (*at).max(millis);
         }
         for p in lists {
+            self.list_inputs.entry(p.clone()).or_default().insert(op.id.clone());
             let at = self.start_lists_changed.entry(p).or_default();
             *at = (*at).max(millis);
         }
+    }
+
+    /// The operations what is sent in an upload is made of (R14): a class's results, a
+    /// published class's start lists, a ranking over several classes' classes. `None`: not
+    /// followed (the event, a withdrawal).
+    fn upload_inputs(&self, upload: &Upload) -> Option<BTreeSet<String>> {
+        match upload {
+            Upload::Results(class) => Some(self.result_inputs.get(class).cloned().unwrap_or_default()),
+            Upload::StartLists(published) => Some(self.list_inputs.get(published).cloned().unwrap_or_default()),
+            Upload::Combined(id) => Some(self.combined.get(id).map(|r| r.classes.iter().filter_map(|c| self.result_inputs.get(c)).flatten().cloned().collect()).unwrap_or_default()),
+            Upload::StartListsWithdrawn(_) | Upload::Event => None,
+        }
+    }
+
+    /// What uploads among these changes are based on (R14), filled in before they become
+    /// operations: what this device knows of what was sent.
+    pub fn fill_uploads(&self, changes: &mut [Change]) {
+        for change in changes {
+            if let Change::Uploaded { upload, based_on } = change {
+                if based_on.is_none() {
+                    *based_on = self.upload_inputs(upload).map(|s| s.into_iter().collect());
+                }
+            }
+        }
+    }
+
+    /// R14: an upload that did not know changes made before it (offline, synced later): Swiss
+    /// Equestrian does not have them. What was sent counts as changed after it (« to send
+    /// again »), and it is said.
+    fn late_for_upload(&mut self, op: &Operation, upload: &Upload, based_on: &[String]) {
+        let Some(inputs) = self.upload_inputs(upload) else { return };
+        let known: BTreeSet<&String> = based_on.iter().collect();
+        let missing: Vec<String> = inputs.into_iter().filter(|i| !known.contains(i)).collect();
+        if missing.is_empty() {
+            return;
+        }
+        let after = op.stamp.millis + 1;
+        let (class, published) = match upload {
+            Upload::Results(class) => (class.clone(), None),
+            Upload::StartLists(p) => (ClassId::default(), Some(p.clone())),
+            Upload::Combined(id) => {
+                let classes = self.combined.get(id).map(|r| r.classes.clone()).unwrap_or_default();
+                for c in &classes {
+                    let at = self.results_changed.entry(c.clone()).or_default();
+                    *at = (*at).max(after);
+                }
+                (classes.first().cloned().unwrap_or_default(), None)
+            }
+            _ => return,
+        };
+        match (upload, &published) {
+            (Upload::Results(c), _) => {
+                let at = self.results_changed.entry(c.clone()).or_default();
+                *at = (*at).max(after);
+            }
+            (Upload::StartLists(_), Some(p)) => {
+                let at = self.start_lists_changed.entry(p.clone()).or_default();
+                *at = (*at).max(after);
+            }
+            _ => {}
+        }
+        // The latest of them: the change Swiss Equestrian lacks.
+        let over = missing.iter().filter_map(|id| self.stamp_of.get(id).map(|s| (s, id))).max().map(|(_, id)| id.clone());
+        let detail = format!("{} change(s) made before the send, unknown to it", missing.len());
+        let lost = serde_json::json!({ "upload": upload, "published": published });
+        self.conflict(op, &class, ConflictKind::LateForUpload, detail, over, missing, lost);
     }
 
     /// The operation that finalises a class on this device: based on everything it knows (R4).
@@ -276,23 +375,35 @@ impl State {
 
     /// R12: the things of `op` that are no longer what its author saw (looked at before it is
     /// applied), with what they are now.
-    fn clashes(&self, op: &Operation) -> Vec<(crate::touched::Thing, serde_json::Value)> {
+    /// R13: and what it relies on that is no longer what the author saw (fingerprints).
+    #[allow(clippy::type_complexity)]
+    fn clashes(&self, op: &Operation) -> (Vec<(crate::touched::Thing, serde_json::Value)>, Vec<(crate::touched::Thing, serde_json::Value)>) {
         if op.saw.is_empty() {
-            return Vec::new();
+            return (Vec::new(), Vec::new());
         }
-        crate::touched::things(&op.change)
+        let set = crate::touched::things(&op.change)
             .into_iter()
             .filter_map(|t| {
                 let seen = op.saw.get(&t.key())?;
                 let now = t.value(self);
                 (seen != &now).then_some((t, now))
             })
-            .collect()
+            .collect();
+        let basis = crate::touched::needs(&op.change)
+            .into_iter()
+            .filter_map(|t| {
+                let seen = op.saw.get(&t.key())?.as_str()?;
+                let now = t.value(self);
+                (seen != crate::touched::fingerprint(&now)).then_some((t, now))
+            })
+            .collect();
+        (set, basis)
     }
 
     /// R12: `op` went over what changed meanwhile (`applied`), or was not applied because of it.
-    fn clashed(&mut self, op: &Operation, clashes: Vec<(crate::touched::Thing, serde_json::Value)>, applied: bool) {
+    fn clashed(&mut self, op: &Operation, clashes: Vec<(crate::touched::Thing, serde_json::Value)>, kind: ConflictKind) {
         use crate::touched::Thing;
+        let applied = kind != ConflictKind::ChangedGone;
         // Applied, a class's status does not matter (it was running).
         let clashes: Vec<_> = clashes.into_iter().filter(|(t, _)| !applied || !matches!(t, Thing::ClassStatus { .. })).collect();
         if clashes.is_empty() {
@@ -300,8 +411,8 @@ impl State {
         }
         let keys: Vec<String> = clashes.iter().map(|(t, _)| t.key()).collect();
         let over = keys.iter().filter_map(|k| self.writer_near(k)).max_by(|a, b| a.0.cmp(&b.0)).map(|w| w.1.clone());
-        let class = clashes.iter().find_map(|(t, _)| t.class().cloned()).unwrap_or_default();
-        let kind = if applied { ConflictKind::Changed } else { ConflictKind::ChangedGone };
+        // Its class: of what clashed, else of the change itself (a result's class).
+        let class = clashes.iter().find_map(|(t, _)| t.class().cloned()).or_else(|| crate::touched::things(&op.change).iter().find_map(|t| t.class().cloned())).unwrap_or_default();
         let detail = format!("{} changed meanwhile, unknown to the author{}", keys.join(", "), if applied { "" } else { "; not applied" });
         let lost = serde_json::Value::Object(clashes.iter().map(|(t, now)| (t.key(), now.clone())).collect());
         let things = clashes.into_iter().map(|(t, _)| t).collect();
@@ -531,7 +642,20 @@ impl State {
                 let merged = match (self.entries.get(&entry.id), self.delivered_entries.get(&entry.id)) {
                     (Some(current), Some(before)) => {
                         let (merged, notices) = crate::delivered::merge(current, before, entry);
-                        self.notices.extend(notices.into_iter().map(|detail| crate::delivered::Notice { op: op.id.clone(), entry: entry.id.clone(), detail }));
+                        // R8: the office's change replaced: said as a conflict, its version kept to
+                        // be put back.
+                        let current = current.clone();
+                        for (field, detail) in &notices {
+                            let thing = crate::touched::Thing::EntryField { entry: entry.id.clone(), field: (*field).to_string() };
+                            let key = thing.key();
+                            let over = self.writer_near(&key).map(|w| w.1.clone());
+                            let lost = serde_json::json!({ key.clone(): crate::touched::entry_field(&current, field) });
+                            self.conflict(op, &ClassId::default(), ConflictKind::Delivered, detail.clone(), over, vec![key], lost);
+                            if let Some(c) = self.conflicts.last_mut() {
+                                c.things = vec![thing];
+                            }
+                        }
+                        self.notices.extend(notices.into_iter().map(|(field, detail)| crate::delivered::Notice { op: op.id.clone(), entry: entry.id.clone(), field: field.to_string(), detail }));
                         merged
                     }
                     _ => entry.clone(),
@@ -856,11 +980,14 @@ impl State {
                     }
                 }
             }
-            Change::Uploaded { upload } => {
+            Change::Uploaded { upload, based_on } => {
                 if let Upload::StartListsWithdrawn(published) = upload {
                     self.uploaded.remove(&Upload::StartLists(published.clone()));
                 }
                 self.uploaded.insert(upload.clone(), Sent { millis: op.stamp.millis, author: op.author.clone(), op: op.id.clone() });
+                if let Some(based_on) = based_on {
+                    self.late_for_upload(op, upload, based_on);
+                }
             }
             Change::ClassFinalised { class, .. } | Change::ClassReopened { class, .. } => {
                 let Some(c) = self.classes.get_mut(class) else {

@@ -64,6 +64,11 @@ pub struct FieldChange {
     pub to: Option<Decimal>,
 }
 
+/// How the apps sync operations (sent as `X-EquiEvents-Sync`). 2: operations carry what their
+/// author saw (`saw`, R12–R14); equievents.ch takes changes from version 2 on only, else clashes
+/// with them would go unsaid (the user, 2026-11-22).
+pub const SYNC_VERSION: u32 = 2;
+
 /// One change to the show.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Operation {
@@ -202,8 +207,15 @@ pub enum Change {
         based_on: Vec<String>,
     },
     ClassReopened { class: ClassId, reason: String },
-    /// Swiss Equestrian accepted an upload (or a withdrawal of start lists).
-    Uploaded { upload: Upload },
+    /// Swiss Equestrian accepted an upload (or a withdrawal of start lists). `based_on`: the
+    /// operations on what was sent the sending device knew (R14, `State::fill_uploads`): one
+    /// made before, unknown to it, means Swiss Equestrian does not have it. `None`: not known
+    /// (operations made before 2026-11-22).
+    Uploaded {
+        upload: Upload,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        based_on: Option<Vec<String>>,
+    },
     /// An entry made by the office (a late entry, an organiser's place).
     EntryAdded { entry: Entry },
     /// An office entry taken back.

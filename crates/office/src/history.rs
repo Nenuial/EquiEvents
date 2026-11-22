@@ -177,7 +177,7 @@ fn describe_fr_spaced(change: &Change, state: &State, lang: Language) -> String 
         Change::RankSet { class: c, rank, reason, .. } => format!("{} {} : {} ({reason})", t("Rang attribué à la main", "Rang von Hand"), class(c), rank.map_or_else(|| "–".into(), |r| r.to_string())),
         Change::ClassFinalised { class: c, .. } => format!("{} {}", class(c), t("clôturée", "abgeschlossen")),
         Change::ClassReopened { class: c, reason } => format!("{} {} ({reason})", class(c), t("rouverte", "wieder geöffnet")),
-        Change::Uploaded { upload } => {
+        Change::Uploaded { upload, .. } => {
             let what = match upload {
                 Upload::Results(c) => format!("{} {}", t("résultats", "Resultate"), class(c)),
                 Upload::StartLists(p) => format!("{} {}", t("listes de départ", "Startlisten"), state.published_classes.get(p).map_or_else(|| p.to_string(), |p| p.number.clone())),

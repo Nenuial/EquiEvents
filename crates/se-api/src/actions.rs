@@ -110,7 +110,7 @@ where
     for step in steps {
         let answer = run(base, &step.request, limits, &mut send, &mut wait).await;
         match (step.role, answer) {
-            (Role::Main(upload), Ok(_)) => outcome.changes.push(Change::Uploaded { upload }),
+            (Role::Main(upload), Ok(_)) => outcome.changes.push(Change::Uploaded { upload, based_on: None }),
             (Role::Main(_), Err(e)) => {
                 outcome.failed = Some(e);
                 return outcome;

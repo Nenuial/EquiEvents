@@ -47,7 +47,10 @@ pub struct ConflictView {
     pub id: String,
     /// `class`, `order`, `numbers`, `duplicates`, `result`, `late_final`, `class_gone`;
     /// `change` (anything else changed on two computers), `change_gone` (a change not applied:
-    /// what it changed is gone, or its class was finalised meanwhile).
+    /// what it changed is gone, or its class was finalised meanwhile), `basis` (made without
+    /// knowing what it relies on changed), `late_upload` (Swiss Equestrian lacks changes made
+    /// before a send), `delivered` (Swiss Equestrian replaced a change of the office),
+    /// `stranded` (no longer on the event at equievents.ch: changes made here reached no one).
     pub kind: &'static str,
     pub class: String,
     /// "12 · Libre R/N" (the class's id when it is gone).
@@ -59,6 +62,9 @@ pub struct ConflictView {
     pub items: Vec<ConflictItem>,
     /// How many riders in all (the list shows some).
     pub count: usize,
+    /// R13: what the change made without seeing (`result`, `marks`, `status`, `horse`,
+    /// `entry`, `assignment`, `class_setup`…), or empty.
+    pub done: String,
     /// The other version can be put back.
     pub restorable: bool,
     /// Looked at here already.
@@ -162,24 +168,34 @@ fn view(c: &Conflict, ops: &HashMap<&str, &Operation>, state: &State, device: &s
         ConflictKind::LateForFinalClass | ConflictKind::ClassGone => Vec::new(),
         // R12: each thing, with what it is now and what was there (the change kept), or what is
         // there now (the change not applied).
-        ConflictKind::Changed | ConflictKind::ChangedGone => c
+        // R13: what it relied on, as it is now. R8: Swiss Equestrian's value and the office's.
+        ConflictKind::Changed | ConflictKind::ChangedGone | ConflictKind::Basis | ConflictKind::Delivered => c
             .things
             .iter()
             .map(|t| {
                 let lost = c.lost.get(t.key()).cloned().unwrap_or(Value::Null);
-                ConflictItem { field: thing_field(t), rider: subject(state, t), kept: thing_text(state, t, &t.value(state)), replaced: if c.kind == ConflictKind::Changed { thing_text(state, t, &lost) } else { String::new() } }
+                let replaced = matches!(c.kind, ConflictKind::Changed | ConflictKind::Delivered);
+                ConflictItem { field: thing_field(t), rider: subject(state, t), kept: thing_text(state, t, &t.value(state)), replaced: if replaced { thing_text(state, t, &lost) } else { String::new() } }
             })
             .collect(),
+        // R14: how many changes Swiss Equestrian lacks.
+        ConflictKind::LateForUpload => Vec::new(),
     };
     let restorable = match c.kind {
         ConflictKind::ClassEdited | ConflictKind::ConcurrentEdit => open,
         ConflictKind::StartOrder | ConflictKind::StartNumbers => open && over.is_some_and(|o| matches!(&o.change, Change::StartsSet { seen: Some(_), .. })),
         // Not in a final class; every thing can be put back.
-        ConflictKind::Changed => (class.is_none() || open) && !c.things.is_empty() && c.things.iter().all(|t| t.restore(c.lost.get(t.key()).unwrap_or(&Value::Null)).is_some()),
+        ConflictKind::Changed | ConflictKind::Delivered => (class.is_none() || open) && !c.things.is_empty() && c.things.iter().all(|t| t.restore(c.lost.get(t.key()).unwrap_or(&Value::Null)).is_some()),
         _ => false,
     };
-    // Not about a class: what it is about (a rider, an official, a team…).
-    let class_label = if class.is_none() && c.class.0.is_empty() { c.things.first().map(|t| subject(state, t)).unwrap_or_default() } else { class_label };
+    // Not about a class: what it is about (a rider, an official, a team; start lists: their
+    // published class).
+    let published = c.lost.get("published").and_then(|p| serde_json::from_value::<PublishedClassId>(p.clone()).ok());
+    let class_label = match (published, class) {
+        (Some(p), None) => state.published_classes.get(&p).map_or_else(|| p.to_string(), |k| k.number.clone()),
+        (None, None) if c.class.0.is_empty() => c.things.first().map(|t| subject(state, t)).unwrap_or_default(),
+        _ => class_label,
+    };
     ConflictView {
         id: c.id.clone(),
         kind: c.kind.code(),
@@ -189,9 +205,32 @@ fn view(c: &Conflict, ops: &HashMap<&str, &Operation>, state: &State, device: &s
         replaced: by(over, device),
         items,
         count,
+        done: if c.kind == ConflictKind::Basis { ops.get(c.op.as_str()).map(|o| done(&o.change)).unwrap_or_default() } else { String::new() },
         restorable,
         seen: seen.contains(&c.id),
     }
+}
+
+/// What a change made, as `thing_field` names it (R13's conflicts say it).
+fn done(change: &Change) -> String {
+    match change {
+        Change::ResultEdited { .. } | Change::ResultEntered { .. } | Change::ResultRemoved { .. } | Change::TeamResultEntered { .. } => "card".into(),
+        Change::JudgeSheetEntered { .. } | Change::SheetEdited { .. } | Change::SheetSet { .. } | Change::SheetMoved { .. } | Change::TeamSheetEdited { .. } => "sheet".into(),
+        Change::JuryPenaltySet { .. } => "jury_penalty".into(),
+        Change::RankSet { .. } => "rank".into(),
+        Change::EntryRemoved { .. } => "entry".into(),
+        Change::AssignmentSet { .. } | Change::AssignmentRemoved { .. } => "assignment".into(),
+        Change::ClassSet { .. } => "class_setup".into(),
+        Change::ClassRemoved { .. } => "class".into(),
+        _ => show::touched::things(change).first().map(thing_field).unwrap_or_default(),
+    }
+}
+
+/// No longer on the event at equievents.ch (released, or taken off it) while working offline:
+/// `pending` changes made here reached no one. Looked at for this many: more later, said again.
+pub fn stranded(pending: usize, seen: &BTreeSet<String>) -> ConflictView {
+    let id = format!("stranded:{pending}");
+    ConflictView { seen: seen.contains(&id), id, kind: "stranded", class: String::new(), class_label: String::new(), kept: None, replaced: None, items: Vec::new(), count: pending, done: String::new(), restorable: false }
 }
 
 /// The changes that put the replaced version of a conflict back: the class's fields as they
@@ -199,8 +238,8 @@ fn view(c: &Conflict, ops: &HashMap<&str, &Operation>, state: &State, device: &s
 /// there now), the result's value as it was.
 pub fn restore(log: &[Operation], state: &State, id: &str) -> Result<Vec<Change>, String> {
     let c = state.conflicts.iter().find(|c| c.id == id).ok_or_else(|| format!("no conflict {id}"))?;
-    // R12: each thing as it was (not in a final class).
-    if c.kind == ConflictKind::Changed {
+    // R12, R8: each thing as it was (not in a final class).
+    if matches!(c.kind, ConflictKind::Changed | ConflictKind::Delivered) {
         if let Some(class) = state.classes.get(&c.class).filter(|k| state.status_of(k) == ClassStatus::Final) {
             return Err(format!("class {} is final; reopen it first", class.number));
         }
@@ -272,6 +311,11 @@ fn thing_field(t: &Thing) -> String {
         Thing::SheetMark { mark, .. } | Thing::TeamSheetMark { mark, .. } => format!("mark:{mark}"),
         Thing::SheetPenalties { .. } | Thing::TeamSheetPenalties { .. } => "penalties".into(),
         Thing::SheetTotal { .. } => "total".into(),
+        Thing::ClassSetup { .. } => "class_setup".into(),
+        Thing::Judge { .. } => "judge".into(),
+        Thing::EntryResults { .. } => "entry_results".into(),
+        Thing::JudgeSheets { .. } => "judge_sheets".into(),
+        Thing::ClassResults { .. } => "class_results".into(),
     }
 }
 
@@ -288,7 +332,9 @@ fn subject(state: &State, t: &Thing) -> String {
         | Thing::Sheet { place: SheetPlace::Rider { entry, .. }, .. }
         | Thing::SheetMark { entry, .. }
         | Thing::SheetPenalties { entry, .. }
-        | Thing::SheetTotal { entry, .. } => rider(entry),
+        | Thing::SheetTotal { entry, .. }
+        | Thing::EntryResults { entry } => rider(entry),
+        Thing::JudgeSheets { judge } | Thing::Judge { assignment: judge } => state.assignments.get(judge).map(|a| person_name(state, &a.person)).unwrap_or_default(),
         Thing::Rank { competitor: Competitor::Entry(entry), .. } => rider(entry),
         Thing::Rank { competitor: Competitor::Team(team), .. } | Thing::Team { team } | Thing::TeamCard { team, .. } | Thing::TeamSheetMark { team, .. } | Thing::TeamSheetPenalties { team, .. } => {
             state.teams.get(team).map_or_else(|| team.to_string(), |t| t.name.clone())
@@ -299,7 +345,7 @@ fn subject(state: &State, t: &Thing) -> String {
         Thing::Programme { id } => state.programmes.get(id).map(|p| p.name.clone()).unwrap_or_default(),
         Thing::ScoringTable { id } => state.scoring_tables.get(id).map(|t| t.code.clone()).unwrap_or_default(),
         Thing::Combined { id } => state.combined.get(id).map_or_else(|| id.clone(), |c| c.name.clone()),
-        Thing::EventNumbers | Thing::Class { .. } | Thing::ClassStatus { .. } | Thing::Sheet { .. } => String::new(),
+        Thing::EventNumbers | Thing::Class { .. } | Thing::ClassStatus { .. } | Thing::Sheet { .. } | Thing::ClassSetup { .. } | Thing::ClassResults { .. } => String::new(),
     }
 }
 
@@ -374,6 +420,20 @@ fn thing_text(state: &State, t: &Thing, value: &Value) -> String {
             parts.join(", ")
         }
         Thing::Entry { .. } | Thing::EventNumbers | Thing::Prizes { .. } | Thing::Class { .. } | Thing::Card { .. } | Thing::TeamCard { .. } | Thing::Sheet { .. } => String::new(),
+        // How many results, sheets (the app says « 3 »).
+        Thing::EntryResults { .. } | Thing::JudgeSheets { .. } | Thing::ClassResults { .. } => text(&value["n"]),
+        Thing::Judge { .. } => {
+            let name = value["person"].as_u64().map(|p| person_name(state, &PersonId(p))).unwrap_or_default();
+            match value["letter"].as_str().filter(|l| !l.is_empty()) {
+                Some(letter) => format!("{name} ({letter})"),
+                None => name,
+            }
+        }
+        Thing::ClassSetup { .. } => {
+            let table = value["scoring_table"].as_u64().and_then(|t| state.scoring_tables.get(&(t as u32))).map(|t| t.code.clone());
+            let test = value["programme"].as_u64().and_then(|p| state.programmes.get(&(p as u32))).map(|p| p.name.clone());
+            [table, test].into_iter().flatten().collect::<Vec<_>>().join(" · ")
+        }
     }
 }
 

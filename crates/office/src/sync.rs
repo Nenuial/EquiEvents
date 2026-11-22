@@ -497,7 +497,7 @@ impl Office {
 
     /// One request to the server (`url` whole).
     fn http(&self, method: &str, url: &str, token: Option<&str>, body: Option<&Value>) -> Result<Value, Failure> {
-        let mut request = self.sync.agent.request(method, url).set("Accept", "application/json");
+        let mut request = self.sync.agent.request(method, url).set("Accept", "application/json").set("X-EquiEvents-Sync", &show::oplog::SYNC_VERSION.to_string());
         if let Some(token) = token {
             request = request.set("Authorization", &format!("Bearer {token}"));
         }
@@ -982,6 +982,11 @@ impl Office {
             self.with(show, |_, store| store.set_meta(META_ARCHIVED, archived.then_some("1")).map_err(|e| e.0))?;
         }
         Ok(json!({ "ok": true, "archived": archived }))
+    }
+
+    /// The last sync said one no longer works on the show at equievents.ch.
+    pub(crate) fn lost_access(&self, show: &str) -> Result<bool, String> {
+        Ok(self.sync.notes.lock().map_err(|_| "busy")?.get(show).is_some_and(|n| n.status == "no_access"))
     }
 
     /// A show's link and the last sync, without asking the server.

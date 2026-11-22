@@ -31,6 +31,10 @@ pub struct Notice {
     /// The operation that brought the delivery.
     pub op: String,
     pub entry: EntryId,
+    /// The entry's field the office had changed (`touched::Thing::EntryField`'s): `rider`,
+    /// `horse`, `status`, `hors_concours`, `team`, `programme`, `stage`, `fee_paid`,
+    /// `winning_points`, `entered_by`.
+    pub field: String,
     pub detail: String,
 }
 
@@ -48,7 +52,9 @@ pub fn status_of(se_status: &str) -> EntryStatus {
 
 /// Merge a new delivery `now` of an entry, last delivered as `before`, into the office's
 /// `current`. Returns the merged entry and what the office should be told.
-pub fn merge(current: &Entry, before: &Entry, now: &Entry) -> (Entry, Vec<String>) {
+/// The merged entry, and the fields where Swiss Equestrian replaced a change of the office
+/// (field, what happened).
+pub fn merge(current: &Entry, before: &Entry, now: &Entry) -> (Entry, Vec<(&'static str, String)>) {
     let mut merged = current.clone();
     let mut notices = Vec::new();
     // Swiss Equestrian's own record: always the latest (the office's changes are the fields).
@@ -56,12 +62,12 @@ pub fn merge(current: &Entry, before: &Entry, now: &Entry) -> (Entry, Vec<String
 
     // A group of fields: Swiss Equestrian's change wins; the office is told if it had changed it too.
     macro_rules! group {
-        ($what:expr, $($field:ident),+) => {{
+        ($code:expr, $what:expr, $($field:ident),+) => {{
             let changed_there = ($(&now.$field),+) != ($(&before.$field),+);
             let changed_here = ($(&current.$field),+) != ($(&before.$field),+);
             if changed_there {
                 if changed_here && ($(&current.$field),+) != ($(&now.$field),+) {
-                    notices.push(format!("{}: changed by Swiss Equestrian, replacing the office's change", $what));
+                    notices.push(($code, format!("{}: changed by Swiss Equestrian, replacing the office's change", $what)));
                 }
                 $(merged.$field = now.$field.clone();)+
             }
@@ -70,7 +76,7 @@ pub fn merge(current: &Entry, before: &Entry, now: &Entry) -> (Entry, Vec<String
     }
 
     // The rider; the rider as written on the entry follows.
-    let (rider_there, rider_here) = group!("rider", rider);
+    let (rider_there, rider_here) = group!("rider", "rider", rider);
     if rider_there || !rider_here {
         merged.rider_on_entry = now.rider_on_entry.clone();
     }
@@ -80,7 +86,7 @@ pub fn merge(current: &Entry, before: &Entry, now: &Entry) -> (Entry, Vec<String
     }
 
     // The horses; their description follows.
-    let (horses_there, horses_here) = group!("horse", horse, other_horses, guest_horse);
+    let (horses_there, horses_here) = group!("horse", "horse", horse, other_horses, guest_horse);
     if horses_there || !horses_here {
         merged.horses_on_entry = now.horses_on_entry.clone();
     }
@@ -89,20 +95,20 @@ pub fn merge(current: &Entry, before: &Entry, now: &Entry) -> (Entry, Vec<String
     if now.se_status != before.se_status {
         let starts = status_of(&now.se_status);
         if current.status != status_of(&before.se_status) && current.status != starts {
-            notices.push(format!("status: Swiss Equestrian now says {}, replacing the office's decision", now.se_status));
+            notices.push(("status", format!("status: Swiss Equestrian now says {}, replacing the office's decision", now.se_status)));
         }
         merged.se_status = now.se_status.clone();
         merged.status = starts;
         merged.waiting_list = now.waiting_list;
     }
 
-    group!("hors concours", hors_concours);
-    group!("team", team);
-    group!("programme", programme);
-    group!("level", stage);
-    group!("entry fee paid", fee_paid);
-    group!("winning points", winning_points);
-    group!("entered by", entered_by);
+    group!("hors_concours", "hors concours", hors_concours);
+    group!("team", "team", team);
+    group!("programme", "programme", programme);
+    group!("stage", "level", stage);
+    group!("fee_paid", "entry fee paid", fee_paid);
+    group!("winning_points", "winning points", winning_points);
+    group!("entered_by", "entered by", entered_by);
     merged.se_changed_at = now.se_changed_at.clone();
     (merged, notices)
 }

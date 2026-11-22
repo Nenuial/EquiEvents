@@ -117,11 +117,38 @@ after the change it undoes: undone after someone else changed the same thing, it
 Operations made before 2026-11-22 carry nothing and are not checked. Tests:
 `crates/show/tests/clashes.rs`, `two_horses_for_one_rider` in `crates/office/tests/offline.rs`.
 
-### R8 · Local changes to Swiss Equestrian data are layered — planned
+### R13 · What a change relies on, changed apart, is said — implemented
+
+Decided by the user, 2026-11-22 ("we need to cover as many options as possible"). Two changes of
+*different* things may not go together: a result entered for a rider withdrawn on another
+computer, moved to another class there, or given another horse or rider; marks of a judge taken
+off the class (or replaced by someone else, or moved to another place) there; results entered
+under a scoring table or test changed there; and the other way round (a rider withdrawn, moved,
+given another horse, taken back while results were entered for them; a judge taken off while they
+had marks entered; a class's scoring changed, or the class taken away, while results were entered
+in it). A change also carries what it relies on (`touched::needs`), as fingerprints. Applied where
+one of them is no longer what its author saw, both changes are kept and a conflict (`basis`)
+says what changed and what it is now; the office checks they go together. Not applied (the
+thing is gone), it is `change_gone`. A class's name or time changed is no clash with its results;
+a judge's role code neither. This is what R10 planned.
+
+### R14 · Sent to Swiss Equestrian without what was made before — implemented
+
+A send records the changes what it sent was made of (`Uploaded::based_on`: a class's results,
+a published class's start lists, a ranking over several classes). A change made before the send
+but unknown to it — made offline, synced after — is not at Swiss Equestrian: what was sent
+counts as changed after the send (« to send again » on the sending page), and a conflict
+(`late_upload`) says how many changes. Results finalised before sending were already safe (R4);
+results or start lists sent while the class runs are now too. The event's own data (officials,
+entry counts) is not followed.
+
+### R8 · Swiss Equestrian's data and the office's changes — implemented in part
 
 Data downloaded from Swiss Equestrian (entries, riders, horses) is the base; changes made at the show (rider
 or horse change, withdrawal) are separate operations on top. Downloading again updates the base
-and keeps the local changes; if Swiss Equestrian changed the same field, the office is shown both.
+and keeps the local changes; if Swiss Equestrian changed the same field, its value wins and the
+office is shown both: a conflict (`delivered`, since 2026-11-22) with the office's value, which
+can be put back. Still planned: a layer that keeps the office's value instead.
 
 ### R9 · Who may change what — planned
 
@@ -129,10 +156,18 @@ Every operation carries its author. Roles decide what is applied: a judge's devi
 judge sheets, timekeeping only jumping score cards, the office everything. Operations by an
 author without the right are ignored and listed, on every device alike.
 
-### R10 · Results of riders who do not start — planned
+### R10 · Results of riders who do not start — implemented by R13
 
-A result entered for an entry withdrawn at the same time on another device is kept but not
-ranked, and listed as a conflict.
+A result entered for an entry withdrawn at the same time on another device is kept (a rider who
+does not start is not ranked) and listed as a conflict (R13).
+
+### Who is told, and old apps
+
+Since 2026-11-22 equievents.ch takes changes only from apps that say what their authors saw
+(`X-EquiEvents-Sync: 2`, `show::oplog::SYNC_VERSION`); an older app is told, in its account's
+language, to update (426, `update`): clashes with its changes would go unsaid. Someone no longer
+on an event at equievents.ch (released by its owner, or taken off it) while working offline is
+told how many changes made on their computer reached no one (`stranded`), with the copy kept.
 
 ## What the office sees
 

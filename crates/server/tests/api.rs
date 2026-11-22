@@ -52,7 +52,15 @@ impl Server {
 
     /// From a client address (as Nginx Proxy Manager passes it on).
     async fn call_from(&self, client: &str, method: &str, path: &str, token: Option<&str>, body: Option<Value>) -> (StatusCode, Value) {
+        self.call_as_app(client, Some(show::oplog::SYNC_VERSION), method, path, token, body).await
+    }
+
+    /// From an app speaking this sync version (`None`: one from before it said).
+    async fn call_as_app(&self, client: &str, sync: Option<u32>, method: &str, path: &str, token: Option<&str>, body: Option<Value>) -> (StatusCode, Value) {
         let mut req = Request::builder().method(method).uri(path).header("content-type", "application/json").header("x-real-ip", client);
+        if let Some(v) = sync {
+            req = req.header("x-equievents-sync", v.to_string());
+        }
         if let Some(t) = token {
             req = req.header("authorization", format!("Bearer {t}"));
         }
@@ -144,6 +152,11 @@ async fn accounts_shows_and_sync() {
 
     // Sync: Anne pushes the show's operations; again, nothing new; Bruno pulls them.
     let ops = make_ops(5);
+    // An app from before what changes saw was said (R12): told to update, nothing stored.
+    let (status, old) = s.call_as_app("10.0.0.1", None, "POST", &format!("/api/shows/{show}/ops"), Some(&anne), Some(json!({ "ops": ops }))).await;
+    assert_eq!((status, old["code"].as_str()), (StatusCode::UPGRADE_REQUIRED, Some("update")), "{old}");
+    assert!(old["error"].as_str().unwrap().starts_with("Mettez EquiEvents à jour"), "{old}");
+    assert_eq!(s.call_as_app("10.0.0.1", Some(1), "POST", &format!("/api/shows/{show}/ops"), Some(&anne), Some(json!({ "ops": ops }))).await.0, StatusCode::UPGRADE_REQUIRED);
     let (status, pushed) = s.call("POST", &format!("/api/shows/{show}/ops"), Some(&anne), Some(json!({ "ops": ops }))).await;
     assert_eq!(status, StatusCode::OK, "{pushed}");
     assert_eq!((pushed["added"].clone(), pushed["known"].clone()), (json!(5), json!(0)));

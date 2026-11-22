@@ -78,7 +78,7 @@ fn an_upload_is_recorded_and_officials_are_looked_up_once() {
     });
     assert_eq!(asked[..2], ["/putResultate".to_string(), "/putVeranstaltung".to_string()]);
     assert!(outcome.failed.is_none() && outcome.warnings.is_empty());
-    assert_eq!(outcome.changes[0], Change::Uploaded { upload: Upload::Results(class.clone()) });
+    assert_eq!(outcome.changes[0], Change::Uploaded { upload: Upload::Results(class.clone()), based_on: None });
     assert_eq!(outcome.changes.len(), 1 + lookups);
     let mut clock = Clock::new("office");
     apply(&mut state, outcome.changes, &mut clock);
@@ -147,7 +147,7 @@ fn a_failed_follow_up_is_reported_and_the_rest_still_sent() {
     assert_eq!(asked.len(), total, "lookups still sent");
     assert_eq!(outcome.warnings.len(), 1);
     assert!(outcome.warnings[0].contains("not updated"));
-    assert_eq!(outcome.changes[0], Change::Uploaded { upload: Upload::Results(class) });
+    assert_eq!(outcome.changes[0], Change::Uploaded { upload: Upload::Results(class), based_on: None });
 }
 
 #[test]

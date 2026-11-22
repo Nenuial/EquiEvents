@@ -692,14 +692,23 @@ impl Office {
                     Ok(holding.into_iter().map(|class| show::oplog::Change::ClassReopened { class, reason: reason.clone() }).collect())
                 })
             }
-            // What two computers changed apart (R2, R4, R7, R11): looked at, or the other version
-            // put back.
-            "conflicts" => self.with(arg(args, "show")?, |_, store| {
-                let seen = conflicts::seen_ids(store.meta(conflicts::META_SEEN).map_err(|e| e.0)?);
-                let log = store.log().map_err(|e| e.0)?;
-                let list = conflicts::conflicts(&log, store.state(), &self.device, &seen);
-                Ok(json!({ "unseen": list.iter().filter(|c| !c.seen).count(), "conflicts": list }))
-            }),
+            // What two computers changed apart (R2, R4, R7, R11–R14): looked at, or the other
+            // version put back. And, no longer on the event at equievents.ch, the changes made
+            // here that reached no one (the user, 2026-11-22: always told).
+            "conflicts" => {
+                let show = arg(args, "show")?;
+                let stranded = self.lost_access(show)?;
+                self.with(show, |_, store| {
+                    let seen = conflicts::seen_ids(store.meta(conflicts::META_SEEN).map_err(|e| e.0)?);
+                    let log = store.log().map_err(|e| e.0)?;
+                    let mut list = conflicts::conflicts(&log, store.state(), &self.device, &seen);
+                    let pending = if stranded { store.unsynced_count().map_err(|e| e.0)? } else { 0 };
+                    if pending > 0 {
+                        list.insert(0, conflicts::stranded(pending, &seen));
+                    }
+                    Ok(json!({ "unseen": list.iter().filter(|c| !c.seen).count(), "conflicts": list }))
+                })
+            }
             "acknowledge_conflicts" => {
                 let ids: Vec<String> = args["ids"].as_array().ok_or("missing argument ids")?.iter().filter_map(|i| i.as_str().map(str::to_string)).collect();
                 self.acknowledge(arg(args, "show")?, &ids)?;
@@ -1285,7 +1294,8 @@ impl Office {
             let mut seen = conflicts::seen_ids(store.meta(conflicts::META_SEEN).map_err(|e| e.0)?);
             seen.extend(ids.iter().cloned());
             let known: std::collections::BTreeSet<&String> = store.state().conflicts.iter().map(|c| &c.id).collect();
-            let kept: Vec<&String> = seen.iter().filter(|i| known.contains(i)).collect();
+            // (Stranded changes are no conflict of the log.)
+            let kept: Vec<&String> = seen.iter().filter(|i| known.contains(i) || i.starts_with("stranded:")).collect();
             store.set_meta(conflicts::META_SEEN, Some(&serde_json::to_string(&kept).map_err(|e| e.to_string())?)).map_err(|e| e.0)
         })
     }
@@ -1494,7 +1504,10 @@ impl Office {
             return Err(e.to_string());
         }
         self.with(show, |_, store| {
-            let ops = self.operations(outcome.changes, Vec::new(), &self.author(), store.state().last.as_ref());
+            // What was sent was made of what this computer knew (R14).
+            let mut changes = outcome.changes;
+            store.state().fill_uploads(&mut changes);
+            let ops = self.operations(changes, Vec::new(), &self.author(), store.state().last.as_ref());
             store.append(&ops).map_err(|e| e.0)
         })?;
         Ok(json!({ "sent": what, "server": connection::Server::Simulation, "warnings": outcome.warnings }))
