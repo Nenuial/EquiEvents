@@ -495,34 +495,44 @@ fn a_dressage_final_by_percentages() {
     office.call("set_combined", &json!({ "show": show, "name": "Mixte", "classes": ["108196", "108211"], "method": "ranks", "tie_break": "108211" })).unwrap();
 }
 
-/// Rosson's developer mode: a test's or a scoring table's definition changed in a show (when
-/// Swiss Equestrian's is wrong), read as the app reads them before it is kept; undone as any
-/// change. And the error log: what failed, without keys, also in the library's errors.log.
+/// Rosson's developer mode, an administrator's only (the user, 2026-11-22): a scoring table's
+/// definition changed in a show (when Swiss Equestrian's is wrong), read as the app reads tables
+/// before it is kept; undone as any change. The dressage tests' are no longer changed in a show.
+/// And the error log: what failed, without keys, also in the library's errors.log.
 #[test]
 fn reference_data_edited_and_errors_logged() {
     let dir = tempfile::tempdir().unwrap();
-    let office = Office::new(&dir.path().join("library"), "test").unwrap();
+    let library = dir.path().join("library");
+    let office = Office::new(&library, "test").unwrap();
     let file = rosson_file(dir.path(), "2026.8352");
     let show = office.call("import_rosson", &json!({ "path": file, "event": "59010", "mode": "ended" })).unwrap()["show"].as_str().unwrap().to_string();
+    // Nobody signed in, or someone who is not an administrator of equievents.ch: refused.
+    assert!(office.call("reference_data", &json!({ "show": show })).unwrap_err().contains("administrators"));
+    signed_in(&library, false);
+    assert!(office.call("reference_data", &json!({ "show": show })).unwrap_err().contains("administrators"));
+    signed_in(&library, true);
     let data = office.call("reference_data", &json!({ "show": show })).unwrap();
-    let programme = data["programmes"].as_array().unwrap().iter().find(|p| p["name"] == "GA06/60").unwrap()["id"].as_u64().unwrap();
-    let text = office.call("definition", &json!({ "show": show, "kind": "programme", "id": programme })).unwrap()["definition"].as_str().unwrap().to_string();
+    assert!(data.get("programmes").is_none(), "{data}");
+    // The dressage tests: not shown, not changed.
+    assert!(office.call("set_definition", &json!({ "show": show, "kind": "programme", "id": 1, "definition": "{}" })).unwrap_err().contains("no definitions of programme"));
+    // A table no class uses: changed, then undone.
+    let table = |code: &str| data["scoring_tables"].as_array().unwrap().iter().find(|t| t["code"] == code).unwrap()["id"].as_u64().unwrap();
+    let definition = |office: &Office| office.call("definition", &json!({ "show": show, "kind": "scoring_table", "id": table("C") })).unwrap()["definition"].as_str().unwrap().to_string();
+    let text = definition(&office);
     assert!(text.contains("\n  \"")); // indented
     let mut def: Value = serde_json::from_str(&text).unwrap();
-    def["titel_fr"] = json!("GA06/60 corrigé");
-    office.call("set_definition", &json!({ "show": show, "kind": "programme", "id": programme, "definition": def.to_string() })).unwrap();
-    let title = |office: &Office| office.call("reference_data", &json!({ "show": show })).unwrap()["programmes"].as_array().unwrap().iter().find(|p| p["id"] == programme).unwrap()["title"].clone();
-    assert_eq!(title(&office), "GA06/60 corrigé");
+    def["bemerkung"] = json!("corrigé");
+    office.call("set_definition", &json!({ "show": show, "kind": "scoring_table", "id": table("C"), "definition": def.to_string() })).unwrap();
+    assert!(definition(&office).contains("corrigé"));
     office.call("undo", &json!({ "show": show })).unwrap();
-    assert_ne!(title(&office), "GA06/60 corrigé");
-    // Not JSON, not a test: refused.
-    assert!(office.call("set_definition", &json!({ "show": show, "kind": "programme", "id": programme, "definition": "{ nope" })).unwrap_err().contains("JSON"));
+    assert!(!definition(&office).contains("corrigé"));
+    // Not JSON: refused.
+    assert!(office.call("set_definition", &json!({ "show": show, "kind": "scoring_table", "id": table("C"), "definition": "{ nope" })).unwrap_err().contains("JSON"));
     // A table a final class uses: refused (its results are official).
-    let table = data["scoring_tables"].as_array().unwrap().iter().find(|t| t["code"] == "AZ").unwrap()["id"].as_u64().unwrap();
-    let text = office.call("definition", &json!({ "show": show, "kind": "scoring_table", "id": table })).unwrap()["definition"].as_str().unwrap().to_string();
-    let answer = office.call("set_definition", &json!({ "show": show, "kind": "scoring_table", "id": table, "definition": format!("{text} ") })).unwrap();
+    let text = office.call("definition", &json!({ "show": show, "kind": "scoring_table", "id": table("AZ") })).unwrap()["definition"].as_str().unwrap().to_string();
+    let answer = office.call("set_definition", &json!({ "show": show, "kind": "scoring_table", "id": table("AZ"), "definition": format!("{text} ") })).unwrap();
     assert_eq!(answer["unchanged"], true, "the same table: nothing to do");
-    assert!(office.call("set_definition", &json!({ "show": show, "kind": "scoring_table", "id": table, "definition": "[]" })).is_err());
+    assert!(office.call("set_definition", &json!({ "show": show, "kind": "scoring_table", "id": table("AZ"), "definition": "[]" })).is_err());
 
     // The error log: the newest first, the key masked; in the library's file too.
     assert!(office.call("set_connection", &json!({ "show": "nope", "access_key": "SECRET" })).is_err());
@@ -531,6 +541,21 @@ fn reference_data_edited_and_errors_logged() {
     assert_eq!(log[0]["args"]["access_key"], "•••");
     let file = std::fs::read_to_string(dir.path().join("library/errors.log")).unwrap();
     assert!(file.contains("set_connection") && !file.contains("SECRET"));
+}
+
+/// Someone signed in to equievents.ch on this computer (its settings and token, as a sign-in
+/// leaves them), an administrator or not.
+fn signed_in(library: &std::path::Path, admin: bool) {
+    let server = "http://127.0.0.1:9";
+    let path = library.join("settings.json");
+    let mut settings: Value = std::fs::read(&path).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or(json!({}));
+    settings["server_url"] = json!(server);
+    settings["account"] = json!({ "server": server, "id": 7, "name": "Ada Admin", "email": "ada@example.ch", "language": "fr", "admin": admin });
+    std::fs::write(&path, settings.to_string()).unwrap();
+    let path = library.join("secrets.json");
+    let mut secrets: Value = std::fs::read(&path).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or(json!({}));
+    secrets[format!("equievents token {server}")] = json!("token");
+    std::fs::write(&path, secrets.to_string()).unwrap();
 }
 
 /// Young horses' programmes (JP…) are judged in tenths (Dressurreglement 8.2 (2)), the others in

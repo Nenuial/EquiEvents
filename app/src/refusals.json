@@ -1498,5 +1498,10 @@
   "fr": "{1} n’est pas un événement de Swiss Equestrian.",
   "de": "{1} ist keine Veranstaltung von Swiss Equestrian.",
   "it": "{1} non è un evento di Swiss Equestrian."
+ },
+ "developer mode is for administrators of equievents.ch": {
+  "fr": "Le mode développeur est réservé aux administrateurs d’equievents.ch.",
+  "de": "Der Entwicklermodus ist den Administratoren von equievents.ch vorbehalten.",
+  "it": "La modalità sviluppatore è riservata agli amministratori di equievents.ch."
  }
 }

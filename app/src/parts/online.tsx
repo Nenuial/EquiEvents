@@ -21,6 +21,8 @@ export interface Account {
   name: string;
   email: string;
   language: string;
+  /** An administrator of equievents.ch (developer mode), as it last said. */
+  admin?: boolean;
 }
 export interface AccountView {
   server: string;

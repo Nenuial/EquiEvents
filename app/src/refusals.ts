@@ -4,8 +4,9 @@
 // values), which a test of the core keeps complete (crates/office/tests/refusals.rs). A message
 // made of messages ("class 12: movement 3: …", or several joined by "; ") is translated part by
 // part. One the catalogue does not know says that the action could not be done; its English stays
-// in the error log (Réglages › Avancé) and shows in developer mode.
+// in the error log (Réglages › Avancé) and shows in developer mode (an administrator's).
 
+import { developerOn } from './developer';
 import catalogue from './refusals.json';
 import { firstLanguage } from './site';
 
@@ -25,14 +26,6 @@ const patterns = Object.entries(catalogue as Record<string, Texts>)
 /** The office's language (App.tsx keeps it; before it was chosen, the one the app starts in). */
 function language(): Language {
   return firstLanguage();
-}
-
-function developer(): boolean {
-  try {
-    return localStorage.getItem('developer') === '1';
-  } catch {
-    return false;
-  }
 }
 
 /** A message in `lang`, or `null` when the catalogue does not know it. */
@@ -68,5 +61,5 @@ export function refusal(message: string): string {
   const known = translate(message, lang);
   if (known !== null) return known;
   const fallback = (catalogue as Record<string, Texts>)['unknown error']?.[lang] ?? 'Impossible.';
-  return developer() ? `${fallback} (${message})` : fallback;
+  return developerOn() ? `${fallback} (${message})` : fallback;
 }

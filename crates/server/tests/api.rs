@@ -1540,6 +1540,15 @@ async fn staff_help_and_administer_accounts() {
     let (status, set_up) = online(r, &sam, "POST", "/app/api/set_up_class", Some(json!({ "show": show, "published": view["not_set_up"][0]["id"] }))).await;
     assert_eq!(status, StatusCode::OK, "{set_up}");
     assert!(server::shows::log(&pool, &remote).await.unwrap().iter().any(|o| o.author == "Olga Owner (via Sam Support)"));
+    // Developer mode: an administrator's only, also acting as an account (the user, 2026-11-22);
+    // the scoring tables only, never the dressage tests.
+    let reference = Some(json!({ "show": show }));
+    assert_eq!(online(r, &sam, "POST", "/app/api/reference_data", reference.clone()).await.1["code"], "not_admin");
+    assert_eq!(online(r, &olga, "POST", "/app/api/reference_data", reference.clone()).await.1["code"], "not_admin");
+    assert_eq!(online(r, &ada, "POST", &format!("/app/admin/accounts/{olga_id}/act"), None).await.0, StatusCode::OK);
+    let (status, data) = online(r, &ada, "POST", "/app/api/reference_data", reference).await;
+    assert!(status == StatusCode::OK && data["scoring_tables"].is_array() && data.get("programmes").is_none(), "{data}");
+    assert_eq!(online(r, &ada, "POST", "/app/admin/stop", None).await.0, StatusCode::OK);
     assert_eq!(online(r, &sam, "POST", "/app/admin/stop", None).await.0, StatusCode::OK);
     assert_eq!(online(r, &sam, "POST", "/app/api/account", Some(json!({}))).await.1["account"]["name"], "Sam Support");
     assert!(online(r, &sam, "POST", "/app/api/library", Some(json!({}))).await.1.as_array().unwrap().is_empty());

@@ -208,13 +208,13 @@ statistics on the dashboard, keyboard shortcuts beyond Enter-as-Tab.
   yet opened in Rosson 3.3.15 itself: to be tried by hand.
 - In EquiEvents' format (`.equievents`): the show with its whole history. **Done.**
 
-## Settings — **done** 2026-11-14, Italian too (the app, prints and exports in French, German or Italian; Swiss Equestrian's own Italian for roles and dressage tests, German where it has none; ⚙ in the library: the zoom, 50–150 %, also ⌘+ ⌘− ⌘0; developer mode: a show's tests' and scoring tables' definitions changed, checked as the app reads them, undone with ⌘Z, never sent back to Swiss Equestrian as Rosson's developer mode could (P. Burkhard, 2026-11-14); the error log, also in `<library>/errors.log`, keys masked)
+## Settings — **done** 2026-11-14, Italian too (the app, prints and exports in French, German or Italian; Swiss Equestrian's own Italian for roles and dressage tests, German where it has none; ⚙ in the library: the zoom, 50–150 %, also ⌘+ ⌘− ⌘0; developer mode: a show's scoring tables' definitions changed, checked as the app reads them, undone with ⌘Z, never sent back to Swiss Equestrian as Rosson's developer mode could (P. Burkhard, 2026-11-14); administrators of equievents.ch only, also acting as an account, the dressage tests' no longer (Rosson's early fix for wrong coefficients; the user, 2026-11-22); the error log, also in `<library>/errors.log`, keys masked)
 - Zoom (0.5–1.5), language (de, fr, it), registry download (API: **done** 2026-11-14, from the
   pickers, through the show's connection; the simulation answers with the library's riders and
   horses), test events (API), database
   export/import/clear (EquiEvents: one show per file instead; an event's export in Rosson's
-  format **done** 2026-11-13, see below), developer mode (programme and
-  scoring-table editors, error log). Elsewhere: fixed numbers, table columns, letter text and
+  format **done** 2026-11-13, see below), developer mode (the
+  scoring-table editor, error log). Elsewhere: fixed numbers, table columns, letter text and
   address position, label templates.
 
 ## Prints (`services/print/*`, `print-selection/*`)

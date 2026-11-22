@@ -126,6 +126,10 @@ pub struct Account {
     pub email: String,
     #[serde(default)]
     pub language: String,
+    /// An administrator of equievents.ch, as it last said (at the sign-in, then at each sync):
+    /// developer mode is theirs only (the user, 2026-11-22).
+    #[serde(default)]
+    pub admin: bool,
 }
 
 /// How a show's last sync went (kept while the app runs).
@@ -369,9 +373,11 @@ impl Office {
                 for show in self.linked()?.into_values() {
                     out.insert(show.clone(), json!(self.sync(&show)?));
                 }
-                // The account's riders and horses, when the server has newer ones (quietly).
+                // The account's riders and horses, when the server has newer ones (quietly); and
+                // whether it is an administrator still (or now).
                 if self.signed_in()?.is_some() {
                     let _ = self.pull_registry(false);
+                    self.refresh_role();
                 }
                 Ok(Value::Object(out))
             }
@@ -398,6 +404,24 @@ impl Office {
 
     fn token(&self) -> Result<Option<String>, String> {
         self.secrets.get(&token_name(&self.server_url()))
+    }
+
+    /// The signed-in account's role as equievents.ch says it now (quietly: offline, as it was).
+    fn refresh_role(&self) {
+        let Ok(me) = self.api("GET", "/api/me", None) else { return };
+        let mut settings = self.settings();
+        let Some(account) = settings.account.as_mut() else { return };
+        if me["id"].as_i64() == Some(account.id) && account.admin != (me["admin"] == true) {
+            account.admin = me["admin"] == true;
+            let _ = self.save_settings(&settings);
+        }
+    }
+
+    /// Developer mode's commands are an administrator's (the user, 2026-11-22): the signed-in
+    /// account's, as equievents.ch last said; in the online version equievents.ch checks the
+    /// session (the administrator, also acting as an account) before the office runs them.
+    pub(crate) fn administrator(&self) -> bool {
+        self.sync.hosted() || self.signed_in().ok().flatten().is_some_and(|(account, _)| account.admin)
     }
 
     fn account_view(&self) -> Value {
@@ -482,6 +506,7 @@ impl Office {
             name: user["name"].as_str().unwrap_or_default().into(),
             email: user["email"].as_str().unwrap_or_default().into(),
             language: user["language"].as_str().unwrap_or(language).into(),
+            admin: user["admin"] == true,
         };
         self.secrets.set(&token_name(&server), Some(token))?;
         let mut settings = self.settings();

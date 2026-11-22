@@ -4,6 +4,7 @@ import Library from './screens/Library';
 import ShowScreen from './screens/ShowScreen';
 import Welcome, { accountHere } from './screens/Welcome';
 import Accounts from './screens/Accounts';
+import { AdministratorContext, setAdministrator } from './developer';
 import { ActingBand, staffMe } from './parts/staff';
 import { firstLanguage, rememberOnSite } from './site';
 import { ErrorNote, useLoad } from './parts/common';
@@ -61,6 +62,10 @@ export default function App() {
   const hosted = !!account.data?.signed_in && !!account.data.hosted;
   const me = useLoad(() => (hosted ? staffMe() : Promise.resolve(null)), [hosted, accountRound]);
   const isStaff = !!me.data?.role;
+  // An administrator (developer mode is theirs only): in the online version the session's own
+  // role, also acting as an account; elsewhere the signed-in account's, as equievents.ch said.
+  const administrator = hosted ? me.data?.role === 'admin' : !!account.data?.account?.admin;
+  useEffect(() => setAdministrator(administrator), [administrator]);
   useZoomKeys();
 
   useEffect(() => {
@@ -80,25 +85,27 @@ export default function App() {
 
   return (
     <LanguageContext.Provider value={language}>
-      {/* Inside the language: a toast's own words (close) are the office's. */}
-      <ToastProvider>
-        <div className="flex h-full flex-col phone:h-auto phone:min-h-svh">
-          {me.data && <ActingBand me={me.data} />}
-          <div className="min-h-0 flex-1">
-            {!account.data ? (
-              <ErrorNote error={account.error} />
-            ) : !account.data.signed_in ? (
-              <Welcome server={account.data.server} done={accountChanged} language={language} setLanguage={switchLanguage} />
-            ) : place.show ? (
-              <ShowScreen place={place as Place & { show: string }} go={go} language={language} setLanguage={switchLanguage} />
-            ) : place.accounts && me.data && isStaff ? (
-              <Accounts me={me.data} language={language} />
-            ) : (
-              <Library open={show => go({ show, view: 'classes' })} archives={!!place.archives} language={language} setLanguage={switchLanguage} accountChanged={accountChanged} staff={isStaff} />
-            )}
+      <AdministratorContext.Provider value={administrator}>
+        {/* Inside the language: a toast's own words (close) are the office's. */}
+        <ToastProvider>
+          <div className="flex h-full flex-col phone:h-auto phone:min-h-svh">
+            {me.data && <ActingBand me={me.data} />}
+            <div className="min-h-0 flex-1">
+              {!account.data ? (
+                <ErrorNote error={account.error} />
+              ) : !account.data.signed_in ? (
+                <Welcome server={account.data.server} done={accountChanged} language={language} setLanguage={switchLanguage} />
+              ) : place.show ? (
+                <ShowScreen place={place as Place & { show: string }} go={go} language={language} setLanguage={switchLanguage} />
+              ) : place.accounts && me.data && isStaff ? (
+                <Accounts me={me.data} language={language} />
+              ) : (
+                <Library open={show => go({ show, view: 'classes' })} archives={!!place.archives} language={language} setLanguage={switchLanguage} accountChanged={accountChanged} staff={isStaff} />
+              )}
+            </div>
           </div>
-        </div>
-      </ToastProvider>
+        </ToastProvider>
+      </AdministratorContext.Provider>
     </LanguageContext.Provider>
   );
 }

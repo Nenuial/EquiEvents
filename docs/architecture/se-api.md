@@ -35,7 +35,7 @@ captured offline (`golden/corpus/<show>/api/`, `golden/src/api-fixtures.mjs`). C
 | `putVeranstaltung` | POST | officials, entry and waiting-list counts | see below |
 | `putGeolocation` | POST | distances from towns to the show ground | `veranstaltungsortplz`, `orte` |
 | `getBackups`, `getBackup/<id>`, `putBackup` | GET, POST | Rosson's backups on the server | dropped (decision 4) |
-| `updateProgramme/<id>`, `updateWertungen/<id>` | PATCH | master-data editing, developer mode | not built: tests and scoring tables are changed in a show only, never sent back (P. Burkhard, 2026-11-14) |
+| `updateProgramme/<id>`, `updateWertungen/<id>` | PATCH | master-data editing, developer mode | not built: scoring tables are changed in a show only, by an administrator of equievents.ch, never sent back (P. Burkhard, 2026-11-14; the dressage tests no longer, 2026-11-22) |
 
 ### What an upload sends (corpus fixtures)
 

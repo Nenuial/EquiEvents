@@ -14,6 +14,8 @@
 //!   signed in.
 //! - **Acting as another account** (administrators and support, `admin`): the session works in
 //!   that account's office; its changes are signed with both names ("Anne Martin (via …)").
+//! - **Developer mode** (`office::DEVELOPER_COMMANDS`): an administrator's session only, also
+//!   acting as an account; anyone else is refused before the office runs it.
 
 use std::collections::HashMap;
 use std::path::{Component, Path as FsPath, PathBuf};
@@ -98,7 +100,7 @@ impl Web {
             Some(token) if auth::user_of(&app.pool, &token).await?.is_some_and(|u| u.id == user.id) => token,
             _ => auth::new_session(&app.pool, user.id, "equievents.ch (online version)").await?,
         };
-        let account = office::sync::Account { server: self.server.clone(), id: user.id, name: user.name.clone(), email: user.email.clone(), language: user.language.clone() };
+        let account = office::sync::Account { server: self.server.clone(), id: user.id, name: user.name.clone(), email: user.email.clone(), language: user.language.clone(), admin: user.admin };
         office.host(&self.server, account, &token)?;
         let office = Arc::new(office);
         Ok(self.offices.lock().unwrap_or_else(|e| e.into_inner()).entry(user.id).or_insert(office).clone())
@@ -228,6 +230,10 @@ async fn command(State(app): State<App>, headers: HeaderMap, Path(command): Path
         Ok(None) => return refused(StatusCode::UNAUTHORIZED, "not signed in", "signed_out"),
         Err(e) => return db_error(e),
     };
+    // Developer mode is an administrator's (the user, 2026-11-22), also acting as an account.
+    if office::DEVELOPER_COMMANDS.contains(&command.as_str()) && !by.as_ref().unwrap_or(&user).admin {
+        return refused(StatusCode::FORBIDDEN, "developer mode is for administrators of equievents.ch", "not_admin");
+    }
     let args: Value = if body.is_empty() { json!({}) } else { serde_json::from_slice(&body).unwrap_or(Value::Null) };
     // A file only among the account's own.
     if let Some(path) = args.get("path").and_then(Value::as_str) {

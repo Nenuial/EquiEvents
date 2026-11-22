@@ -1,8 +1,8 @@
 // Settings of this computer (Rosson's settings screen), in a dialog: the language, the theme, the
-// zoom; the version and its updates (desktop); developer mode, the error log;
-// and, in developer mode, a show's reference data — a dressage test's or a scoring table's
-// definition, as Swiss Equestrian publishes it, changed when it is wrong (checked as the app
-// reads them; undone with ⌘Z).
+// zoom; the version and its updates (desktop); developer mode (administrators only), the error
+// log; and, in developer mode, a show's reference data — a scoring table's definition, as Swiss
+// Equestrian publishes it, changed when it is wrong (checked as the app reads it; undone with
+// ⌘Z). The dressage tests' are no longer changed (the user, 2026-11-22).
 
 import { useState, type ReactNode } from 'react';
 import { Car, Check, CloudDownload, Copy, Download, GraduationCap, Monitor, Moon, Plus, Settings, SlidersHorizontal, Sun, Trophy, Wrench } from 'lucide-react';
@@ -10,24 +10,11 @@ import { call } from '../api';
 import { formatMillis, useT, type Key, type Language } from '../i18n';
 import { LanguagePicker } from '../shell/ShowShell';
 import { ACCENTS, Button, IconButton, Modal, Segmented, Switch, Tabs, Tooltip, buttonClass, useTheme } from '../ui';
+import { useDeveloper } from '../developer';
 import { useChanges } from './changes';
 import { useLoad } from './common';
 import { UpdatePanel } from './update';
 import { ZoomControl } from './zoom';
-
-function developer(): boolean {
-  try {
-    return localStorage.getItem('developer') === '1';
-  } catch {
-    return false;
-  }
-}
-
-/** Whether developer mode is on (this computer). */
-export function useDeveloper(): boolean {
-  const [on] = useState(developer);
-  return on;
-}
 
 interface LoggedError {
   millis: number;
@@ -74,17 +61,9 @@ export function SettingsModal({ open, onClose, language, setLanguage }: { open: 
   const t = useT();
   const { choice, choose } = useTheme();
   const [tab, setTab] = useState<SettingsTab>('general');
-  const [dev, setDev] = useState(developer);
+  const developer = useDeveloper();
   const [copied, setCopied] = useState(false);
   const errors = useLoad(() => (open && tab === 'advanced' ? call<LoggedError[]>('error_log') : Promise.resolve([])), [open, tab]);
-  const toggle = (on: boolean) => {
-    setDev(on);
-    try {
-      localStorage.setItem('developer', on ? '1' : '0');
-    } catch {
-      /* a preference only */
-    }
-  };
   const copy = async () => {
     const text = (errors.data ?? []).map(e => `${new Date(e.millis).toISOString()} ${e.command}${e.show ? ` (${e.show})` : ''}: ${e.error}`).join('\n');
     try {
@@ -147,7 +126,7 @@ export function SettingsModal({ open, onClose, language, setLanguage }: { open: 
       )}
       {tab === 'advanced' && (
         <div className="grid gap-6">
-          <Switch checked={dev} onChange={toggle} label={t('developer_mode')} hint={t('developer_mode_hint')} />
+          {developer.allowed && <Switch checked={developer.on} onChange={developer.turn} label={t('developer_mode')} hint={t('developer_mode_hint')} />}
           <div className="grid gap-2">
             <div className="flex items-center justify-between gap-2">
               <span className="text-[13px] font-semibold">{t('error_log')}</span>
@@ -262,15 +241,14 @@ function TrainingPanel({ language, done }: { language: Language; done: () => voi
 }
 
 interface Reference {
-  programmes: { id: number; name: string; title: string }[];
   scoring_tables: { id: number; code: string; name: string }[];
 }
 
-/** In a show, developer mode: its tests' and scoring tables' definitions (in the sidebar). */
+/** In a show, developer mode: its scoring tables' definitions (in the sidebar). */
 export function ReferenceButton({ show, icon = false }: { show: string; icon?: boolean }) {
   const t = useT();
   const [open, setOpen] = useState(false);
-  if (!useDeveloper()) return null;
+  if (!useDeveloper().on) return null;
   return (
     <>
       {icon ? (
@@ -300,16 +278,16 @@ function ReferenceEditor({ show }: { show: string }) {
   const { change } = useChanges();
   const data = useLoad(() => call<Reference>('reference_data', { show }), [show]);
   const [query, setQuery] = useState('');
-  const [picked, setPicked] = useState<{ kind: 'programme' | 'scoring_table'; id: number; label: string } | null>(null);
+  const [picked, setPicked] = useState<{ id: number; label: string } | null>(null);
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
-  const open = async (kind: 'programme' | 'scoring_table', id: number, label: string) => {
+  const open = async (id: number, label: string) => {
     setError(null);
     setSaved(false);
-    const d = await call<{ definition: string }>('definition', { show, kind, id });
-    setPicked({ kind, id, label });
+    const d = await call<{ definition: string }>('definition', { show, kind: 'scoring_table', id });
+    setPicked({ id, label });
     setText(d.definition);
   };
   const save = async () => {
@@ -320,7 +298,7 @@ function ReferenceEditor({ show }: { show: string }) {
     } catch (e) {
       return setError(String((e as Error).message));
     }
-    const answer = await change('set_definition', { kind: picked.kind, id: picked.id, definition: text });
+    const answer = await change('set_definition', { kind: 'scoring_table', id: picked.id, definition: text });
     if (answer) setSaved(true);
   };
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
@@ -348,24 +326,12 @@ function ReferenceEditor({ show }: { show: string }) {
     <div className="grid gap-3 text-sm">
       <input value={query} onChange={e => setQuery(e.target.value)} placeholder={t('reference_search')} className="field" />
       <section>
-        <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-ink-3">{t('reference_tests')}</h3>
-        <div className="grid gap-0.5">
-          {data.data?.programmes
-            .filter(p => match(`${p.name} ${p.title}`))
-            .map(p => (
-              <button key={p.id} onClick={() => open('programme', p.id, `${p.name} · ${p.title}`)} className="truncate rounded px-2 py-1 text-left hover:bg-hover">
-                <span className="font-semibold">{p.name}</span> <span className="text-ink-3">{p.title}</span>
-              </button>
-            ))}
-        </div>
-      </section>
-      <section>
         <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-ink-3">{t('reference_tables')}</h3>
         <div className="grid gap-0.5">
           {data.data?.scoring_tables
             .filter(s => match(`${s.code} ${s.name}`))
             .map(s => (
-              <button key={s.id} onClick={() => open('scoring_table', s.id, `${s.code} · ${s.name}`)} className="truncate rounded px-2 py-1 text-left hover:bg-hover">
+              <button key={s.id} onClick={() => open(s.id, `${s.code} · ${s.name}`)} className="truncate rounded px-2 py-1 text-left hover:bg-hover">
                 <span className="font-semibold">{s.code}</span> <span className="text-ink-3">{s.name}</span>
               </button>
             ))}

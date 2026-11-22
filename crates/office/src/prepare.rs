@@ -711,21 +711,6 @@ pub fn edit_class(state: &State, id: &ClassId, edit: ClassEdit) -> Result<Vec<Ch
     Ok(vec![Change::class_set(class)])
 }
 
-/// A jumping class's scoring table (Rosson's class preparation): any of Swiss Equestrian's
-/// tables, before the class has results (they are entered in the table's fields).
-/// A dressage test's definition changed (Rosson's developer mode): Swiss Equestrian's JSON,
-/// read as the app reads tests before it is kept.
-pub fn set_programme_definition(state: &State, id: u32, definition: &str) -> Result<Vec<Change>, String> {
-    let before = state.programmes.get(&id).ok_or_else(|| format!("unknown test {id}"))?;
-    let json: Value = serde_json::from_str(definition).map_err(|e| format!("not JSON: {e}"))?;
-    let programme = ProgrammeDef { definition: json.to_string(), ..before.clone() };
-    show::master::programme(&programme).map_err(|e| format!("not a test the app can read: {e}"))?;
-    if serde_json::from_str::<Value>(&before.definition).ok() == Some(json) {
-        return Ok(Vec::new());
-    }
-    Ok(vec![Change::ProgrammeSet { programme }])
-}
-
 /// A scoring table's definition changed (Rosson's developer mode), read as the app reads
 /// tables before it is kept; not while a final class uses it (its results are official).
 pub fn set_scoring_table_definition(state: &State, id: u32, definition: &str) -> Result<Vec<Change>, String> {

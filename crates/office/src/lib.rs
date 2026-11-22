@@ -106,6 +106,10 @@ struct Settings {
     label_sheets: Vec<prints::Sheet>,
 }
 
+/// Developer mode's commands (an administrator's only, the user, 2026-11-22): the online version
+/// refuses them before the office runs them unless the session is an administrator's.
+pub const DEVELOPER_COMMANDS: [&str; 3] = ["reference_data", "definition", "set_definition"];
+
 fn now_millis() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
 }
@@ -172,6 +176,15 @@ impl Office {
         let answer = self.call(command, args);
         AUTHOR.with(|a| *a.borrow_mut() = None);
         answer
+    }
+
+    /// Developer mode's commands: an administrator's only (`DEVELOPER_COMMANDS`).
+    fn developer(&self) -> Result<(), String> {
+        if self.administrator() {
+            Ok(())
+        } else {
+            Err("developer mode is for administrators of equievents.ch".into())
+        }
     }
 
     fn log_error(&self, command: &str, args: &Value, error: &str) {
@@ -1137,19 +1150,23 @@ impl Office {
             // The error log, the newest first.
             "error_log" => Ok(Value::Array(self.errors.lock().map(|e| e.iter().rev().cloned().collect()).unwrap_or_default())),
             // Reference data (Rosson's developer mode): a test's or a scoring table's definition.
-            "reference_data" => self.with(arg(args, "show")?, |_, store| {
-                let state = store.state();
-                let programmes: Vec<Value> = state.programmes.values().map(|p| json!({ "id": p.id, "name": p.name, "title": show::master::programme_title(p, "fr") })).collect();
-                let tables: Vec<Value> = state.scoring_tables.values().map(|t| json!({ "id": t.id, "code": t.code, "name": t.name })).collect();
-                Ok(json!({ "programmes": programmes, "scoring_tables": tables }))
-            }),
+            // Developer mode (an administrator's): the scoring tables' definitions. The dressage
+            // tests' are no longer changed in a show (the user, 2026-11-22: Rosson's early fix
+            // for Swiss Equestrian's wrong coefficients).
+            "reference_data" => {
+                self.developer()?;
+                self.with(arg(args, "show")?, |_, store| {
+                    let tables: Vec<Value> = store.state().scoring_tables.values().map(|t| json!({ "id": t.id, "code": t.code, "name": t.name })).collect();
+                    Ok(json!({ "scoring_tables": tables }))
+                })
+            }
             "definition" => {
+                self.developer()?;
                 let id = args["id"].as_u64().ok_or("missing argument id")? as u32;
                 let kind = arg(args, "kind")?.to_string();
                 self.with(arg(args, "show")?, |_, store| {
                     let state = store.state();
                     let text = match kind.as_str() {
-                        "programme" => state.programmes.get(&id).map(|p| p.definition.clone()),
                         "scoring_table" => state.scoring_tables.get(&id).map(|t| t.definition.clone()),
                         other => return Err(format!("no definitions of {other}")),
                     }
@@ -1160,10 +1177,10 @@ impl Office {
                 })
             }
             "set_definition" => {
+                self.developer()?;
                 let id = args["id"].as_u64().ok_or("missing argument id")? as u32;
                 let definition = arg(args, "definition")?.to_string();
                 match arg(args, "kind")? {
-                    "programme" => self.change(arg(args, "show")?, "set_definition", |state| prepare::set_programme_definition(state, id, &definition)),
                     "scoring_table" => self.change(arg(args, "show")?, "set_definition", |state| prepare::set_scoring_table_definition(state, id, &definition)),
                     other => Err(format!("no definitions of {other}")),
                 }
