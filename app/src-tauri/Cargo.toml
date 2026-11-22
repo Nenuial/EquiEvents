@@ -1,6 +1,6 @@
 [package]
 name = "equievents-desktop"
-version = "0.2.4"
+version = "0.2.5"
 description = "EquiEvents for the show office: the desktop app (macOS, Windows)."
 edition.workspace = true
 rust-version.workspace = true
