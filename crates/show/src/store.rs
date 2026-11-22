@@ -17,8 +17,9 @@ use rusqlite::{params, Connection, OpenFlags};
 use crate::oplog::{Operation, Stamp};
 use crate::state::{Outcome, State};
 
-/// Schema version, in SQLite's `user_version`. 2: which operations the server has, `meta`.
-const SCHEMA_VERSION: i64 = 2;
+/// Schema version, in SQLite's `user_version`. 2: which operations the server has, `meta`; 3: what
+/// the author saw of what an operation changes (`saw`, R12).
+const SCHEMA_VERSION: i64 = 3;
 
 pub struct Store {
     conn: Connection,
@@ -69,6 +70,15 @@ impl Store {
                  PRAGMA user_version = 2;
                  COMMIT;",
             )?;
+        }
+        if version <= 2 {
+            // What the author saw of what each operation changes (R12).
+            conn.execute_batch(
+                "BEGIN;
+                 ALTER TABLE operations ADD COLUMN saw TEXT;  -- JSON, NULL: nothing
+                 PRAGMA user_version = 3;
+                 COMMIT;",
+            )?;
         } else if version != SCHEMA_VERSION {
             return Err(StoreError(format!("show file has schema version {version}, this app knows {SCHEMA_VERSION}")));
         }
@@ -78,14 +88,18 @@ impl Store {
     }
 
     fn read_log(conn: &Connection) -> Result<Vec<Operation>, StoreError> {
-        let mut stmt = conn.prepare("SELECT id, millis, counter, device, author, change FROM operations ORDER BY millis, counter, device")?;
+        let mut stmt = conn.prepare("SELECT id, millis, counter, device, author, change, saw FROM operations ORDER BY millis, counter, device")?;
         let rows = stmt.query_map([], |r| {
-            Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?, r.get::<_, i64>(2)?, r.get::<_, String>(3)?, r.get::<_, String>(4)?, r.get::<_, String>(5)?))
+            Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?, r.get::<_, i64>(2)?, r.get::<_, String>(3)?, r.get::<_, String>(4)?, r.get::<_, String>(5)?, r.get::<_, Option<String>>(6)?))
         })?;
         let mut ops = Vec::new();
         for row in rows {
-            let (id, millis, counter, device, author, change) = row?;
-            ops.push(Operation { id, stamp: Stamp { millis: millis as u64, counter: counter as u32, device }, author, change: serde_json::from_str(&change)? });
+            let (id, millis, counter, device, author, change, saw) = row?;
+            let saw = match saw {
+                Some(saw) => serde_json::from_str(&saw)?,
+                None => Default::default(),
+            };
+            ops.push(Operation { id, stamp: Stamp { millis: millis as u64, counter: counter as u32, device }, author, change: serde_json::from_str(&change)?, saw });
         }
         Ok(ops)
     }
@@ -107,8 +121,8 @@ impl Store {
         let mut new = Vec::new();
         for op in ops {
             let inserted = tx.execute(
-                "INSERT OR IGNORE INTO operations (id, millis, counter, device, author, change, synced) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-                params![op.id, op.stamp.millis as i64, op.stamp.counter as i64, op.stamp.device, op.author, serde_json::to_string(&op.change)?, synced],
+                "INSERT OR IGNORE INTO operations (id, millis, counter, device, author, change, synced, saw) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                params![op.id, op.stamp.millis as i64, op.stamp.counter as i64, op.stamp.device, op.author, serde_json::to_string(&op.change)?, synced, if op.saw.is_empty() { None } else { Some(serde_json::to_string(&op.saw)?) }],
             )?;
             if inserted == 1 {
                 new.push(op.clone());
@@ -142,14 +156,18 @@ impl Store {
 
     /// Operations the server does not have yet, the oldest first (at most `limit`).
     pub fn unsynced(&self, limit: usize) -> Result<Vec<Operation>, StoreError> {
-        let mut stmt = self.conn.prepare("SELECT id, millis, counter, device, author, change FROM operations WHERE synced = 0 ORDER BY millis, counter, device LIMIT ?1")?;
+        let mut stmt = self.conn.prepare("SELECT id, millis, counter, device, author, change, saw FROM operations WHERE synced = 0 ORDER BY millis, counter, device LIMIT ?1")?;
         let rows = stmt.query_map(params![limit as i64], |r| {
-            Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?, r.get::<_, i64>(2)?, r.get::<_, String>(3)?, r.get::<_, String>(4)?, r.get::<_, String>(5)?))
+            Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?, r.get::<_, i64>(2)?, r.get::<_, String>(3)?, r.get::<_, String>(4)?, r.get::<_, String>(5)?, r.get::<_, Option<String>>(6)?))
         })?;
         let mut ops = Vec::new();
         for row in rows {
-            let (id, millis, counter, device, author, change) = row?;
-            ops.push(Operation { id, stamp: Stamp { millis: millis as u64, counter: counter as u32, device }, author, change: serde_json::from_str(&change)? });
+            let (id, millis, counter, device, author, change, saw) = row?;
+            let saw = match saw {
+                Some(saw) => serde_json::from_str(&saw)?,
+                None => Default::default(),
+            };
+            ops.push(Operation { id, stamp: Stamp { millis: millis as u64, counter: counter as u32, device }, author, change: serde_json::from_str(&change)?, saw });
         }
         Ok(ops)
     }

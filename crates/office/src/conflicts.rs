@@ -1,5 +1,5 @@
 //! What two computers changed apart, for the office to look at after a sync (rules R2, R4, R7,
-//! R11, docs/architecture/reconciliation.md): which change was kept and which it replaced, by
+//! R11, R12, docs/architecture/reconciliation.md): which change was kept and which it replaced, by
 //! whom and when; putting the other version back.
 //!
 //! Every computer finds the same conflicts in the show (they come from its log). Which ones the
@@ -14,6 +14,7 @@ use serde_json::Value;
 use show::model::*;
 use show::oplog::{Change, FieldChange, Operation};
 use show::state::{Conflict, ConflictKind};
+use show::touched::Thing;
 use show::State;
 
 /// The show file's list of the conflicts looked at here.
@@ -44,7 +45,9 @@ pub struct ConflictItem {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ConflictView {
     pub id: String,
-    /// `class`, `order`, `numbers`, `duplicates`, `result`, `late_final`, `class_gone`.
+    /// `class`, `order`, `numbers`, `duplicates`, `result`, `late_final`, `class_gone`;
+    /// `change` (anything else changed on two computers), `change_gone` (a change not applied:
+    /// what it changed is gone, or its class was finalised meanwhile).
     pub kind: &'static str,
     pub class: String,
     /// "12 · Libre R/N" (the class's id when it is gone).
@@ -157,13 +160,26 @@ fn view(c: &Conflict, ops: &HashMap<&str, &Operation>, state: &State, device: &s
             _ => Vec::new(),
         },
         ConflictKind::LateForFinalClass | ConflictKind::ClassGone => Vec::new(),
+        // R12: each thing, with what it is now and what was there (the change kept), or what is
+        // there now (the change not applied).
+        ConflictKind::Changed | ConflictKind::ChangedGone => c
+            .things
+            .iter()
+            .map(|t| {
+                let lost = c.lost.get(t.key()).cloned().unwrap_or(Value::Null);
+                ConflictItem { field: thing_field(t), rider: subject(state, t), kept: thing_text(state, t, &t.value(state)), replaced: if c.kind == ConflictKind::Changed { thing_text(state, t, &lost) } else { String::new() } }
+            })
+            .collect(),
     };
-    let restorable = open
-        && match c.kind {
-            ConflictKind::ClassEdited | ConflictKind::ConcurrentEdit => true,
-            ConflictKind::StartOrder | ConflictKind::StartNumbers => over.is_some_and(|o| matches!(&o.change, Change::StartsSet { seen: Some(_), .. })),
-            _ => false,
-        };
+    let restorable = match c.kind {
+        ConflictKind::ClassEdited | ConflictKind::ConcurrentEdit => open,
+        ConflictKind::StartOrder | ConflictKind::StartNumbers => open && over.is_some_and(|o| matches!(&o.change, Change::StartsSet { seen: Some(_), .. })),
+        // Not in a final class; every thing can be put back.
+        ConflictKind::Changed => (class.is_none() || open) && !c.things.is_empty() && c.things.iter().all(|t| t.restore(c.lost.get(t.key()).unwrap_or(&Value::Null)).is_some()),
+        _ => false,
+    };
+    // Not about a class: what it is about (a rider, an official, a team…).
+    let class_label = if class.is_none() && c.class.0.is_empty() { c.things.first().map(|t| subject(state, t)).unwrap_or_default() } else { class_label };
     ConflictView {
         id: c.id.clone(),
         kind: c.kind.code(),
@@ -183,6 +199,13 @@ fn view(c: &Conflict, ops: &HashMap<&str, &Operation>, state: &State, device: &s
 /// there now), the result's value as it was.
 pub fn restore(log: &[Operation], state: &State, id: &str) -> Result<Vec<Change>, String> {
     let c = state.conflicts.iter().find(|c| c.id == id).ok_or_else(|| format!("no conflict {id}"))?;
+    // R12: each thing as it was (not in a final class).
+    if c.kind == ConflictKind::Changed {
+        if let Some(class) = state.classes.get(&c.class).filter(|k| state.status_of(k) == ClassStatus::Final) {
+            return Err(format!("class {} is final; reopen it first", class.number));
+        }
+        return c.things.iter().map(|t| t.restore(c.lost.get(t.key()).unwrap_or(&Value::Null)).ok_or_else(|| "the other version is not known".to_string())).collect();
+    }
     let class = state.classes.get(&c.class).ok_or_else(|| format!("unknown class {}", c.class))?;
     if state.status_of(class) == ClassStatus::Final {
         return Err(format!("class {} is final; reopen it first", class.number));
@@ -223,6 +246,134 @@ pub fn restore(log: &[Operation], state: &State, id: &str) -> Result<Vec<Change>
             Ok(vec![Change::ResultEdited { class: c.class.clone(), entry, changes: vec![FieldChange { field: field.clone(), from, to }] }])
         }
         _ => Err("this conflict has no other version to put back".into()),
+    }
+}
+
+/// What a thing is, for the office (the app names it): an entry's field (`horse`, `rider`,
+/// `status`…), or the kind of thing (`assignment`, `mark`, `prizes`…).
+fn thing_field(t: &Thing) -> String {
+    match t {
+        Thing::EntryField { field, .. } | Thing::PublishedField { field, .. } => field.clone(),
+        Thing::Entry { .. } => "entry".into(),
+        Thing::Assignment { .. } => "assignment".into(),
+        Thing::Address { .. } => "address".into(),
+        Thing::Team { .. } => "team".into(),
+        Thing::EventNumbers => "event_numbers".into(),
+        Thing::Prizes { .. } => "prizes".into(),
+        Thing::Programme { .. } => "programme".into(),
+        Thing::ScoringTable { .. } => "scoring_table".into(),
+        Thing::Combined { .. } => "combined".into(),
+        Thing::Class { .. } => "class".into(),
+        Thing::ClassStatus { .. } => "class_status".into(),
+        Thing::Rank { .. } => "rank".into(),
+        Thing::JuryPenalty { .. } => "jury_penalty".into(),
+        Thing::Card { .. } | Thing::TeamCard { .. } => "card".into(),
+        Thing::Sheet { .. } => "sheet".into(),
+        Thing::SheetMark { mark, .. } | Thing::TeamSheetMark { mark, .. } => format!("mark:{mark}"),
+        Thing::SheetPenalties { .. } | Thing::TeamSheetPenalties { .. } => "penalties".into(),
+        Thing::SheetTotal { .. } => "total".into(),
+    }
+}
+
+/// Who or what a thing is about: the rider and horse, the official, the team, the ranking…
+fn subject(state: &State, t: &Thing) -> String {
+    let rider = |e: &EntryId| rider_label(state, &e.to_string());
+    match t {
+        // The horse is what changed: the rider alone.
+        Thing::EntryField { entry, field } if field == "horse" => state.entries.get(entry).map_or_else(|| format!("#{entry}"), |e| crate::views::rider(state, e).0),
+        Thing::EntryField { entry, .. }
+        | Thing::Entry { entry }
+        | Thing::JuryPenalty { entry, .. }
+        | Thing::Card { entry, .. }
+        | Thing::Sheet { place: SheetPlace::Rider { entry, .. }, .. }
+        | Thing::SheetMark { entry, .. }
+        | Thing::SheetPenalties { entry, .. }
+        | Thing::SheetTotal { entry, .. } => rider(entry),
+        Thing::Rank { competitor: Competitor::Entry(entry), .. } => rider(entry),
+        Thing::Rank { competitor: Competitor::Team(team), .. } | Thing::Team { team } | Thing::TeamCard { team, .. } | Thing::TeamSheetMark { team, .. } | Thing::TeamSheetPenalties { team, .. } => {
+            state.teams.get(team).map_or_else(|| team.to_string(), |t| t.name.clone())
+        }
+        Thing::Assignment { assignment } => state.assignments.get(assignment).map(|a| person_name(state, &a.person)).unwrap_or_default(),
+        Thing::Address { person } => person_name(state, person),
+        Thing::Prizes { published } | Thing::PublishedField { published, .. } => state.published_classes.get(published).map_or_else(|| published.to_string(), |p| p.number.clone()),
+        Thing::Programme { id } => state.programmes.get(id).map(|p| p.name.clone()).unwrap_or_default(),
+        Thing::ScoringTable { id } => state.scoring_tables.get(id).map(|t| t.code.clone()).unwrap_or_default(),
+        Thing::Combined { id } => state.combined.get(id).map_or_else(|| id.clone(), |c| c.name.clone()),
+        Thing::EventNumbers | Thing::Class { .. } | Thing::ClassStatus { .. } | Thing::Sheet { .. } => String::new(),
+    }
+}
+
+fn person_name(state: &State, person: &PersonId) -> String {
+    state.persons.get(person).map_or_else(|| format!("#{person}"), |p| format!("{} {}", p.first_name, p.last_name).trim().to_string())
+}
+
+/// A thing's value as the office reads it (empty: not there, or nothing short to say).
+fn thing_text(state: &State, t: &Thing, value: &Value) -> String {
+    if value.is_null() {
+        return String::new();
+    }
+    let text = |v: &Value| match v {
+        Value::String(s) => s.clone(),
+        Value::Null => String::new(),
+        v => v.to_string(),
+    };
+    match t {
+        Thing::EntryField { entry, field } => {
+            // As the lists show it: the entry with that value.
+            let mut e = state.entries.get(entry).cloned();
+            match field.as_str() {
+                "horse" => {
+                    let Ok(h) = serde_json::from_value::<HorseOnEntry>(value.clone()) else { return String::new() };
+                    match e.as_mut() {
+                        Some(e) => {
+                            e.horse = h.horse;
+                            e.guest_horse = h.guest_horse;
+                            e.horses_on_entry = h.horses_on_entry;
+                            crate::views::horse(state, e)
+                        }
+                        None => h.horse.and_then(|id| state.horses.get(&id)).map(|h| h.name.clone()).unwrap_or_default(),
+                    }
+                }
+                "rider" => {
+                    let Ok(r) = serde_json::from_value::<RiderChange>(value.clone()) else { return String::new() };
+                    match e.as_mut() {
+                        Some(e) => {
+                            e.rider = r.rider;
+                            e.rider_on_entry = r.rider_on_entry;
+                            crate::views::rider(state, e).0
+                        }
+                        None => person_name(state, &r.rider),
+                    }
+                }
+                "published" => serde_json::from_value::<PublishedClassId>(value.clone()).ok().and_then(|p| state.published_classes.get(&p).map(|c| c.number.clone())).unwrap_or_else(|| text(value)),
+                "stage" if value.as_i64() == Some(0) => String::new(),
+                "horse_phases" => String::new(),
+                // `status`: `Entered`, `NotStarting`; `hors_concours`: `true`, `false` (the app says them).
+                _ => text(value),
+            }
+        }
+        Thing::Assignment { .. } => {
+            let Ok(a) = serde_json::from_value::<Assignment>(value.clone()) else { return String::new() };
+            let name = person_name(state, &a.person);
+            match a.letter.filter(|l| !l.is_empty()) {
+                Some(letter) => format!("{name} · {} ({letter})", a.role),
+                None => format!("{name} · {}", a.role),
+            }
+        }
+        Thing::Address { .. } => text(&value["town"]),
+        Thing::Team { .. } => text(&value["name"]),
+        Thing::PublishedField { .. } | Thing::JuryPenalty { .. } | Thing::SheetMark { .. } | Thing::SheetTotal { .. } | Thing::TeamSheetMark { .. } => text(value),
+        Thing::Rank { .. } => text(&value["rank"]),
+        Thing::Combined { .. } | Thing::Programme { .. } => text(&value["name"]),
+        Thing::ScoringTable { .. } => text(&value["code"]),
+        Thing::ClassStatus { .. } => text(value),
+        Thing::SheetPenalties { .. } | Thing::TeamSheetPenalties { .. } => {
+            let list = |k: &str| value[k].as_array().map(|a| a.iter().map(text).collect::<Vec<_>>()).unwrap_or_default();
+            let mut parts = list("points");
+            parts.extend(list("percent").into_iter().map(|p| format!("{p} %")));
+            parts.join(", ")
+        }
+        Thing::Entry { .. } | Thing::EventNumbers | Thing::Prizes { .. } | Thing::Class { .. } | Thing::Card { .. } | Thing::TeamCard { .. } | Thing::Sheet { .. } => String::new(),
     }
 }
 

@@ -1,7 +1,7 @@
 //! The current state of a show, computed from its operation log.
 //!
 //! Operations are applied in stamp order, following the reconciliation rules in
-//! docs/architecture/reconciliation.md (R1–R4, R7 and R11 here). Every device makes the same decisions,
+//! docs/architecture/reconciliation.md (R1–R4, R7, R11 and R12 here). Every device makes the same decisions,
 //! because they apply the same operations in the same order.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -27,8 +27,10 @@ pub struct Conflict {
     /// What both changed: a class's fields (`name`, `options.placed_count`), riders (entry ids)
     /// moved or numbered on both, a result's field, start numbers given twice.
     pub what: Vec<String>,
-    /// What was replaced: by field, or by entry id (a rider's start number).
+    /// What was replaced: by field, or by entry id (a rider's start number); R12: by thing's key.
     pub lost: serde_json::Value,
+    /// R12: the things both changed (`what` holds their keys).
+    pub things: Vec<crate::touched::Thing>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -48,6 +50,12 @@ pub enum ConflictKind {
     /// A class changed on one device was taken away on another (e.g. sections put back
     /// together). The change was not applied.
     ClassGone,
+    /// R12: something else (an entry's horse, an official's role, a judge's mark…) changed on
+    /// two devices. The later change was applied.
+    Changed,
+    /// R12: what a change set had changed meanwhile and is gone, or its class was finalised
+    /// meanwhile. The change was not applied.
+    ChangedGone,
 }
 
 impl ConflictKind {
@@ -61,6 +69,8 @@ impl ConflictKind {
             ConflictKind::StartNumbers => "numbers",
             ConflictKind::DuplicateNumbers => "duplicates",
             ConflictKind::ClassGone => "class_gone",
+            ConflictKind::Changed => "change",
+            ConflictKind::ChangedGone => "change_gone",
         }
     }
 }
@@ -168,6 +178,9 @@ impl State {
 
     /// Apply one operation. Operations must come in stamp order.
     pub fn apply(&mut self, op: &Operation) -> Outcome {
+        // R12: what changed meanwhile, unknown to its author (before it is applied).
+        let clashes = self.clashes(op);
+        let before = self.conflicts.len();
         let outcome = match class_of_results(&op.change) {
             Some(class) => {
                 // R4: made before a finalisation that did not know it.
@@ -185,8 +198,22 @@ impl State {
             }
             None => self.apply_change(op),
         };
+        // Not a late change for a final class (R4 says it). Applied, what it made what was
+        // there already replaced nothing (both gave the same horse).
+        let applied = outcome == Outcome::Applied;
+        let clashes: Vec<_> = clashes.into_iter().filter(|(t, before)| !applied || &t.value(self) != before).collect();
+        if !clashes.is_empty() && !self.conflicts[before..].iter().any(|c| c.kind == ConflictKind::LateForFinalClass) {
+            self.clashed(op, clashes, applied);
+        }
         if outcome == Outcome::Applied {
             self.note_changed(&op.change, op.stamp.millis);
+            for t in crate::touched::things(&op.change) {
+                self.wrote(t.key(), op);
+            }
+            // Swiss Equestrian's new version of an entry: what an office change may go over.
+            if let Change::EntryDelivered { entry } = &op.change {
+                self.wrote(format!("e/{}", entry.id), op);
+            }
         }
         self.last = Some(op.stamp.clone());
         outcome
@@ -244,7 +271,60 @@ impl State {
     #[allow(clippy::too_many_arguments)]
     fn conflict(&mut self, op: &Operation, class: &ClassId, kind: ConflictKind, detail: String, over: Option<String>, what: Vec<String>, lost: serde_json::Value) {
         let n = self.conflicts.iter().filter(|c| c.op == op.id).count();
-        self.conflicts.push(Conflict { id: format!("{}#{n}", op.id), op: op.id.clone(), class: class.clone(), kind, detail, over, what, lost });
+        self.conflicts.push(Conflict { id: format!("{}#{n}", op.id), op: op.id.clone(), class: class.clone(), kind, detail, over, what, lost, things: Vec::new() });
+    }
+
+    /// R12: the things of `op` that are no longer what its author saw (looked at before it is
+    /// applied), with what they are now.
+    fn clashes(&self, op: &Operation) -> Vec<(crate::touched::Thing, serde_json::Value)> {
+        if op.saw.is_empty() {
+            return Vec::new();
+        }
+        crate::touched::things(&op.change)
+            .into_iter()
+            .filter_map(|t| {
+                let seen = op.saw.get(&t.key())?;
+                let now = t.value(self);
+                (seen != &now).then_some((t, now))
+            })
+            .collect()
+    }
+
+    /// R12: `op` went over what changed meanwhile (`applied`), or was not applied because of it.
+    fn clashed(&mut self, op: &Operation, clashes: Vec<(crate::touched::Thing, serde_json::Value)>, applied: bool) {
+        use crate::touched::Thing;
+        // Applied, a class's status does not matter (it was running).
+        let clashes: Vec<_> = clashes.into_iter().filter(|(t, _)| !applied || !matches!(t, Thing::ClassStatus { .. })).collect();
+        if clashes.is_empty() {
+            return;
+        }
+        let keys: Vec<String> = clashes.iter().map(|(t, _)| t.key()).collect();
+        let over = keys.iter().filter_map(|k| self.writer_near(k)).max_by(|a, b| a.0.cmp(&b.0)).map(|w| w.1.clone());
+        let class = clashes.iter().find_map(|(t, _)| t.class().cloned()).unwrap_or_default();
+        let kind = if applied { ConflictKind::Changed } else { ConflictKind::ChangedGone };
+        let detail = format!("{} changed meanwhile, unknown to the author{}", keys.join(", "), if applied { "" } else { "; not applied" });
+        let lost = serde_json::Value::Object(clashes.iter().map(|(t, now)| (t.key(), now.clone())).collect());
+        let things = clashes.into_iter().map(|(t, _)| t).collect();
+        self.conflict(op, &class, kind, detail, over, keys, lost);
+        if let Some(c) = self.conflicts.last_mut() {
+            c.things = things;
+        }
+    }
+
+    /// The latest operation that changed this key, a key inside it, or one it is inside.
+    fn writer_near(&self, key: &str) -> Option<&(Stamp, String)> {
+        let mut found: Vec<&(Stamp, String)> = Vec::new();
+        let mut at = key;
+        loop {
+            found.extend(self.writers.get(at));
+            match at.rfind('/') {
+                Some(i) => at = &at[..i],
+                None => break,
+            }
+        }
+        let inside = format!("{key}/");
+        found.extend(self.writers.range(inside.clone()..).take_while(|(k, _)| k.starts_with(&inside)).map(|(_, w)| w));
+        found.into_iter().max_by(|a, b| a.0.cmp(&b.0))
     }
 
     /// `op` changed this (see `writers`).

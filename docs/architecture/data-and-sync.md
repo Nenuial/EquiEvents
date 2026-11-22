@@ -41,8 +41,11 @@ Ids are typed and of one kind each (E1). Numbers are exact decimals (E5).
 Every change is an **operation**, appended to a log and never edited:
 
 ```
-op id (ULID) · device · author · timestamp (hybrid logical clock) · kind · payload
+op id (ULID) · device · author · timestamp (hybrid logical clock) · kind · payload · what the author saw
 ```
+
+*What the author saw* (`saw`, since 2026-11-22): of each thing the change sets, its value when
+the author made it — how anything changed meanwhile on another device is found (R12).
 
 Examples of kinds: `EventImported`, `EntryWithdrawn`, `StartOrderSet`, `RoundResultEntered`,
 `JudgeSheetEntered`, `ClassFinalised`, `ClassReopened`, `ResultsUploaded`.

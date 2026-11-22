@@ -73,6 +73,12 @@ pub struct Operation {
     /// Who did it: a person, a device code, or the importer.
     pub author: String,
     pub change: Change,
+    /// What its author saw of the things the change sets (rule R12, `touched::Saw`): a thing
+    /// that is something else when the operation is applied was changed meanwhile, unknown to
+    /// the author: a conflict. Empty: not looked at (imports, deliveries, operations made before
+    /// 2026-11-22).
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub saw: crate::touched::Saw,
 }
 
 /// What an operation changes.

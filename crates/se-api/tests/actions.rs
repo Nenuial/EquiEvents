@@ -30,7 +30,7 @@ fn read(path: std::path::PathBuf) -> Value {
 fn apply(state: &mut State, changes: Vec<Change>, clock: &mut Clock) {
     for change in changes {
         let stamp = clock.tick(u64::MAX / 2);
-        state.apply(&Operation { id: format!("op{}", stamp.counter), stamp, author: "office".into(), change });
+        state.apply(&Operation { id: format!("op{}", stamp.counter), stamp, author: "office".into(), change, saw: Default::default() });
     }
 }
 

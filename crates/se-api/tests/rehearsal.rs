@@ -21,7 +21,7 @@ fn rehearsal(event: &Value) -> State {
     })
     .unwrap();
     let mut clock = Clock::new("rehearsal");
-    let (state, ignored) = State::from_log(changes.into_iter().enumerate().map(|(i, change)| Operation { id: format!("op{i}"), stamp: clock.tick(0), author: "rehearsal".into(), change }).collect());
+    let (state, ignored) = State::from_log(changes.into_iter().enumerate().map(|(i, change)| Operation { id: format!("op{i}"), stamp: clock.tick(0), author: "rehearsal".into(), change, saw: Default::default() }).collect());
     assert!(ignored.is_empty());
     state
 }

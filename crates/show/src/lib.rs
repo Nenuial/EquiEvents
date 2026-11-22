@@ -14,6 +14,7 @@
 //! - [`startlist`]: a class's start list: order, start times, blocks, team and level headings.
 //! - [`master`]: Swiss Equestrian master data (programmes, scoring tables) read into the scoring model.
 //! - [`store`]: one SQLite file per show, holding the log.
+//! - [`touched`]: what a change sets, thing by thing, and what its author saw of it (R12).
 //! - [`export`]: one show in one file (`.equievents`), to keep, hand over or continue elsewhere.
 
 pub mod combined;
@@ -29,6 +30,7 @@ pub mod ranking;
 pub mod startlist;
 pub mod state;
 pub mod store;
+pub mod touched;
 
 pub use input::{ScoringInput, TeamConesDetail, TeamConesRound};
 pub use state::State;

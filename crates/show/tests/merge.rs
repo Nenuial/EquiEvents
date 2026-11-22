@@ -127,7 +127,7 @@ fn a_class_field_by_field() {
 }
 
 fn op(id: &str, millis: u64, device: &str, change: Change) -> Operation {
-    Operation { id: id.into(), stamp: Stamp { millis, counter: 0, device: device.into() }, author: device.into(), change }
+    Operation { id: id.into(), stamp: Stamp { millis, counter: 0, device: device.into() }, author: device.into(), change, saw: Default::default() }
 }
 
 fn set_class(c: Class, seen: Option<Class>) -> Change {

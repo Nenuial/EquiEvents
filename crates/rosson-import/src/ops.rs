@@ -47,7 +47,7 @@ pub fn to_operations(snapshot: &Value) -> Result<Vec<Operation>, ImportError> {
         if let Some(class) = class {
             class_ops.borrow_mut().entry(class).or_default().push(op_id.clone());
         }
-        ops.push(Operation { id: op_id, stamp, author: AUTHOR.into(), change });
+        ops.push(Operation { id: op_id, stamp, author: AUTHOR.into(), change, saw: Default::default() });
     };
 
     // What Swiss Equestrian delivered. People: riders as copied onto their entries, then the

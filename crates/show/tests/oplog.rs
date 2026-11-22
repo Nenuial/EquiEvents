@@ -11,7 +11,7 @@ use show::state::ConflictKind;
 use show::{State, Store};
 
 fn op(id: &str, stamp: Stamp, change: Change) -> Operation {
-    Operation { id: id.into(), stamp, author: "test".into(), change }
+    Operation { id: id.into(), stamp, author: "test".into(), change, saw: Default::default() }
 }
 
 fn class() -> Class {

@@ -216,3 +216,45 @@ fn late_entries_on_both_computers() {
     assert_eq!(&list[43..], &[(pc, Some(44)), (mac, Some(45))]);
     assert!(pair.conflicts(false).is_empty());
 }
+
+/// The user's question of 2026-11-22: offline, the PC gives a rider one horse, the Mac another.
+/// After the sync the later stays, and both computers say so: the horse kept, the one replaced,
+/// by whom (R12). The PC puts its horse back. Changes to different fields are no clash.
+#[test]
+fn two_horses_for_one_rider() {
+    let mut pair = Pair::new();
+    let class = pair.class.clone();
+    let riders = pair.starters(false);
+    let (entry, other) = (riders[1].0, riders[2].0);
+    let horse_of = |pair: &Pair, mac: bool, entry: u64| -> String {
+        let list = pair.call(mac, "start_list", json!({ "class": class }));
+        list["lines"].as_array().unwrap().iter().find(|l| l["entry"] == entry).unwrap()["horse"].as_str().unwrap_or_default().to_string()
+    };
+    pair.call(false, "change_horse", json!({ "entries": [entry], "horse": 888001 }));
+    pair.call(true, "change_horse", json!({ "entries": [entry], "horse": 888002 }));
+    // Another rider: withdrawn on the PC, another horse on the Mac. Both stay.
+    pair.call(false, "edit_entry", json!({ "entry": other, "not_starting": true }));
+    pair.call(true, "change_horse", json!({ "entries": [other], "horse": 888001 }));
+    pair.sync();
+    for mac in [false, true] {
+        assert_eq!(horse_of(&pair, mac, entry), "LATE SHOW");
+        let conflicts = pair.conflicts(mac);
+        assert_eq!(conflicts.len(), 1, "{conflicts:#?}");
+        let c = &conflicts[0];
+        assert_eq!((c["kind"].as_str(), c["items"][0]["field"].as_str()), (Some("change"), Some("horse")), "{c:#}");
+        assert_eq!((c["items"][0]["kept"].as_str(), c["items"][0]["replaced"].as_str()), (Some("LATE SHOW"), Some("QUICK STAR")), "{c:#}");
+        // About the rider (the horse is what changed).
+        let rider = c["class_label"].as_str().unwrap();
+        assert!(!rider.is_empty() && !rider.contains("SHOW") && !rider.contains("STAR"), "{c:#}");
+        assert_eq!((c["kept"]["here"].as_bool(), c["replaced"]["here"].as_bool(), c["seen"].as_bool()), (Some(mac), Some(!mac), Some(false)));
+    }
+    assert_eq!(horse_of(&pair, false, other), "QUICK STAR");
+    // The PC puts its horse back; once synced, the Mac has it too, nothing new to say.
+    let c = pair.conflicts(false)[0].clone();
+    assert_eq!(c["restorable"], true);
+    pair.call(false, "restore_conflict", json!({ "id": c["id"] }));
+    assert_eq!(horse_of(&pair, false, entry), "QUICK STAR");
+    pair.sync();
+    assert_eq!(horse_of(&pair, true, entry), "QUICK STAR");
+    assert_eq!(pair.conflicts(true).len(), 1);
+}

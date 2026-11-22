@@ -129,7 +129,7 @@ fn an_official_is_looked_up_once() {
     let pending: Vec<_> = state.assignments.values().filter(|a| a.event.is_some() && a.se_id.is_none()).map(|a| a.id.clone()).collect();
     for (i, id) in pending.into_iter().enumerate() {
         let change = show::oplog::Change::AssignmentLookedUp { assignment: id, se_id: (i % 2 == 0).then_some(1000 + i as u64) };
-        state.apply(&show::oplog::Operation { id: format!("lookup{i}"), stamp: show::oplog::Stamp { millis: u64::MAX / 2, counter: i as u32, device: "test".into() }, author: "test".into(), change });
+        state.apply(&show::oplog::Operation { id: format!("lookup{i}"), stamp: show::oplog::Stamp { millis: u64::MAX / 2, counter: i as u32, device: "test".into() }, author: "test".into(), change, saw: Default::default() });
     }
     assert_eq!(lookups(&state), 0, "after the answers, nobody is looked up again");
 }

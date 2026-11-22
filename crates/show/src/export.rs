@@ -212,7 +212,7 @@ mod tests {
             },
             Change::PrivateDataDelivered { contacts: vec![Contact { person: PersonId(7), email: "a@b.invalid".into(), ..Default::default() }], notes: vec![] },
         ];
-        changes.into_iter().enumerate().map(|(i, change)| Operation { id: format!("op{i}"), stamp: clock.tick(1000 + i as u64), author: "office".into(), change }).collect()
+        changes.into_iter().enumerate().map(|(i, change)| Operation { id: format!("op{i}"), stamp: clock.tick(1000 + i as u64), author: "office".into(), change, saw: Default::default() }).collect()
     }
 
     #[test]

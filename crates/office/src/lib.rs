@@ -43,10 +43,12 @@ const REHEARSAL: &str = "import (as delivered, to rehearse)";
 
 /// What can be undone in a show, last on top: what was done (a command name), and the changes
 /// that undo it.
-type UndoStack = Vec<(String, Vec<show::oplog::Change>)>;
+/// Changes to make again (an undo, a redo), with what their author saw of what they change (R12).
+type Steps = (Vec<show::oplog::Change>, Vec<show::touched::Saw>);
+type UndoStack = Vec<(String, Steps)>;
 
 /// Put changes on top of a show's undo (or redo) stack, which keeps the last hundred.
-fn push(stacks: &Mutex<HashMap<String, UndoStack>>, id: &str, what: String, changes: Vec<show::oplog::Change>) {
+fn push(stacks: &Mutex<HashMap<String, UndoStack>>, id: &str, what: String, changes: Steps) {
     let mut stacks = stacks.lock().unwrap_or_else(|e| e.into_inner());
     let stack = stacks.entry(id.to_string()).or_default();
     stack.push((what, changes));
@@ -1492,7 +1494,7 @@ impl Office {
             return Err(e.to_string());
         }
         self.with(show, |_, store| {
-            let ops = self.operations(outcome.changes, &self.author(), store.state().last.as_ref());
+            let ops = self.operations(outcome.changes, Vec::new(), &self.author(), store.state().last.as_ref());
             store.append(&ops).map_err(|e| e.0)
         })?;
         Ok(json!({ "sent": what, "server": connection::Server::Simulation, "warnings": outcome.warnings }))
@@ -1611,7 +1613,7 @@ impl Office {
         let officials = se_api::load::read_officials(&rosson_import::delivered::officials(&snapshot))?;
         let event_id: u64 = event.parse().unwrap_or(0);
         let changes = se_api::load::read_event(&rosson_import::delivered::event(&snapshot), &master, &officials, now, &mut || se_api::load::assignment_id(event_id, now, self.random()))?;
-        let ops = self.operations(changes, REHEARSAL, None);
+        let ops = self.operations(changes, Vec::new(), REHEARSAL, None);
         self.create(&format!("{number} rehearsal"), &ops)
     }
 
@@ -1646,7 +1648,7 @@ impl Office {
         let event_id = se_api::load::number(&event["data"]["veranstaltung"]["id"]).unwrap_or(0);
         let number = event["data"]["veranstaltung"]["nr"].as_str().unwrap_or("training").to_string();
         let changes = se_api::load::read_event(event, &master, &officials, now, &mut || se_api::load::assignment_id(event_id, now, self.random()))?;
-        let ops = self.operations(changes, author, None);
+        let ops = self.operations(changes, Vec::new(), author, None);
         self.create(&number, &ops)
     }
 
@@ -1695,13 +1697,17 @@ impl Office {
             if changes.is_empty() {
                 return Ok(None);
             }
-            // What the author saw (R7, R11): applied after others' changes, only theirs counts.
+            // What the author saw (R7, R11): applied after others' changes, only theirs counts;
+            // of anything else, what it was (R12): changed meanwhile, everyone is told.
             store.state().fill_seen(&mut changes);
+            let saws = store.state().saw(&changes);
             let mut undo = prepare::inverse(store.state(), &changes);
-            let ops = self.operations(changes, &author, store.state().last.as_ref());
+            let ops = self.operations(changes, saws, &author, store.state().last.as_ref());
             store.append(&ops).map_err(|e| e.0)?;
-            // Undone later, after others' changes came: only this change is taken back.
+            // Undone later, after others' changes came: only this change is taken back; what it
+            // changes is what this change made (others changed it since: a conflict).
             store.state().fill_seen(&mut undo);
+            let undo = (undo.clone(), store.state().saw(&undo));
             // A change the show refused (e.g. a final class) is an error for the office.
             let ignored: Vec<String> = store.ignored().iter().filter(|(op, _)| ops.iter().any(|o| &o.id == op)).map(|(_, why)| why.clone()).collect();
             if !ignored.is_empty() {
@@ -1737,20 +1743,21 @@ impl Office {
     /// what was applied and what is next on `from`.
     fn step(&self, id: &str, from: &Mutex<HashMap<String, UndoStack>>, to: &Mutex<HashMap<String, UndoStack>>, how: &str) -> Result<(String, Option<String>), String> {
         let last = from.lock().unwrap_or_else(|e| e.into_inner()).get_mut(id).and_then(Vec::pop);
-        let Some((what, changes)) = last else { return Err(format!("nothing to {how}")) };
+        let Some((what, (changes, saws))) = last else { return Err(format!("nothing to {how}")) };
         let author = format!("{} ({how})", self.author());
         let back = self.with(id, |_, store| {
             let mut back = prepare::inverse(store.state(), &changes);
-            let ops = self.operations(changes.clone(), &author, store.state().last.as_ref());
+            let ops = self.operations(changes.clone(), saws.clone(), &author, store.state().last.as_ref());
             store.append(&ops).map_err(|e| e.0)?;
             store.state().fill_seen(&mut back);
-            Ok(back)
+            let saws = store.state().saw(&back);
+            Ok((back, saws))
         });
         let back = match back {
             Ok(back) => back,
             Err(e) => {
                 // Not applied: it stays where it was.
-                push(from, id, what, changes);
+                push(from, id, what, (changes, saws));
                 return Err(e);
             }
         };
@@ -1761,17 +1768,20 @@ impl Office {
 
     /// Changes made here, as operations of this device: stamped after everything the show knows
     /// (`after`), never twice the same (two changes in one millisecond keep their own ids).
-    fn operations(&self, changes: Vec<show::oplog::Change>, author: &str, after: Option<&show::oplog::Stamp>) -> Vec<Operation> {
+    /// `saws`: what the author saw of what each change changes (R12; none: imports, Swiss
+    /// Equestrian's answers).
+    fn operations(&self, changes: Vec<show::oplog::Change>, saws: Vec<show::touched::Saw>, author: &str, after: Option<&show::oplog::Stamp>) -> Vec<Operation> {
         let mut clock = self.clock.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(stamp) = after {
             clock.observe(stamp);
         }
         let now = now_millis();
+        let mut saws = saws.into_iter();
         changes
             .into_iter()
             .map(|change| {
                 let stamp = clock.tick(now);
-                Operation { id: format!("{}:{}:{}", self.device, stamp.millis, stamp.counter), stamp, author: author.into(), change }
+                Operation { id: format!("{}:{}:{}", self.device, stamp.millis, stamp.counter), stamp, author: author.into(), change, saw: saws.next().unwrap_or_default() }
             })
             .collect()
     }

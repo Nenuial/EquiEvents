@@ -221,7 +221,7 @@ impl Se {
             .into_iter()
             .map(|change| {
                 let stamp = clock.tick(now);
-                Operation { id: format!("{DEVICE}:{}:{}", stamp.millis, stamp.counter), stamp, author: author.into(), change }
+                Operation { id: format!("{DEVICE}:{}:{}", stamp.millis, stamp.counter), stamp, author: author.into(), change, saw: Default::default() }
             })
             .collect()
     }

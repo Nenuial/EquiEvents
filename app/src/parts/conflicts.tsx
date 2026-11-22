@@ -1,5 +1,5 @@
 // What was changed on two computers apart (the show's conflicts, docs/architecture/
-// reconciliation.md R2, R4, R7, R11). After a sync the office is told: what was kept and what it
+// reconciliation.md R2, R4, R7, R11, R12). After a sync the office is told: what was kept and what it
 // replaced, by whom and when; the other version can be put back. What was looked at ("Compris")
 // is this computer's own: each person sees what concerns them.
 
@@ -26,7 +26,7 @@ export interface ConflictItem {
 
 export interface ConflictView {
   id: string;
-  kind: 'class' | 'order' | 'numbers' | 'duplicates' | 'result' | 'late_final' | 'class_gone';
+  kind: 'class' | 'order' | 'numbers' | 'duplicates' | 'result' | 'late_final' | 'class_gone' | 'change' | 'change_gone';
   class: string;
   class_label: string;
   kept: ChangeBy | null;
@@ -50,6 +50,37 @@ const FIELDS: Record<string, Key> = {
   'options.placed_count': 'placed_count',
   'options.max_starters': 'max_starters',
   'options.ideal_time': 'ideal_time',
+};
+
+/** Anything else changed on two computers (R12): what it is. */
+const THINGS: Record<string, Key> = {
+  horse: 'horse',
+  rider: 'rider',
+  status: 'conflict_thing_status',
+  hors_concours: 'hors_concours',
+  published: 'conflict_thing_published',
+  stage: 'conflict_thing_stage',
+  comment: 'conflict_thing_comment',
+  horse_phases: 'conflict_thing_horse_phases',
+  entry: 'conflict_thing_entry',
+  assignment: 'official',
+  address: 'conflict_thing_address',
+  team: 'team',
+  event_numbers: 'conflict_thing_event_numbers',
+  prizes: 'conflict_thing_prizes',
+  category_text: 'conflict_thing_category_text',
+  levels: 'conflict_thing_levels',
+  programme: 'programme',
+  scoring_table: 'scoring_label',
+  combined: 'conflict_thing_combined',
+  class: 'conflict_thing_class',
+  class_status: 'conflict_thing_class_status',
+  rank: 'rank',
+  jury_penalty: 'conflict_thing_jury_penalty',
+  card: 'conflict_thing_card',
+  sheet: 'conflict_thing_sheet',
+  penalties: 'penalties',
+  total: 'total',
 };
 
 /** In the show's bar (beside its sync state): changes made on two computers, not looked at yet. */
@@ -160,6 +191,7 @@ function ConflictCard({ conflict: c, reload }: { conflict: ConflictView; reload:
     duplicates: 'conflict_duplicates_text',
     late_final: 'conflict_late_final_text',
     class_gone: 'conflict_class_gone_text',
+    change_gone: 'conflict_change_gone_text',
   };
   const restore = async () => {
     setBusy(true);
@@ -168,25 +200,38 @@ function ConflictCard({ conflict: c, reload }: { conflict: ConflictView; reload:
     await reload();
   };
   const fieldName = (f: string) => t(FIELDS[f] ?? 'conflict_field_other');
-  const table = c.kind === 'class' || c.kind === 'numbers' || c.kind === 'result';
+  // R12: what it is (a mark: its number), and its value as the lists say it.
+  const thingName = (f: string) => (f.startsWith('mark:') ? t('conflict_thing_mark').replace('{n}', f.slice(5)) : THINGS[f] ? t(THINGS[f]) : f);
+  const VALUES: Record<string, Key> = {
+    Entered: 'conflict_value_entered',
+    NotStarting: 'conflict_value_not_starting',
+    Final: 'conflict_value_final',
+    true: 'hors_concours',
+    false: 'conflict_value_in_competition',
+  };
+  const value = (v: string) => (VALUES[v] ? t(VALUES[v]) : v);
+  const changed = c.kind === 'change' || c.kind === 'change_gone';
+  const table = c.kind === 'class' || c.kind === 'numbers' || c.kind === 'result' || c.kind === 'change';
+  // A change set aside: not « kept ».
+  const setAside = c.kind === 'late_final' || c.kind === 'change_gone';
   const more = c.count - c.items.length;
   return (
     <li className="grid gap-2.5 rounded-xl border border-line bg-card px-4 py-3">
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-        <span className="text-[13px] font-semibold text-ink">{t(`conflict_${c.kind}` as Key)}</span>
+        <span className="text-[13px] font-semibold text-ink">{c.kind === 'change' && c.items.length === 1 ? thingName(c.items[0].field) : t(`conflict_${c.kind}` as Key)}</span>
         <span className="min-w-0 truncate text-[13px] text-ink-3">{c.class_label}</span>
       </div>
       {(c.kept || c.replaced) && (
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs">
           {c.kept && (
             <>
-              <dt className="font-semibold text-ink-2">{t('conflict_kept')}</dt>
+              <dt className="font-semibold text-ink-2">{setAside ? t('conflict_set_aside') : t('conflict_kept')}</dt>
               <dd className="min-w-0 truncate text-ink-2">{who(c.kept)}</dd>
             </>
           )}
           {c.replaced && (
             <>
-              <dt className="font-semibold text-ink-2">{t('conflict_replaced')}</dt>
+              <dt className="font-semibold text-ink-2">{c.kind === 'change_gone' ? t('conflict_earlier') : t('conflict_replaced')}</dt>
               <dd className="min-w-0 truncate text-ink-2">{who(c.replaced)}</dd>
             </>
           )}
@@ -206,9 +251,12 @@ function ConflictCard({ conflict: c, reload }: { conflict: ConflictView; reload:
             <tbody>
               {c.items.map((i, k) => (
                 <tr key={k} className="border-t border-line">
-                  <td className="py-1.5 pr-3 text-ink-2">{c.kind === 'class' ? fieldName(i.field) : i.rider}</td>
-                  <td className="py-1.5 pr-3 font-semibold text-ink tabular">{i.kept || '—'}</td>
-                  <td className="py-1.5 text-ink-3 tabular line-through decoration-ink-4">{i.replaced || '—'}</td>
+                  <td className="py-1.5 pr-3 text-ink-2">
+                    {c.kind === 'class' ? fieldName(i.field) : changed ? thingName(i.field) : i.rider}
+                    {changed && i.rider && i.rider !== c.class_label && <span className="block text-ink-3">{i.rider}</span>}
+                  </td>
+                  <td className="py-1.5 pr-3 font-semibold text-ink tabular">{(changed ? value(i.kept) : i.kept) || '—'}</td>
+                  <td className="py-1.5 text-ink-3 tabular line-through decoration-ink-4">{(changed ? value(i.replaced) : i.replaced) || '—'}</td>
                 </tr>
               ))}
             </tbody>
@@ -220,7 +268,7 @@ function ConflictCard({ conflict: c, reload }: { conflict: ConflictView; reload:
           {c.items.map((i, k) => (
             <li key={k} className="truncate">
               {c.kind === 'duplicates' && <span className="mr-1.5 font-semibold text-ink tabular">{i.kept}</span>}
-              {i.rider}
+              {c.kind === 'change_gone' ? [thingName(i.field), i.rider !== c.class_label ? i.rider : ''].filter(Boolean).join(' · ') : i.rider}
             </li>
           ))}
         </ul>

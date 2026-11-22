@@ -14,7 +14,7 @@ fn class() -> ClassId {
 
 fn apply(state: &mut State, clock: &mut Clock, change: Change) {
     let stamp = clock.tick(1);
-    state.apply(&Operation { id: format!("op{}", stamp.counter), stamp, author: "office".into(), change });
+    state.apply(&Operation { id: format!("op{}", stamp.counter), stamp, author: "office".into(), change, saw: Default::default() });
 }
 
 fn marks(pairs: &[(&str, Option<i64>)]) -> BTreeMap<String, Option<Decimal>> {

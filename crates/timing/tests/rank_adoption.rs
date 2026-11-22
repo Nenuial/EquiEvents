@@ -106,7 +106,7 @@ fn timekeeper_ranks_taken_over_as_rosson() {
                 let start = state.last.as_ref().map_or(0, |s| s.counter + 1);
                 for (i, change) in changes.iter().enumerate() {
                     let counter = start + i as u32;
-                    let outcome = state.apply(&Operation { id: format!("t{counter}"), stamp: Stamp { millis: 1, counter, device: "test".into() }, author: "test".into(), change: change.clone() });
+                    let outcome = state.apply(&Operation { id: format!("t{counter}"), stamp: Stamp { millis: 1, counter, device: "test".into() }, author: "test".into(), change: change.clone(), saw: Default::default() });
                     assert_eq!(outcome, show::state::Outcome::Applied);
                 }
             };

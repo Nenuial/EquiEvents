@@ -31,8 +31,8 @@ decision on every device), and a **conflict** is recorded with the three values:
 author saw, the one that was overwritten, and the new one. The office reviews and, if needed,
 corrects with a new edit.
 
-Whole score cards (`ResultEntered`, e.g. an import from a timing file) replace the card and do
-not check previous values; they are used for imports, not for edits by hand.
+Whole score cards (`ResultEntered`, e.g. an import from a timing file) replace the card; made at
+the show, what the card was is checked as anything else (R12).
 
 ### R3 · Final classes ignore changes until reopened — implemented
 
@@ -91,6 +91,32 @@ together) is not applied (`ClassGone`).
 **Undo** after a sync takes back only one's own change: the undo carries, as what it saw, the
 state right after the change it undoes, so what others changed since stays.
 
+### R12 · Anything changed apart is said — implemented
+
+Decided by the user, 2026-11-22 ("the users need to be aware that what they did clashed, in all
+situations, always"): two computers offline gave a rider two different horses; the later stayed
+and no one was told. Every change made at the show now carries what its author saw of each thing
+it sets (`Operation::saw`, `show::touched`): an entry's fields one by one (horse, rider, status,
+hors concours, class, level, note, the horses' phases), an official's role, a rider's address, a
+team, prizes, a published class's printed category and levels, a test or scoring table, a
+ranking over several classes, a rank set by hand, the jury's penalties, a whole score card, a
+judge's sheet mark by mark (its penalties, its total). Applied where one of them is no longer what
+the author saw — changed on another device, unknown to the author:
+
+- the change is applied all the same (the later wins, as R2) and is a **conflict** (`change`)
+  with what it replaced, the change it went over, both authors and times; the other version can
+  be put back. Both giving the same value replaced nothing: no conflict.
+- what it changed is gone meanwhile (an entry taken back), or its class was finalised meanwhile
+  (a change stamped after the finalisation, R3): it is not applied, and that is a conflict too
+  (`change_gone`).
+
+Different things are no clash: a horse here and a note there both stay, two marks of the same
+sheet too. Classes, start lists and results' fields keep their own rules (R11, R7, R2); deliveries
+and imports carry nothing (Swiss Equestrian's). An undo carries, as what it saw, the state right
+after the change it undoes: undone after someone else changed the same thing, it is said.
+Operations made before 2026-11-22 carry nothing and are not checked. Tests:
+`crates/show/tests/clashes.rs`, `two_horses_for_one_rider` in `crates/office/tests/offline.rs`.
+
 ### R8 · Local changes to Swiss Equestrian data are layered — planned
 
 Data downloaded from Swiss Equestrian (entries, riders, horses) is the base; changes made at the show (rider
@@ -110,7 +136,7 @@ ranked, and listed as a conflict.
 
 ## What the office sees
 
-Every device finds the same conflicts (they come from the log). Each conflict names the change
+Every device finds the same conflicts (they come from the log), whatever was changed (R12). Each conflict names the change
 kept and the earlier one it went over (`over`: the last operation that changed the same thing),
 with their authors (the account's name) and times, and what was replaced (`lost`). The app shows
 those not yet looked at on this computer beside the sync state, and once as a note when a sync

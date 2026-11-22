@@ -48,7 +48,7 @@ fn without(rows: &Value, fields: &[&str]) -> Value {
 
 fn state_of(changes: Vec<show::oplog::Change>) -> State {
     let mut clock = Clock::new("test");
-    let ops = changes.into_iter().enumerate().map(|(i, change)| Operation { id: format!("op{i}"), stamp: clock.tick(0), author: "test".into(), change }).collect();
+    let ops = changes.into_iter().enumerate().map(|(i, change)| Operation { id: format!("op{i}"), stamp: clock.tick(0), author: "test".into(), change, saw: Default::default() }).collect();
     let (mut state, ignored) = State::from_log(ops);
     assert!(ignored.is_empty(), "{ignored:?}");
     // The records kept for writing Rosson's format come from Swiss Equestrian's answers here
