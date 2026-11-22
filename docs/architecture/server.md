@@ -176,12 +176,16 @@ Decided 2026-11-14 (`crates/server/src/shows.rs`):
   `training`: the app's settings load them).
 - **From a Rosson export** (the user, 2026-11-21: "if they have the export, they have the key";
   people start an event in Rosson and switch to EquiEvents, and back: *Exporter pour Rosson*).
-  An imported show goes on equievents.ch by itself when its office is signed in (the library,
-  desktop and online), with the key the export carries (else the office types it): the first
-  owns it, the others ask, as above. A current event's key is checked with Swiss Equestrian as
-  any; a past event's, which Swiss Equestrian no longer accepts, is **taken on trust** for a show
-  imported from the export (`from_export`, the office says so: its first operations are the
-  import's), and stored as unchecked (`shows.key_checked`). A key Swiss Equestrian accepts wins
+  **An import goes through equievents.ch first** (the user, 2026-11-22: a copy imported apart
+  from someone else's event, then that event downloaded once let in, made two). The office
+  (`import_online`: a Rosson export's event, or an EquiEvents show file of a real event) asks
+  for the event's show with the key the file carries (else the office types it) before writing
+  anything: the first imports it and owns it, the show going up at once; one already working on
+  it gets equievents.ch's show, not the file; someone else's is never imported, only asked for
+  (access or the event itself); without equievents.ch, no import. A current event's key is
+  checked with Swiss Equestrian as any; a past event's, which Swiss Equestrian no longer
+  accepts, is **taken on trust** when it comes from the export itself (`from_export`; a key
+  typed is Swiss Equestrian's to check), and stored as unchecked (`shows.key_checked`). A key Swiss Equestrian accepts wins
   over one taken on trust: that show is no longer the event's (it stays, unlinked, its owner told
   by e-mail) and the event's show is made for the checked key; a key taken on trust never wins
   over a checked one. The same key, accepted later, marks the show checked.
@@ -315,7 +319,7 @@ failure is logged and tried again the next night. `equievents-server backup` mak
 Copy them off the server as the other apps' dumps. Restore: `pg_restore --clean --no-owner -d
 equievents <file>` into the database container. The `offices` volume holds the online
 version's copies of shows that are in the database anyway (made again from it when lost), apart
-from shows imported there and not put on equievents.ch.
+from training shows and copies imported there before 0.2.5 and never put on equievents.ch.
 
 ## Deployment
 

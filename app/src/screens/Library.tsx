@@ -15,6 +15,7 @@ import {
   FileDown,
   FileInput,
   FolderOpen,
+  HardDrive,
   Import,
   MapPin,
   Plus,
@@ -26,7 +27,22 @@ import {
 import { call, chooseFile, saveFile, type EventInFile, type ShowSummary } from '../api';
 import { formatDate, usePlural, useT, type Language } from '../i18n';
 import { ErrorNote, useLoad } from '../parts/common';
-import { AccountButton, AfterImport, DeleteShow, OnlineShows, OpenWithKey, RequestsDialog, useLibrarySync, useRefusal, type AccountView, type PutAnswer, type RemoteShow } from '../parts/online';
+import {
+  AccountButton,
+  DeleteShow,
+  ImportDialog,
+  OnlineShows,
+  OpenWithKey,
+  RequestsDialog,
+  importOnline,
+  imports,
+  useLibrarySync,
+  useRefusal,
+  type AccountView,
+  type ImportAnswer,
+  type ImportFile,
+  type RemoteShow,
+} from '../parts/online';
 import { SettingsButton } from '../parts/settings';
 import { downloadPage } from '../site';
 import { UpdateButton } from '../parts/update';
@@ -91,34 +107,28 @@ export default function Library({
   // An event already on this computer (by its number).
   const here = (e: EventInFile) => !!shows.data?.some(s => s.event?.number === e.number);
 
-  // A Rosson export: the real show, as it ended, with all its data (its results, contacts, the
-  // event's key). One event: at once; several: those ticked. Signed in, each goes on
-  // equievents.ch at once (the user, 2026-11-21): the first to put an event up owns it, past
-  // events too (their key comes with the export); what did not simply go up is said.
-  const [afterImport, setAfterImport] = useState<{ show: string; answer: PutAnswer } | null>(null);
-  const goOnline = async (show: string): Promise<PutAnswer | null> => {
-    if (!account.data?.signed_in) return null;
-    try {
-      return await call<PutAnswer>('put_online', { show, access_key: null });
-    } catch (e) {
-      return { outcome: String((e as Error)?.message ?? e) };
-    }
-  };
-  const wentUp = (a: PutAnswer | null) => !a || ['made', 'linked', 'training', 'signed_out'].includes(a.outcome);
-  const imported = async (made: string[]) => {
-    if (account.data?.signed_in) toast.show({ text: t('import_online_busy'), tone: 'busy' });
+  // A Rosson export (the real show, as it ended, with all its data and the event's key) or an
+  // EquiEvents show file: imported through equievents.ch (the user, 2026-11-22). The first to
+  // bring an event owns it, past events too; one already works on: equievents.ch's show, not the
+  // file; someone else's: never imported, only asked for; without equievents.ch: no import.
+  const [refused, setRefused] = useState<{ file: ImportFile; answer: ImportAnswer }[] | null>(null);
+  const bring = async (files: ImportFile[]) => {
+    toast.show({ text: t('import_online_busy'), tone: 'busy' });
     const answers = [];
-    for (const show of made) answers.push(await goOnline(show));
+    for (const file of files) answers.push({ file, answer: await importOnline(file) });
     toast.clear();
     setOnline(v => v + 1);
-    if (made.length === 1) {
-      if (!wentUp(answers[0])) return setAfterImport({ show: made[0], answer: answers[0]! });
-      if (answers[0]?.outcome === 'made') toast.show({ text: t('import_online_made') });
-      return open(made[0]);
-    }
-    const up = answers.filter(a => a?.outcome === 'made').length;
-    if (account.data?.signed_in) toast.show({ text: t('import_online_some').replace('{n}', String(up)), tone: up === made.length ? 'done' : 'info' });
     shows.reload();
+    const came = answers.filter(a => imports(a.answer.outcome));
+    if (came.length < answers.length) {
+      if (came.length) toast.show({ text: t('import_online_some').replace('{n}', String(came.length)), tone: 'info' });
+      return setRefused(answers.filter(a => !imports(a.answer.outcome)));
+    }
+    if (answers.length > 1) return toast.show({ text: t('import_online_some').replace('{n}', String(came.length)) });
+    const { outcome, show } = answers[0].answer;
+    if (outcome === 'made') toast.show({ text: t('import_online_made') });
+    if (outcome === 'member') toast.show({ text: t('import_online_member') });
+    open(show!);
   };
 
   const importRosson = () =>
@@ -126,27 +136,23 @@ export default function Library({
       const path = await chooseFile(['txt'], t('rosson_file'));
       if (!path) return;
       const events = await call<EventInFile[]>('rosson_events', { path });
-      if (events.length === 1) {
-        const { show } = await call<{ show: string }>('import_rosson', { path, event: events[0].id, mode: 'ended' });
-        await imported([show]);
-      } else setPicking({ path, events, chosen: events.filter(e => !here(e)).map(e => e.id) });
+      if (events.length === 1) await bring([{ path, event: events[0].id }]);
+      else setPicking({ path, events, chosen: events.filter(e => !here(e)).map(e => e.id) });
     });
 
   const importChosen = () =>
     run(async () => {
       if (!picking) return;
-      const made: string[] = [];
-      for (const event of picking.chosen) made.push((await call<{ show: string }>('import_rosson', { path: picking.path, event, mode: 'ended' })).show);
+      const files = picking.chosen.map(event => ({ path: picking.path, event }));
       setPicking(null);
-      await imported(made);
+      await bring(files);
     });
 
   const importShow = () =>
     run(async () => {
       const path = await chooseFile(['equievents'], t('show_file'));
       if (!path) return;
-      const { show } = await call<{ show: string }>('import_show', { path });
-      open(show);
+      await bring([{ path }]);
     });
 
   const exportShow = (s: ShowSummary, withPrivate: boolean) =>
@@ -172,7 +178,7 @@ export default function Library({
   // A show, as a card (both pages).
   const card = (s: ShowSummary) => (
     <Card key={s.id} className="group flex flex-col overflow-hidden transition-shadow hover:shadow-lift">
-      <button onClick={() => open(s.id)} className="flex-1 p-5 text-left outline-none focus-visible:bg-hover">
+      <button onClick={() => open(s.id)} className="flex flex-1 flex-col p-5 text-left outline-none focus-visible:bg-hover">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="mr-1 text-xs font-bold text-accent tabular">{s.event?.number ?? s.id}</span>
           {s.event?.disciplines.map(d => (
@@ -196,6 +202,13 @@ export default function Library({
                 {formatDate(s.event.from, language)}
                 {s.event.to !== s.event.from && ` – ${formatDate(s.event.to, language)}`}
               </span>
+            </span>
+          )}
+          {/* A real event not on equievents.ch: a copy apart (an import from before 0.2.5). */}
+          {signedIn && s.event && !s.online && !s.training && !s.rehearsal && (
+            <span className="flex min-w-0 items-center gap-2 text-warn">
+              <HardDrive className="size-3.5 shrink-0" />
+              <span className="truncate">{account.data?.hosted ? t('online_local_hosted') : t('library_local_only')}</span>
             </span>
           )}
         </div>
@@ -288,16 +301,17 @@ export default function Library({
           <Logo dark compact />
           <div className="flex-1" />
           <UpdateButton />
-          {/* The online version: the desktop apps, beside the account (the user, 2026-11-21). */}
+          {/* The online version: the desktop apps, beside the account (the user, 2026-11-21); not on
+              a phone or a tablet, which cannot run them (the user, 2026-11-22). */}
           {account.data?.hosted && (
             <a
               href={downloadPage(language)}
               aria-label={t('online_download_app')}
               title={t('online_download_app')}
-              className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg bg-white px-2.5 text-[13px] font-semibold text-nav shadow-xs hover:bg-white/90 sm:px-3 pointer-coarse:h-10"
+              className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg bg-white px-3 text-[13px] font-semibold text-nav shadow-xs hover:bg-white/90 max-sm:hidden pointer-coarse:hidden"
             >
               <Download className="size-4 shrink-0" aria-hidden />
-              <span className="hidden sm:inline">{t('download_app_short')}</span>
+              {t('download_app_short')}
             </a>
           )}
           <AccountButton
@@ -463,16 +477,17 @@ export default function Library({
           }}
         />
       )}
-      {afterImport && (
-        <AfterImport
-          show={afterImport.show}
-          answer={afterImport.answer}
-          openShow={open}
+      {refused && (
+        <ImportDialog
+          items={refused}
+          openShow={id => {
+            setRefused(null);
+            open(id);
+          }}
           close={() => {
-            const show = afterImport.show;
-            setAfterImport(null);
+            setRefused(null);
             setOnline(v => v + 1);
-            open(show);
+            shows.reload();
           }}
         />
       )}

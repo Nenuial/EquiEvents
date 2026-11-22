@@ -743,6 +743,87 @@ fn registry(library: &std::path::Path, rider: (u64, &str, &str), horse: (u64, &s
     std::fs::write(dir.join("about.json"), json!({ "persons": 1, "horses": 1, "persons_at": 1_794_000_000_000u64, "horses_at": 1_794_000_000_000u64, "simulated": false }).to_string()).unwrap();
 }
 
+/// Imports go through equievents.ch (the user, 2026-11-22: a request, then the same event
+/// imported a second time, was a copy apart): the first to bring an event owns it; someone
+/// else's is never imported, only asked for, and once let in it comes from equievents.ch; the
+/// same file again opens the show one has; no connection, no import. EquiEvents show files too.
+#[tokio::test(flavor = "multi_thread")]
+async fn imports_go_through_equievents() {
+    let Some(test_db) = TestDb::new("imports").await else { return };
+    let s = server(&test_db).await;
+    let (url, _, stop) = serve(s.router.clone(), None).await;
+    let dir = tempfile::tempdir().unwrap();
+    let file = rosson_file(dir.path());
+    let laptop = |name: &str| std::sync::Arc::new(office::Office::new(&dir.path().join(name), name).unwrap());
+    let (anne, bruno, carla) = (laptop("anne"), laptop("bruno"), laptop("carla"));
+    for (o, name) in [(&anne, "Anne"), (&bruno, "Bruno"), (&carla, "Carla")] {
+        office(o, "set_server", json!({ "url": url })).await;
+        office(o, "sign_up", json!({ "name": name, "email": format!("{}@example.ch", name.to_lowercase()), "password": "a-good-password", "language": "fr" })).await;
+    }
+    let event = office(&anne, "rosson_events", json!({ "path": file })).await[0]["id"].as_str().unwrap().to_string();
+    let import = |o: &std::sync::Arc<office::Office>, key: Option<&str>| {
+        let (o, args) = (o.clone(), json!({ "path": file, "event": event, "access_key": key }));
+        async move { office(&o, "import_online", args).await }
+    };
+    let shows = |o: std::sync::Arc<office::Office>| async move { office(&o, "library", json!({})).await.as_array().unwrap().len() };
+
+    // This export has no key: one to type; nothing imported meanwhile.
+    let asked = import(&anne, None).await;
+    assert_eq!((asked["outcome"].as_str(), asked["number"].as_str()), (Some("need_key"), Some("2026.8352")), "{asked}");
+    assert_eq!(shows(anne.clone()).await, 0);
+    // With it: Anne's, imported and on equievents.ch at once.
+    let made = import(&anne, Some("KEY-8352")).await;
+    assert_eq!(made["outcome"], "made", "{made}");
+    let (a_show, remote) = (made["show"].as_str().unwrap().to_string(), made["remote"].as_str().unwrap().to_string());
+    assert_eq!((made["sync"]["status"].as_str(), made["sync"]["role"].as_str()), (Some("synced"), Some("owner")));
+    assert!(made["sync"]["pushed"].as_u64().unwrap() > 100, "{made}");
+    // The same file again (its key kept): the show she has, no copy.
+    let again = import(&anne, None).await;
+    assert_eq!((again["outcome"].as_str(), again["show"].as_str()), (Some("member"), Some(a_show.as_str())), "{again}");
+    assert_eq!(shows(anne.clone()).await, 1);
+
+    // Bruno, with the same export and key: Anne's. Nothing imported; he asks her (the key
+    // given back for it).
+    let owned = import(&bruno, Some("KEY-8352")).await;
+    assert_eq!((owned["outcome"].as_str(), owned["owner"].as_str(), owned["remote"].as_str(), owned["access_key"].as_str()), (Some("owned"), Some("Anne"), Some(remote.as_str()), Some("KEY-8352")), "{owned}");
+    assert_eq!(shows(bruno.clone()).await, 0);
+    let asked = office(&bruno, "ask_owner", json!({ "remote": remote, "kind": "access", "access_key": owned["access_key"] })).await;
+    assert_eq!(asked["request"]["status"], "pending", "{asked}");
+    // Asked again before she answers: still nothing here, the request waiting.
+    let waiting = import(&bruno, None).await;
+    assert_eq!((waiting["outcome"].as_str(), waiting["request"]["status"].as_str()), (Some("owned"), Some("pending")), "{waiting}");
+    assert_eq!(shows(bruno.clone()).await, 0);
+    // She lets him in: the file now brings him equievents.ch's show, the same as hers.
+    let requests = office(&anne, "show_requests", json!({ "show": a_show })).await;
+    let request = requests["requests"][0]["id"].as_i64().unwrap();
+    assert_eq!(office(&anne, "answer_request", json!({ "show": a_show, "id": request, "accept": true })).await["ok"], true);
+    let member = import(&bruno, None).await;
+    assert_eq!((member["outcome"].as_str(), member["role"].as_str()), (Some("member"), Some("collaborator")), "{member}");
+    let b_show = member["show"].as_str().unwrap().to_string();
+    assert_eq!(view(&bruno, &b_show).await, view(&anne, &a_show).await);
+    assert_eq!(import(&bruno, None).await["show"], json!(b_show), "once");
+    assert_eq!(shows(bruno.clone()).await, 1);
+
+    // An EquiEvents show file of the event: the same rule (its key is not in the file).
+    let saved = dir.path().join("2026.8352.equievents");
+    office(&anne, "export_show", json!({ "show": a_show, "path": saved, "private": true })).await;
+    let from_file = |key: Option<&str>| {
+        let (o, args) = (carla.clone(), json!({ "path": saved, "access_key": key }));
+        async move { office(&o, "import_online", args).await }
+    };
+    assert_eq!(from_file(None).await["outcome"], "need_key");
+    let owned = from_file(Some("KEY-8352")).await;
+    assert_eq!((owned["outcome"].as_str(), owned["owner"].as_str()), (Some("owned"), Some("Anne")), "{owned}");
+    assert_eq!(shows(carla.clone()).await, 0);
+
+    // Without equievents.ch: no import.
+    stop.send(()).unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    assert_eq!(import(&carla, Some("KEY-8352")).await["outcome"], "offline");
+    assert_eq!(shows(carla.clone()).await, 0);
+    test_db.drop().await;
+}
+
 /// The office's question of 2026-11-16: Anne and Bruno, each on a laptop, offline (the server
 /// is down), both rename class 1, move a rider and give start numbers; Anne adds a late entry.
 /// When the server is back and both have synced: the same show on both, both moves kept, the

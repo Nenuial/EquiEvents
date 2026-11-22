@@ -1786,7 +1786,7 @@ impl Office {
     }
 }
 
-fn read_rosson(path: &Path) -> Result<rosson_import::export::RossonExport, String> {
+pub(crate) fn read_rosson(path: &Path) -> Result<rosson_import::export::RossonExport, String> {
     let bytes = std::fs::read(path).map_err(|e| format!("{}: {e}", path.display()))?;
     rosson_import::export::read(&bytes).map_err(|e| e.0)
 }

@@ -1488,5 +1488,15 @@
   "fr": "Pas de façon de supprimer un concours appelée {1}.",
   "de": "Keine Art, ein Turnier zu löschen, namens {1}.",
   "it": "Nessun modo di eliminare un concorso chiamato {1}."
+ },
+ "no event {} in the file": {
+  "fr": "L’événement {1} n’est pas dans le fichier.",
+  "de": "Die Veranstaltung {1} ist nicht in der Datei.",
+  "it": "L’evento {1} non è nel file."
+ },
+ "event {}: not an event of Swiss Equestrian": {
+  "fr": "{1} n’est pas un événement de Swiss Equestrian.",
+  "de": "{1} ist keine Veranstaltung von Swiss Equestrian.",
+  "it": "{1} non è un evento di Swiss Equestrian."
  }
 }

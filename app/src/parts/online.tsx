@@ -456,12 +456,27 @@ function OnlinePanel({ show, status, reload, sync, openShow }: { show: string; s
   return <Linked show={show} status={status} reload={reload} sync={sync} />;
 }
 
-/** A Rosson import goes on equievents.ch at once when signed in (the user, 2026-11-21: the
- *  first to put an event up owns it); when it did not simply go up (someone else's, ours
- *  already, a key to type, no connection), what came of it and what to do. */
-export function AfterImport({ show, answer, close, openShow }: { show: string; answer: PutAnswer; close: () => void; openShow: (id: string) => void }) {
+/** A file to import (`import_online`): an event of a Rosson export, or an EquiEvents show file. */
+export type ImportFile = { path: string; event?: string };
+/** What an import through equievents.ch gave: `made`, `member`, `local` (a show to open);
+ *  `owned` (someone else's: nothing imported), `need_key`, `key`, `offline`… (nothing either). */
+export type ImportAnswer = { outcome: string; show?: string; remote?: string; owner?: string; request?: Request | null; access_key?: string; number?: string; title?: string };
+export const imports = (outcome: string) => ['made', 'member', 'local'].includes(outcome);
+
+/** An import through equievents.ch (the user, 2026-11-22: imports only with equievents.ch, which
+ *  checks who holds the event; someone else's is never imported, only asked for). */
+export async function importOnline(file: ImportFile, accessKey?: string): Promise<ImportAnswer> {
+  try {
+    return await call<ImportAnswer>('import_online', { path: file.path, event: file.event ?? null, access_key: accessKey ?? null });
+  } catch (e) {
+    return { outcome: String((e as Error)?.message ?? e) };
+  }
+}
+
+/** The imports that did not simply come in: someone else's event (ask them), a key to type, no
+ *  connection. */
+export function ImportDialog({ items, close, openShow }: { items: { file: ImportFile; answer: ImportAnswer }[]; close: () => void; openShow: (id: string) => void }) {
   const t = useT();
-  const status = useLoad(() => call<SyncStatus>('sync_status', { show }), [show]);
   return (
     <Modal
       open
@@ -472,28 +487,152 @@ export function AfterImport({ show, answer, close, openShow }: { show: string; a
       size="md"
       footer={
         <Button variant="ghost" onClick={close}>
-          {t('import_online_later')}
+          {t('close')}
         </Button>
       }
     >
-      {status.data && <PutOnline show={show} status={status.data} initial={answer} done={close} openShow={openShow} />}
+      <div className="grid gap-3">
+        {items.map(item => (
+          <ImportItem key={`${item.file.path} ${item.file.event ?? ''}`} file={item.file} initial={item.answer} openShow={openShow} />
+        ))}
+      </div>
     </Modal>
+  );
+}
+
+function ImportItem({ file, initial, openShow }: { file: ImportFile; initial: ImportAnswer; openShow: (id: string) => void }) {
+  const t = useT();
+  const refusal = useRefusal();
+  const [answer, setAnswer] = useState(initial);
+  const [key, setKey] = useState('');
+  const [busy, setBusy] = useState(false);
+  const again = async (e?: FormEvent) => {
+    e?.preventDefault();
+    setBusy(true);
+    const next = await importOnline(file, key.trim() || undefined);
+    setBusy(false);
+    // A wrong key leaves the key to correct; anything else, the new answer.
+    setAnswer(next.outcome === 'key' ? { ...answer, outcome: 'key' } : { ...answer, ...next });
+  };
+  const keyAsked = answer.outcome === 'need_key' || answer.outcome === 'key';
+  return (
+    <div className="grid gap-3 rounded-xl border border-line p-4 text-sm">
+      {(answer.number || answer.title) && (
+        <div>
+          <div className="text-xs font-semibold text-accent tabular">{answer.number}</div>
+          <div className="font-semibold">{answer.title}</div>
+        </div>
+      )}
+      {imports(answer.outcome) && answer.show && (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-ink-2">{answer.outcome === 'member' ? t('import_online_member') : t('import_online_made')}</span>
+          <Button size="sm" onClick={() => openShow(answer.show!)}>
+            {t('open')}
+          </Button>
+        </div>
+      )}
+      {answer.outcome === 'owned' && (
+        <>
+          <AskOwner remote={answer.remote ?? ''} owner={answer.owner ?? ''} request={answer.request} accessKey={answer.access_key} />
+          <p className="text-xs text-ink-3">{t('import_owned_hint')}</p>
+        </>
+      )}
+      {keyAsked && (
+        <form onSubmit={again} className="grid gap-3">
+          {/* No key in the file, or one refused (the file's, or one typed). */}
+          {answer.outcome === 'need_key' ? <p className="text-ink-2">{t('import_need_key')}</p> : <p className="font-semibold text-danger">{t('import_other_key')}</p>}
+          <Field label={t('online_key')}>
+            <input className={input} value={key} onChange={e => setKey(e.target.value)} disabled={busy} spellCheck={false} autoComplete="off" autoCapitalize="off" />
+          </Field>
+          <Button type="submit" variant="primary" loading={busy} disabled={!key.trim()} className="justify-self-start">
+            {t('import')}
+          </Button>
+        </form>
+      )}
+      {!imports(answer.outcome) && answer.outcome !== 'owned' && !keyAsked && (
+        <>
+          <p className="font-semibold text-danger">{refusal(answer.outcome)}</p>
+          <p className="text-ink-2">{t('import_needs_server')}</p>
+          <Button size="sm" loading={busy} onClick={() => again()} icon={RefreshCw} className="justify-self-start">
+            {t('import_again')}
+          </Button>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Someone else holds the event: ask them for access or for the event itself, or take the
+ *  request back. */
+function AskOwner({ remote, owner, request: initial, accessKey }: { remote: string; owner: string; request?: Request | null; accessKey?: string }) {
+  const t = useT();
+  const refusal = useRefusal();
+  const [request, setRequest] = useState(initial ?? null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const run = async (f: () => Promise<void>) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await f();
+    } catch (e) {
+      setError(String((e as Error)?.message ?? e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const ask = (kind: 'access' | 'ownership') =>
+    run(async () => {
+      const answer = await call<{ ok: true; request: Request } | Refusal>('ask_owner', { remote, kind, access_key: accessKey });
+      if (!answer.ok) return setError(refusal(answer.code));
+      setRequest(answer.request);
+    });
+  const withdraw = () =>
+    run(async () => {
+      await call('withdraw_request', { id: request!.id });
+      setRequest(null);
+    });
+  return (
+    <div className="grid gap-3">
+      <p>
+        <span className="font-semibold">{owner}</span> {t('online_owned')}
+      </p>
+      {request?.status === 'pending' ? (
+        <div className="grid gap-2 rounded-lg border border-line p-3">
+          <span>
+            {t('online_waiting')} ({request.kind === 'ownership' ? t('online_ask_ownership') : t('online_ask_access')})
+          </span>
+          <button disabled={busy} onClick={withdraw} className={`${secondary} justify-self-start`}>
+            {t('online_withdraw')}
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          <button disabled={busy} onClick={() => ask('access')} className={primary}>
+            {t('online_ask_access')}
+          </button>
+          <button disabled={busy} onClick={() => ask('ownership')} className={secondary}>
+            {t('online_ask_ownership')}
+          </button>
+        </div>
+      )}
+      {error && <p className="font-semibold text-danger">{error}</p>}
+    </div>
   );
 }
 
 /** What putting a show on equievents.ch gave (`put_online`). */
 export type PutAnswer = { outcome: string; remote?: string; owner?: string; request?: Request | null };
 
-/** Putting a show on equievents.ch (`initial`: what an attempt already gave, after an import). */
-function PutOnline({ show, status, done, openShow, initial }: { show: string; status: SyncStatus; done: () => void; openShow: (id: string) => void; initial?: PutAnswer }) {
+/** Putting a show on equievents.ch. */
+function PutOnline({ show, status, done, openShow }: { show: string; status: SyncStatus; done: () => void; openShow: (id: string) => void }) {
   const t = useT();
   const refusal = useRefusal();
-  const chosen = initial && (initial.outcome === 'member' || initial.outcome === 'owned') ? initial : null;
   const [key, setKey] = useState('');
-  const [askKey, setAskKey] = useState(initial?.outcome === 'need_key' || initial?.outcome === 'key');
+  const [askKey, setAskKey] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(initial && !chosen && initial.outcome !== 'need_key' ? refusal(initial.outcome) : null);
-  const [outcome, setOutcome] = useState<PutAnswer | null>(chosen);
+  const [error, setError] = useState<string | null>(null);
+  const [outcome, setOutcome] = useState<PutAnswer | null>(null);
 
   const run = async (f: () => Promise<void>) => {
     setBusy(true);
@@ -890,18 +1029,6 @@ export function OpenWithKey({ close, open, signedIn }: { close: () => void; open
       setError(answer.outcome === 'key' ? t('online_err_key_unknown') : refusal(answer.outcome));
     });
   };
-  const ask = (kind: 'access' | 'ownership') =>
-    run(async () => {
-      const answer = await call<{ ok: true; request: Request } | Refusal>('ask_owner', { remote: owned!.remote, kind, access_key: key });
-      if (!answer.ok) return setError(refusal(answer.code));
-      setOwned({ ...owned!, request: answer.request });
-    });
-  const withdraw = () =>
-    run(async () => {
-      await call('withdraw_request', { id: owned!.request!.id });
-      setOwned({ ...owned!, request: null });
-    });
-
   const signedOut = account.data && !account.data.signed_in;
   return (
     <Modal
@@ -941,32 +1068,7 @@ export function OpenWithKey({ close, open, signedIn }: { close: () => void; open
             {busy && <Callout tone="info">{t('open_key_waiting')}</Callout>}
           </form>
         )}
-        {owned && (
-          <>
-            <p>
-              <span className="font-semibold">{owned.owner}</span> {t('online_owned')}
-            </p>
-            {owned.request?.status === 'pending' ? (
-              <div className="grid gap-2 rounded-lg border border-line p-3">
-                <span>
-                  {t('online_waiting')} ({owned.request.kind === 'ownership' ? t('online_ask_ownership') : t('online_ask_access')})
-                </span>
-                <button disabled={busy} onClick={withdraw} className={`${secondary} justify-self-start`}>
-                  {t('online_withdraw')}
-                </button>
-              </div>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                <button disabled={busy} onClick={() => ask('access')} className={primary}>
-                  {t('online_ask_access')}
-                </button>
-                <button disabled={busy} onClick={() => ask('ownership')} className={secondary}>
-                  {t('online_ask_ownership')}
-                </button>
-              </div>
-            )}
-          </>
-        )}
+        {owned && <AskOwner remote={owned.remote} owner={owned.owner} request={owned.request} accessKey={key} />}
         {error && <p className="font-semibold text-danger">{error}</p>}
       </div>
     </Modal>

@@ -81,9 +81,10 @@ pub(crate) const META_ARCHIVED: &str = "archived";
 pub(crate) const META_ROLE: &str = "role";
 
 /// The commands of this module.
-pub const COMMANDS: [&str; 25] = [
+pub const COMMANDS: [&str; 26] = [
     "account",
     "open_with_key",
+    "import_online",
     "update_from_se",
     "set_server",
     "sign_up",
@@ -108,6 +109,13 @@ pub const COMMANDS: [&str; 25] = [
     "account_settings",
     "set_account_settings",
 ];
+
+/// A file to import through equievents.ch (`import_online`): an event of a Rosson export, or an
+/// EquiEvents show file.
+enum Import<'a> {
+    Rosson { path: &'a std::path::Path, event: &'a str },
+    Show { path: &'a std::path::Path },
+}
 
 /// Who is signed in on this computer (the library's settings; the token is a secret).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -277,6 +285,14 @@ impl Office {
             "online_shows" => self.online_shows(),
             "put_online" => self.put_online(arg(args, "show")?, args["access_key"].as_str()),
             "open_with_key" => self.open_with_key(arg(args, "access_key")?),
+            "import_online" => {
+                let path = std::path::Path::new(arg(args, "path")?);
+                let file = match args["event"].as_str() {
+                    Some(event) => Import::Rosson { path, event },
+                    None => Import::Show { path },
+                };
+                self.import_online(file, args["access_key"].as_str())
+            }
             "update_from_se" => self.update_from_se(arg(args, "show")?),
             "ask_owner" => {
                 let kind = if args["kind"] == "ownership" { "ownership" } else { "access" };
@@ -687,6 +703,85 @@ impl Office {
                 Ok(json!({ "outcome": "owned", "remote": body["id"], "name": body["name"], "owner": body["owner"], "request": body["request"] }))
             }
             Err(f) => Ok(json!({ "outcome": f.code(), "error": f.message() })),
+        }
+    }
+
+    /// An import goes through equievents.ch first (the user, 2026-11-22: no copy of an event
+    /// someone holds; imports only with equievents.ch, which checks who holds the event). The
+    /// first to bring an event owns it: `made` (imported, on equievents.ch, synced). One works on
+    /// it already: `member`, that show (downloaded when not here), the file not imported.
+    /// Someone else holds it: `owned`, nothing imported; ask them (`ask_owner` with the key given
+    /// back). No key in the file: `need_key`; `key`: refused; no connection: `offline`, etc.,
+    /// nothing imported either. A show file without a real event (a rehearsal, a training show)
+    /// stays on this computer: `local`.
+    fn import_online(&self, file: Import, given: Option<&str>) -> Result<Value, String> {
+        let given = given.map(str::trim).filter(|k| !k.is_empty());
+        // The event (its id, number, title) and the key the file brings.
+        let (event_id, number, title, in_file) = match &file {
+            Import::Rosson { path, event } => {
+                let export = crate::read_rosson(path)?;
+                let found = export.events().into_iter().find(|e| e.id == *event).ok_or_else(|| format!("no event {event} in the file"))?;
+                let id: u64 = event.parse().map_err(|_| format!("event {event}: not an event of Swiss Equestrian"))?;
+                (id, found.number, found.title, export.access_key(event))
+            }
+            Import::Show { path } => {
+                let bytes = std::fs::read(path).map_err(|e| format!("{}: {e}", path.display()))?;
+                let (manifest, ops) = show::export::read(&bytes).map_err(|e| e.0)?;
+                let first = ops.first().map(|op| op.author.as_str());
+                match manifest.event {
+                    Some(e) if first != Some(REHEARSAL) && !crate::training::is_training(first) => (e.id, e.number, e.title.first().cloned().unwrap_or_default(), None),
+                    _ => return Ok(json!({ "outcome": "local", "show": self.import_show(path)? })),
+                }
+            }
+        };
+        let about = |mut answer: Value| {
+            answer["number"] = json!(number);
+            answer["title"] = json!(title);
+            Ok(answer)
+        };
+        if self.signed_in()?.is_none() {
+            return about(json!({ "outcome": "signed_out" }));
+        }
+        let name = connection::access_key_name(event_id);
+        let Some(key) = given.map(str::to_string).or(in_file.clone()).or(self.secrets.get(&name)?) else { return about(json!({ "outcome": "need_key" })) };
+        // A past event's key, from its Rosson export, is taken on trust (whoever has the export
+        // has the key); a key typed or kept here is Swiss Equestrian's to check.
+        let from_export = matches!(file, Import::Rosson { .. }) && given.is_none() && in_file.is_some();
+        let body = json!({ "access_key": key, "event_id": event_id, "name": title, "number": number, "from_export": from_export });
+        match self.claim(&body) {
+            Ok(made) if made["created"] == true => {
+                let remote = made["id"].as_str().ok_or("the server gave no show id")?.to_string();
+                let imported = match &file {
+                    Import::Rosson { path, event } => self.import_rosson(path, event, false),
+                    Import::Show { path } => self.import_show(path),
+                };
+                let show = match imported {
+                    Ok(show) => show,
+                    Err(e) => {
+                        // Not here after all: the event is free again for whoever brings it.
+                        let _ = self.api("DELETE", &format!("/api/shows/{remote}"), None);
+                        return Err(e);
+                    }
+                };
+                self.secrets.set(&name, Some(&key))?;
+                self.link(&show, &remote)?;
+                let note = self.sync(&show)?;
+                about(json!({ "outcome": "made", "show": show, "remote": remote, "sync": note }))
+            }
+            Ok(member) => {
+                self.secrets.set(&name, Some(&key))?;
+                let remote = member["id"].as_str().ok_or("the server gave no show id")?.to_string();
+                let down = self.download_show(&remote)?;
+                if down["ok"] != true {
+                    return about(json!({ "outcome": down["code"], "error": down["error"] }));
+                }
+                about(json!({ "outcome": "member", "show": down["show"], "remote": remote, "role": member["role"] }))
+            }
+            Err(Failure::Status { status: 409, body }) if body["code"] == "claimed" => {
+                self.secrets.set(&name, Some(&key))?;
+                about(json!({ "outcome": "owned", "remote": body["id"], "owner": body["owner"], "request": body["request"], "access_key": key }))
+            }
+            Err(f) => about(json!({ "outcome": f.code(), "error": f.message() })),
         }
     }
 
